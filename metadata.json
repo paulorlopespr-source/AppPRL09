@@ -1,0 +1,6 @@
+{
+  "name": "FitTreino",
+  "description": "App completo de musculação e cardio com modelos de treino, agenda com localização, timer de execução e descanso, metas, evolução e avaliação calórica com IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

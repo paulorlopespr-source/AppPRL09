@@ -1,0 +1,100 @@
+package com.example.data.repository
+
+import com.example.data.ai.GeminiCalorieService
+import com.example.data.local.FitnessDao
+import com.example.data.model.BodyMeasurement
+import com.example.data.model.CardioSession
+import com.example.data.model.Exercise
+import com.example.data.model.UserProfile
+import com.example.data.model.WorkoutSession
+import com.example.data.model.WorkoutTemplate
+import kotlinx.coroutines.flow.Flow
+
+class FitnessRepository(
+    private val dao: FitnessDao,
+    private val geminiService: GeminiCalorieService = GeminiCalorieService()
+) {
+
+    // --- Workout Templates ---
+    val allWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getAllWorkoutTemplates()
+
+    suspend fun getWorkoutTemplateById(id: Long): WorkoutTemplate? = dao.getWorkoutTemplateById(id)
+
+    suspend fun saveWorkoutTemplate(template: WorkoutTemplate): Long = dao.insertWorkoutTemplate(template)
+
+    suspend fun updateWorkoutTemplate(template: WorkoutTemplate) = dao.updateWorkoutTemplate(template)
+
+    suspend fun deleteWorkoutTemplateById(id: Long) = dao.deleteWorkoutTemplateById(id)
+
+    // --- Exercises ---
+    val allExercises: Flow<List<Exercise>> = dao.getAllExercises()
+
+    suspend fun insertExercise(exercise: Exercise): Long = dao.insertExercise(exercise)
+
+    // --- Workout Sessions ---
+    val allWorkoutSessions: Flow<List<WorkoutSession>> = dao.getAllWorkoutSessions()
+
+    fun getWorkoutSessionsForDate(epochDay: Long): Flow<List<WorkoutSession>> =
+        dao.getWorkoutSessionsForDate(epochDay)
+
+    fun getWorkoutSessionsInRange(startEpochDay: Long, endEpochDay: Long): Flow<List<WorkoutSession>> =
+        dao.getWorkoutSessionsInRange(startEpochDay, endEpochDay)
+
+    suspend fun getWorkoutSessionById(id: Long): WorkoutSession? = dao.getWorkoutSessionById(id)
+
+    suspend fun saveWorkoutSession(session: WorkoutSession): Long = dao.insertWorkoutSession(session)
+
+    suspend fun updateWorkoutSession(session: WorkoutSession) = dao.updateWorkoutSession(session)
+
+    suspend fun deleteWorkoutSessionById(id: Long) = dao.deleteWorkoutSessionById(id)
+
+    // --- Cardio Sessions ---
+    val allCardioSessions: Flow<List<CardioSession>> = dao.getAllCardioSessions()
+
+    fun getCardioSessionsForDate(epochDay: Long): Flow<List<CardioSession>> =
+        dao.getCardioSessionsForDate(epochDay)
+
+    fun getCardioSessionsInRange(startEpochDay: Long, endEpochDay: Long): Flow<List<CardioSession>> =
+        dao.getCardioSessionsInRange(startEpochDay, endEpochDay)
+
+    suspend fun saveCardioSession(session: CardioSession): Long = dao.insertCardioSession(session)
+
+    suspend fun deleteCardioSessionById(id: Long) = dao.deleteCardioSessionById(id)
+
+    // --- User Profile & Measurements ---
+    val userProfile: Flow<UserProfile?> = dao.getUserProfile()
+
+    suspend fun saveUserProfile(profile: UserProfile) = dao.insertUserProfile(profile)
+
+    val allBodyMeasurements: Flow<List<BodyMeasurement>> = dao.getAllBodyMeasurements()
+
+    suspend fun saveBodyMeasurement(measurement: BodyMeasurement): Long =
+        dao.insertBodyMeasurement(measurement)
+
+    suspend fun deleteBodyMeasurementById(id: Long) = dao.deleteBodyMeasurementById(id)
+
+    // --- Gemini AI ---
+    suspend fun evaluateWorkoutWithAI(
+        session: WorkoutSession,
+        profile: UserProfile,
+        recentCardio: CardioSession? = null
+    ): String {
+        return geminiService.evaluateWorkoutCaloriesAndPerformance(session, profile, recentCardio)
+    }
+
+    suspend fun evaluateCardioWithAI(
+        cardio: CardioSession,
+        profile: UserProfile
+    ): String {
+        return geminiService.evaluateCardioCalories(cardio, profile)
+    }
+
+    suspend fun getAICoachAdvice(
+        profile: UserProfile,
+        workoutsCount: Int,
+        totalVolumeKg: Double,
+        cardioMinutes: Int
+    ): String {
+        return geminiService.getPersonalizedAICoachAdvice(profile, workoutsCount, totalVolumeKg, cardioMinutes)
+    }
+}
