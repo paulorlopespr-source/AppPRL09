@@ -55,3 +55,18 @@ data class BodyMeasurement(
     val calfCm: Double? = null,
     val notes: String = ""
 )
+
+@JsonClass(generateAdapter = true)
+@Entity(tableName = "progress_photos")
+data class ProgressPhoto(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val dateEpochDay: Long,
+    val timestampMillis: Long = System.currentTimeMillis(),
+    val imageUri: String,
+    val weightKg: Double? = null,
+    val monthLabel: String = "",
+    val isInitial: Boolean = false,
+    val bodyFatPercentage: Double? = null,
+    val notes: String = ""
+)
+

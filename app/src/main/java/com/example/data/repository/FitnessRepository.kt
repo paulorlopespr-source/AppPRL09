@@ -15,8 +15,10 @@ class FitnessRepository(
     private val geminiService: GeminiCalorieService = GeminiCalorieService()
 ) {
 
-    // --- Workout Templates ---
+    // --- Workout Templates (Favorites & Custom Routines) ---
     val allWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getAllWorkoutTemplates()
+    val favoriteWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getFavoriteWorkoutTemplates()
+    val customWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getCustomWorkoutTemplates()
 
     suspend fun getWorkoutTemplateById(id: Long): WorkoutTemplate? = dao.getWorkoutTemplateById(id)
 
@@ -24,7 +26,21 @@ class FitnessRepository(
 
     suspend fun updateWorkoutTemplate(template: WorkoutTemplate) = dao.updateWorkoutTemplate(template)
 
+    suspend fun setWorkoutTemplateFavorite(id: Long, isFavorite: Boolean) =
+        dao.setWorkoutTemplateFavorite(id, isFavorite)
+
     suspend fun deleteWorkoutTemplateById(id: Long) = dao.deleteWorkoutTemplateById(id)
+
+    suspend fun duplicateWorkoutTemplate(template: WorkoutTemplate): Long {
+        val duplicated = template.copy(
+            id = 0,
+            title = "${template.title} (Cópia)",
+            isPreset = false,
+            isFavorite = false,
+            timesCompleted = 0
+        )
+        return dao.insertWorkoutTemplate(duplicated)
+    }
 
     // --- Exercises ---
     val allExercises: Flow<List<Exercise>> = dao.getAllExercises()
@@ -73,7 +89,49 @@ class FitnessRepository(
 
     suspend fun deleteBodyMeasurementById(id: Long) = dao.deleteBodyMeasurementById(id)
 
+    // --- Progress Photos (Evolution) ---
+    val allProgressPhotos: Flow<List<com.example.data.model.ProgressPhoto>> = dao.getAllProgressPhotos()
+    val initialProgressPhoto: Flow<com.example.data.model.ProgressPhoto?> = dao.getInitialProgressPhoto()
+
+    suspend fun saveProgressPhoto(photo: com.example.data.model.ProgressPhoto): Long =
+        dao.insertProgressPhoto(photo)
+
+    suspend fun deleteProgressPhotoById(id: Long) = dao.deleteProgressPhotoById(id)
+
+    // --- Exercise Performance Targets (Goals) ---
+    val allExerciseTargets: Flow<List<com.example.data.model.ExercisePerformanceTarget>> = dao.getAllExerciseTargets()
+
+    suspend fun saveExerciseTarget(target: com.example.data.model.ExercisePerformanceTarget): Long =
+        dao.insertExerciseTarget(target)
+
+    suspend fun updateExerciseTarget(target: com.example.data.model.ExercisePerformanceTarget) =
+        dao.updateExerciseTarget(target)
+
+    suspend fun setExerciseTargetAchieved(id: Long, isAchieved: Boolean, achievedEpochDay: Long?) =
+        dao.setExerciseTargetAchieved(id, isAchieved, achievedEpochDay)
+
+    suspend fun deleteExerciseTargetById(id: Long) = dao.deleteExerciseTargetById(id)
+
     // --- Gemini AI ---
+    suspend fun calculateCaloricExpenditure(
+        exercisesDoneJson: String,
+        durationMinutes: Int,
+        perceivedExertion: Int,
+        totalWeightKg: Double,
+        profile: UserProfile,
+        recentCardio: CardioSession? = null
+    ): String {
+        val dummySession = WorkoutSession(
+            title = "Treino Analisado",
+            dateEpochDay = java.time.LocalDate.now().toEpochDay(),
+            durationSeconds = durationMinutes * 60,
+            perceivedExertion = perceivedExertion,
+            totalWeightLiftedKg = totalWeightKg,
+            exercisesDoneJson = exercisesDoneJson
+        )
+        return geminiService.evaluateWorkoutCaloriesAndPerformance(dummySession, profile, recentCardio)
+    }
+
     suspend fun evaluateWorkoutWithAI(
         session: WorkoutSession,
         profile: UserProfile,

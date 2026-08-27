@@ -29,25 +29,19 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,7 +53,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -69,13 +62,30 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.BodyMeasurement
 import com.example.data.model.FitnessGoal
-import com.example.data.model.UserProfile
-import com.example.ui.components.AIEvaluationDialog
+import com.example.data.model.ProgressPhoto
+import com.example.ui.components.AIInsightCard
+import com.example.ui.components.AddProgressPhotoDialog
+import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
+import com.example.ui.components.GoalSettingSection
+import com.example.ui.components.PhotoDetailDialog
+import com.example.ui.components.PrimaryButton
+import com.example.ui.components.ProgressPhotosSection
 import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.GlassBorder
+import com.example.ui.theme.GlassBorderSubtle
+import com.example.ui.theme.GradientAction
+import com.example.ui.theme.LilacAccent
+import com.example.ui.theme.LilacSoft
+import com.example.ui.theme.PurpleDarkSurface
+import com.example.ui.theme.PurpleDarkest
+import com.example.ui.theme.PurpleDeepCard
+import com.example.ui.theme.PurplePrimary
+import com.example.ui.theme.PurpleVibrant
 import com.example.ui.theme.RedDestructive
-import com.example.ui.theme.RoyalBlue
-import com.example.ui.theme.RoyalBlueSubtle
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
 
 @Composable
@@ -85,12 +95,25 @@ fun EvolutionScreen(
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val measurements by viewModel.allBodyMeasurements.collectAsStateWithLifecycle()
+    val progressPhotos by viewModel.allProgressPhotos.collectAsStateWithLifecycle()
+    val initialProgressPhoto by viewModel.initialProgressPhoto.collectAsStateWithLifecycle()
     val isAIEvaluating by viewModel.isAIEvaluating.collectAsStateWithLifecycle()
     val aiCoachAdvice by viewModel.aiCoachAdvice.collectAsStateWithLifecycle()
+    val exerciseTargets by viewModel.allExerciseTargets.collectAsStateWithLifecycle()
+    val allWorkoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
+    val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
+
+    val todayEpoch = DateUtils.todayEpochDay()
+    val startOfWeekEpoch = todayEpoch - java.time.LocalDate.now().dayOfWeek.value + 1
+    val completedThisWeek = allWorkoutSessions.count {
+        it.dateEpochDay >= startOfWeekEpoch && it.status == com.example.data.model.SessionStatus.COMPLETED
+    }
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showAddMeasurementDialog by remember { mutableStateOf(false) }
-    var showAiCoachDialog by remember { mutableStateOf(false) }
+    var showAddPhotoDialog by remember { mutableStateOf(false) }
+    var isAddingInitialPhoto by remember { mutableStateOf(false) }
+    var selectedPhotoDetail by remember { mutableStateOf<ProgressPhoto?>(null) }
 
     val currentWeight = userProfile?.currentWeightKg ?: 78.0
     val startWeight = userProfile?.startingWeightKg ?: 75.0
@@ -99,7 +122,11 @@ fun EvolutionScreen(
 
     val weightDelta = currentWeight - startWeight
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(PurpleDarkest)
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -118,210 +145,188 @@ fun EvolutionScreen(
                         Text(
                             text = "Medidas & Evolução",
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
                         )
                         Text(
-                            text = "Acompanhe seu peso, medidas corporais e metas",
+                            text = "Acompanhamento biométrico, fotos e metas de performance",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextSecondary
                         )
                     }
 
-                    IconButton(
-                        onClick = { showEditProfileDialog = true },
-                        modifier = Modifier.testTag("btn_edit_profile")
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(PurpleDarkSurface)
+                            .border(1.dp, GlassBorder, CircleShape)
+                            .clickable { showEditProfileDialog = true }
+                            .testTag("btn_edit_profile"),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = RoyalBlue)
+                        Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = LilacAccent, modifier = Modifier.size(18.dp))
                     }
                 }
             }
 
-            // Goal & Weight Overview Card
+            // Goal & Weight Overview Bento Card
             item {
-                Card(
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                BentoCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline,
-                            RoundedCornerShape(22.dp)
-                        )
                         .testTag("card_evolution_goal")
                 ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "OBJETIVO DO ATLETA",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = RoyalBlue,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = goal.label,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(RoyalBlueSubtle)
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (goal == FitnessGoal.GANHO_PESO_HIPERTROFIA) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
-                                        contentDescription = null,
-                                        tint = RoyalBlue,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (weightDelta >= 0) "+${String.format(java.util.Locale.US, "%.1f", weightDelta)} kg" else "${String.format(java.util.Locale.US, "%.1f", weightDelta)} kg",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = RoyalBlue
-                                    )
-                                }
-                            }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "OBJETIVO DO ATLETA",
+                                fontSize = 10.sp,
+                                color = LilacAccent,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = goal.label,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = TextPrimary
+                            )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Weights row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Peso Inicial", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${startWeight}kg", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Peso Atual", style = MaterialTheme.typography.labelSmall, color = RoyalBlue)
-                                Text("${currentWeight}kg", fontSize = 24.sp, fontWeight = FontWeight.Black, color = RoyalBlue)
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Peso Alvo", style = MaterialTheme.typography.labelSmall, color = EmeraldSuccess)
-                                Text("${targetWeight}kg", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Progress bar
-                        val totalDistance = kotlin.math.abs(targetWeight - startWeight).coerceAtLeast(0.1)
-                        val achieved = when (goal) {
-                            FitnessGoal.GANHO_PESO_HIPERTROFIA -> (currentWeight - startWeight).coerceAtLeast(0.0)
-                            FitnessGoal.PERDA_PESO_EMAGRECIMENTO -> (startWeight - currentWeight).coerceAtLeast(0.0)
-                            else -> kotlin.math.abs(currentWeight - startWeight)
-                        }
-                        val fraction = (achieved / totalDistance).toFloat().coerceIn(0f, 1f)
-
-                        LinearProgressIndicator(
-                            progress = { fraction },
+                        Box(
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            color = RoyalBlue,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "${(fraction * 100).toInt()}% da meta alcançada",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.align(Alignment.End)
-                        )
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(PurpleDarkSurface)
+                                .border(1.dp, LilacAccent.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (goal == FitnessGoal.GANHO_PESO_HIPERTROFIA) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                    contentDescription = null,
+                                    tint = LilacAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (weightDelta >= 0) "+${String.format(java.util.Locale.US, "%.1f", weightDelta)} kg" else "${String.format(java.util.Locale.US, "%.1f", weightDelta)} kg",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = LilacAccent
+                                )
+                            }
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Weights row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Peso Inicial", fontSize = 11.sp, color = TextMuted)
+                            Text("${startWeight}kg", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Peso Atual", fontSize = 11.sp, color = LilacAccent, fontWeight = FontWeight.Bold)
+                            Text("${currentWeight}kg", fontSize = 24.sp, fontWeight = FontWeight.Black, color = LilacAccent)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Peso Alvo", fontSize = 11.sp, color = EmeraldSuccess)
+                            Text("${targetWeight}kg", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Progress bar
+                    val totalDistance = kotlin.math.abs(targetWeight - startWeight).coerceAtLeast(0.1)
+                    val achieved = when (goal) {
+                        FitnessGoal.GANHO_PESO_HIPERTROFIA -> (currentWeight - startWeight).coerceAtLeast(0.0)
+                        FitnessGoal.PERDA_PESO_EMAGRECIMENTO -> (startWeight - currentWeight).coerceAtLeast(0.0)
+                        else -> kotlin.math.abs(currentWeight - startWeight)
+                    }
+                    val fraction = (achieved / totalDistance).toFloat().coerceIn(0f, 1f)
+
+                    LinearProgressIndicator(
+                        progress = { fraction },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = LilacAccent,
+                        trackColor = PurpleDarkest
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "${(fraction * 100).toInt()}% da meta alcançada",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                        modifier = Modifier.align(Alignment.End)
+                    )
                 }
             }
 
-            // AI Coach & Calorie Analysis Card
+            // Goal Setting & Specific Exercise Targets
             item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                GoalSettingSection(
+                    userProfile = userProfile,
+                    targets = exerciseTargets,
+                    completedWorkoutsThisWeek = completedThisWeek,
+                    availableExercises = allExercises,
+                    onUpdateWeeklyGoalDays = { days ->
+                        viewModel.updateWeeklyGoalDays(days)
+                    },
+                    onSaveTarget = { target ->
+                        viewModel.saveExerciseTarget(target)
+                    },
+                    onToggleTargetAchieved = { target ->
+                        viewModel.toggleExerciseTargetAchieved(target)
+                    },
+                    onDeleteTarget = { id ->
+                        viewModel.deleteExerciseTarget(id)
+                    }
+                )
+            }
+
+            // Progress & Body Photos Evolution Section
+            item {
+                ProgressPhotosSection(
+                    photos = progressPhotos,
+                    initialPhoto = initialProgressPhoto,
+                    onAddPhotoClick = { isInitial ->
+                        isAddingInitialPhoto = isInitial
+                        showAddPhotoDialog = true
+                    },
+                    onPhotoClick = { photo ->
+                        selectedPhotoDetail = photo
+                    }
+                )
+            }
+
+            // AI Coach & Calorie Analysis
+            item {
+                AIInsightCard(
+                    title = "COACH & NUTRIÇÃO COM IA",
+                    message = aiCoachAdvice ?: "Clique no botão abaixo para receber uma análise profunda da sua sobrecarga progressiva, balanço calórico e estratégias para sua meta atual."
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                PrimaryButton(
+                    text = if (isAIEvaluating) "Avaliando..." else "Consultar Coach IA Sobre Minha Meta",
+                    icon = Icons.Default.AutoAwesome,
+                    onClick = { viewModel.requestAICoachAdvice() },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(RoyalBlueSubtle)
-                                ) {
-                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = RoyalBlue, modifier = Modifier.size(20.dp))
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text("Coach & Nutrição com IA", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                    Text("Feedback bioenergético para sua meta", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (aiCoachAdvice != null) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = aiCoachAdvice!!,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    lineHeight = 20.sp,
-                                    modifier = Modifier.padding(12.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(10.dp))
-                        }
-
-                        Button(
-                            onClick = {
-                                viewModel.requestAICoachAdvice()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("btn_request_ai_coach")
-                        ) {
-                            if (isAIEvaluating) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Avaliando...")
-                            } else {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Consultar Coach IA Sobre Minha Meta", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
+                        .testTag("btn_request_ai_coach")
+                )
             }
 
             // Body Measurements Section Header
@@ -334,43 +339,45 @@ fun EvolutionScreen(
                     Text(
                         text = "Histórico de Medidas Corporais",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
-                    Button(
-                        onClick = { showAddMeasurementDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.testTag("btn_add_measurement")
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(PurpleDeepCard)
+                            .border(1.dp, LilacAccent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                            .clickable { showAddMeasurementDialog = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .testTag("btn_add_measurement"),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Nova Medida", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = LilacAccent, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Nova Medida", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LilacAccent)
+                        }
                     }
                 }
             }
 
             if (measurements.isEmpty()) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-                    ) {
+                    BentoCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Straighten, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
+                            Icon(Icons.Default.Straighten, contentDescription = null, tint = TextMuted, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Nenhuma medição registrada ainda", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Nenhuma medição registrada ainda", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Text(
-                                text = "Registre suas medidas (braço, tórax, cintura, coxa, etc.) para ver sua evolução física!",
+                                text = "Registre suas medidas (braço, tórax, cintura, coxa) para acompanhar seu ganho de massa magra.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
@@ -399,7 +406,7 @@ fun EvolutionScreen(
 
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
-            title = { Text("Configurar Metas & Perfil", fontWeight = FontWeight.Bold) },
+            title = { Text("Configurar Metas & Perfil", fontWeight = FontWeight.Black, color = TextPrimary) },
             text = {
                 Column(
                     modifier = Modifier
@@ -412,16 +419,22 @@ fun EvolutionScreen(
                         onValueChange = { name = it },
                         label = { Text("Nome do Atleta") },
                         singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Text("Objetivo Principal:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Objetivo Principal:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         FitnessGoal.values().forEach { fg ->
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (selectedGoal == fg) RoyalBlueSubtle else MaterialTheme.colorScheme.surfaceVariant,
-                                border = if (selectedGoal == fg) androidx.compose.foundation.BorderStroke(1.5.dp, RoyalBlue) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                color = if (selectedGoal == fg) PurpleDeepCard else PurpleDarkSurface,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedGoal == fg) LilacAccent else GlassBorderSubtle),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { selectedGoal = fg }
@@ -432,11 +445,11 @@ fun EvolutionScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(fg.label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                                        Text(fg.description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(fg.label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                        Text(fg.description, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                                     }
                                     if (selectedGoal == fg) {
-                                        Icon(Icons.Default.Check, contentDescription = null, tint = RoyalBlue)
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = LilacAccent)
                                     }
                                 }
                             }
@@ -449,6 +462,12 @@ fun EvolutionScreen(
                             onValueChange = { currentW = it },
                             label = { Text("Peso Atual (kg)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
@@ -456,6 +475,12 @@ fun EvolutionScreen(
                             onValueChange = { targetW = it },
                             label = { Text("Peso Alvo (kg)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -466,6 +491,12 @@ fun EvolutionScreen(
                             onValueChange = { heightStr = it },
                             label = { Text("Altura (cm)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
@@ -473,6 +504,12 @@ fun EvolutionScreen(
                             onValueChange = { ageStr = it },
                             label = { Text("Idade") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -482,6 +519,12 @@ fun EvolutionScreen(
                         onValueChange = { weeklyDays = it },
                         label = { Text("Meta Semanal (dias de treino)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -502,7 +545,7 @@ fun EvolutionScreen(
                         viewModel.updateUserProfile(updated)
                         showEditProfileDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.testTag("btn_save_profile")
                 ) {
@@ -511,10 +554,10 @@ fun EvolutionScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showEditProfileDialog = false }) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = TextMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
         )
     }
@@ -532,7 +575,7 @@ fun EvolutionScreen(
 
         AlertDialog(
             onDismissRequest = { showAddMeasurementDialog = false },
-            title = { Text("Registrar Novas Medidas", fontWeight = FontWeight.Bold) },
+            title = { Text("Registrar Novas Medidas", fontWeight = FontWeight.Black, color = TextPrimary) },
             text = {
                 Column(
                     modifier = Modifier
@@ -545,6 +588,12 @@ fun EvolutionScreen(
                         onValueChange = { weightStr = it },
                         label = { Text("Peso Corporal (kg) *") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -554,6 +603,12 @@ fun EvolutionScreen(
                             onValueChange = { chestStr = it },
                             label = { Text("Tórax (cm)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
@@ -561,6 +616,12 @@ fun EvolutionScreen(
                             onValueChange = { waistStr = it },
                             label = { Text("Cintura (cm)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -571,6 +632,12 @@ fun EvolutionScreen(
                             onValueChange = { armStr = it },
                             label = { Text("Braço (cm)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
@@ -578,6 +645,12 @@ fun EvolutionScreen(
                             onValueChange = { thighStr = it },
                             label = { Text("Coxa (cm)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -588,6 +661,12 @@ fun EvolutionScreen(
                             onValueChange = { calfStr = it },
                             label = { Text("Panturrilha (cm)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
@@ -595,6 +674,12 @@ fun EvolutionScreen(
                             onValueChange = { fatStr = it },
                             label = { Text("% Gordura") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = LilacAccent,
+                                unfocusedBorderColor = GlassBorder
+                            ),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -603,6 +688,12 @@ fun EvolutionScreen(
                         value = notes,
                         onValueChange = { notes = it },
                         label = { Text("Observações (Ex: jejum, pós treino)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -624,7 +715,7 @@ fun EvolutionScreen(
                         viewModel.addBodyMeasurement(m)
                         showAddMeasurementDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.testTag("btn_confirm_add_measurement")
                 ) {
@@ -633,11 +724,46 @@ fun EvolutionScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showAddMeasurementDialog = false }) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = TextMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
+        )
+    }
+
+    // Add Progress Photo Dialog
+    if (showAddPhotoDialog) {
+        AddProgressPhotoDialog(
+            initialWeight = if (isAddingInitialPhoto) startWeight else currentWeight,
+            isSettingInitial = isAddingInitialPhoto,
+            onDismiss = { showAddPhotoDialog = false },
+            onSave = { uri, weight, monthLabel, isInitial, fat, notes ->
+                viewModel.saveProgressPhoto(
+                    sourceUri = uri,
+                    weightKg = weight,
+                    monthLabel = monthLabel,
+                    isInitial = isInitial,
+                    bodyFatPercentage = fat,
+                    notes = notes,
+                    onComplete = {
+                        showAddPhotoDialog = false
+                    }
+                )
+            }
+        )
+    }
+
+    // Photo Detail Dialog
+    selectedPhotoDetail?.let { photo ->
+        PhotoDetailDialog(
+            photo = photo,
+            initialPhoto = initialProgressPhoto,
+            onDismiss = { selectedPhotoDetail = null },
+            onDelete = {
+                viewModel.deleteProgressPhoto(photo)
+                selectedPhotoDetail = null
+            }
         )
     }
 }
@@ -647,87 +773,80 @@ fun BodyMeasurementCard(
     measurement: BodyMeasurement,
     onDelete: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(RoyalBlueSubtle)
-                    ) {
-                        Icon(Icons.Default.Straighten, contentDescription = null, tint = RoyalBlue, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "${measurement.weightKg} kg",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = DateUtils.formatEpochDayShort(measurement.dateEpochDay),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+    BentoCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, LilacAccent.copy(alpha = 0.4f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Straighten, contentDescription = null, tint = LilacAccent, modifier = Modifier.size(18.dp))
                 }
-
-                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = RedDestructive, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "${measurement.weightKg} kg",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = DateUtils.formatEpochDayShort(measurement.dateEpochDay),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Measurement badges
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                measurement.chestCm?.let {
-                    MeasurementBadge(label = "Tórax", value = "${it}cm")
-                }
-                measurement.waistCm?.let {
-                    MeasurementBadge(label = "Cintura", value = "${it}cm")
-                }
-                measurement.armCm?.let {
-                    MeasurementBadge(label = "Braço", value = "${it}cm")
-                }
-                measurement.thighCm?.let {
-                    MeasurementBadge(label = "Coxa", value = "${it}cm")
-                }
-                measurement.calfCm?.let {
-                    MeasurementBadge(label = "Panturrilha", value = "${it}cm")
-                }
-                measurement.bodyFatPercentage?.let {
-                    MeasurementBadge(label = "Gordura", value = "${it}%")
-                }
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = RedDestructive, modifier = Modifier.size(16.dp))
             }
+        }
 
-            if (measurement.notes.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "📝 ${measurement.notes}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Measurement badges
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            measurement.chestCm?.let {
+                MeasurementBadge(label = "Tórax", value = "${it}cm")
             }
+            measurement.waistCm?.let {
+                MeasurementBadge(label = "Cintura", value = "${it}cm")
+            }
+            measurement.armCm?.let {
+                MeasurementBadge(label = "Braço", value = "${it}cm")
+            }
+            measurement.thighCm?.let {
+                MeasurementBadge(label = "Coxa", value = "${it}cm")
+            }
+            measurement.calfCm?.let {
+                MeasurementBadge(label = "Panturrilha", value = "${it}cm")
+            }
+            measurement.bodyFatPercentage?.let {
+                MeasurementBadge(label = "Gordura", value = "${it}%")
+            }
+        }
+
+        if (measurement.notes.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "📝 ${measurement.notes}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
         }
     }
 }
@@ -736,15 +855,16 @@ fun BodyMeasurementCard(
 fun MeasurementBadge(label: String, value: String) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = PurpleDarkSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
         modifier = Modifier.padding(vertical = 2.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "$label: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = "$label: ", fontSize = 11.sp, color = TextMuted)
+            Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LilacAccent)
         }
     }
 }

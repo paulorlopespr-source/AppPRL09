@@ -547,4 +547,242 @@ object DefaultFitnessData {
             )
         )
     }
+
+    fun getDefaultExerciseTargets(): List<com.example.data.model.ExercisePerformanceTarget> {
+        val today = java.time.LocalDate.now().toEpochDay()
+        return listOf(
+            com.example.data.model.ExercisePerformanceTarget(
+                id = 1,
+                exerciseId = 1,
+                exerciseName = "Supino Reto com Barra",
+                targetWeightKg = 100.0,
+                targetReps = 8,
+                currentWeightKg = 80.0,
+                currentReps = 8,
+                targetDateEpochDay = today + 60,
+                isAchieved = false,
+                notes = "Meta dos 100kg (3 dígitos) com técnica perfeita e amplitude completa.",
+                createdAtEpochDay = today
+            ),
+            com.example.data.model.ExercisePerformanceTarget(
+                id = 2,
+                exerciseId = 9,
+                exerciseName = "Agachamento Livre com Barra",
+                targetWeightKg = 140.0,
+                targetReps = 6,
+                currentWeightKg = 110.0,
+                currentReps = 6,
+                targetDateEpochDay = today + 90,
+                isAchieved = false,
+                notes = "Foco em profundidade paralela e força nos quadríceps.",
+                createdAtEpochDay = today
+            ),
+            com.example.data.model.ExercisePerformanceTarget(
+                id = 3,
+                exerciseId = 10,
+                exerciseName = "Levantamento Terra (Deadlift)",
+                targetWeightKg = 160.0,
+                targetReps = 5,
+                currentWeightKg = 130.0,
+                currentReps = 5,
+                targetDateEpochDay = today + 75,
+                isAchieved = false,
+                notes = "Fortalecimento de lombar, eretores e pegada pronada.",
+                createdAtEpochDay = today
+            ),
+            com.example.data.model.ExercisePerformanceTarget(
+                id = 4,
+                exerciseId = 4,
+                exerciseName = "Desenvolvimento com Halteres",
+                targetWeightKg = 32.0,
+                targetReps = 10,
+                currentWeightKg = 26.0,
+                currentReps = 10,
+                targetDateEpochDay = today + 45,
+                isAchieved = false,
+                notes = "Ombros densos e controle escapular.",
+                createdAtEpochDay = today
+            )
+        )
+    }
+
+    fun getDefaultWorkoutSessions(): List<com.example.data.model.WorkoutSession> {
+        val today = java.time.LocalDate.now().toEpochDay()
+        val now = System.currentTimeMillis()
+
+        // Session 1 (2 days ago): Treino A - Peito, Tríceps & Ombros
+        val session1Plans = listOf(
+            WorkoutExercisePlan(
+                exerciseId = 1,
+                exerciseName = "Supino Reto com Barra",
+                muscleGroup = MuscleGroup.PEITO.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 60.0, 10, true, 90),
+                    ExerciseSetEntry(2, 60.0, 10, true, 90),
+                    ExerciseSetEntry(3, 60.0, 10, true, 90)
+                ),
+                targetRestSeconds = 90,
+                notes = "Execução perfeita, cadência 2-0-1 controlada."
+            ),
+            WorkoutExercisePlan(
+                exerciseId = 2,
+                exerciseName = "Supino Inclinado com Halteres",
+                muscleGroup = MuscleGroup.PEITO.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 22.0, 10, true, 60),
+                    ExerciseSetEntry(2, 22.0, 10, true, 60),
+                    ExerciseSetEntry(3, 22.0, 9, true, 60)
+                ),
+                targetRestSeconds = 60,
+                notes = "Última repetição próxima da falha concêntrica."
+            ),
+            WorkoutExercisePlan(
+                exerciseId = 3,
+                exerciseName = "Crossover na Polia Média",
+                muscleGroup = MuscleGroup.PEITO.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 15.0, 12, true, 60),
+                    ExerciseSetEntry(2, 15.0, 12, true, 60),
+                    ExerciseSetEntry(3, 15.0, 12, true, 60)
+                ),
+                targetRestSeconds = 60,
+                notes = "Pico de contração de 1s."
+            ),
+            WorkoutExercisePlan(
+                exerciseId = 25,
+                exerciseName = "Tríceps na Polia com Corda",
+                muscleGroup = MuscleGroup.TRICEPS.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 25.0, 12, true, 45),
+                    ExerciseSetEntry(2, 25.0, 12, true, 45),
+                    ExerciseSetEntry(3, 25.0, 12, true, 45)
+                ),
+                targetRestSeconds = 45,
+                notes = "Abertura máxima no final."
+            )
+        )
+
+        // Session 2 (5 days ago): Treino B - Costas, Bíceps & Abdômen
+        val session2Plans = listOf(
+            WorkoutExercisePlan(
+                exerciseId = 6,
+                exerciseName = "Puxada Alta Frontal",
+                muscleGroup = MuscleGroup.COSTAS.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 45.0, 10, true, 60),
+                    ExerciseSetEntry(2, 45.0, 10, true, 60),
+                    ExerciseSetEntry(3, 45.0, 10, true, 60),
+                    ExerciseSetEntry(4, 45.0, 10, true, 60)
+                ),
+                targetRestSeconds = 60,
+                notes = "Depressão escapular firme."
+            ),
+            WorkoutExercisePlan(
+                exerciseId = 7,
+                exerciseName = "Remada Curvada com Barra",
+                muscleGroup = MuscleGroup.COSTAS.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 35.0, 8, true, 75),
+                    ExerciseSetEntry(2, 35.0, 8, true, 75),
+                    ExerciseSetEntry(3, 35.0, 8, true, 75)
+                ),
+                targetRestSeconds = 75,
+                notes = "Tronco travado a 45 graus."
+            ),
+            WorkoutExercisePlan(
+                exerciseId = 22,
+                exerciseName = "Rosca Direta com Barra W",
+                muscleGroup = MuscleGroup.BICEPS.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 20.0, 10, true, 60),
+                    ExerciseSetEntry(2, 20.0, 10, true, 60),
+                    ExerciseSetEntry(3, 20.0, 9, true, 60)
+                ),
+                targetRestSeconds = 60,
+                notes = "Sem roubo com a lombar."
+            )
+        )
+
+        // Session 3 (7 days ago): Treino A anterior
+        val session3Plans = listOf(
+            WorkoutExercisePlan(
+                exerciseId = 1,
+                exerciseName = "Supino Reto com Barra",
+                muscleGroup = MuscleGroup.PEITO.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 60.0, 10, true, 90),
+                    ExerciseSetEntry(2, 60.0, 9, true, 90),
+                    ExerciseSetEntry(3, 60.0, 8, true, 90)
+                ),
+                targetRestSeconds = 90,
+                notes = "Boa estabilidade."
+            ),
+            WorkoutExercisePlan(
+                exerciseId = 2,
+                exerciseName = "Supino Inclinado com Halteres",
+                muscleGroup = MuscleGroup.PEITO.displayName,
+                sets = listOf(
+                    ExerciseSetEntry(1, 20.0, 10, true, 60),
+                    ExerciseSetEntry(2, 20.0, 10, true, 60),
+                    ExerciseSetEntry(3, 20.0, 10, true, 60)
+                ),
+                targetRestSeconds = 60,
+                notes = "Transição para 22kg no próximo treino."
+            )
+        )
+
+        return listOf(
+            com.example.data.model.WorkoutSession(
+                id = 1,
+                templateId = 1,
+                title = "Treino A: Peito, Tríceps & Ombros",
+                dateEpochDay = today - 2,
+                startTimeMillis = now - (2 * 86400000L) - 3600000L,
+                endTimeMillis = now - (2 * 86400000L),
+                durationSeconds = 3120, // 52 min
+                location = "Academia Smart Fit",
+                status = com.example.data.model.SessionStatus.COMPLETED,
+                totalWeightLiftedKg = 3840.0,
+                estimatedCalories = 380,
+                perceivedExertion = 8,
+                notes = "Treino muito produtivo. Bati 10 reps em todas as séries do Supino Reto com 60kg!",
+                exercisesDoneJson = jsonAdapter.toJson(session1Plans),
+                aiCaloricEvaluation = "Excelente intensidade mecânica. Sobrecarga progressiva recomendada no supino reto."
+            ),
+            com.example.data.model.WorkoutSession(
+                id = 2,
+                templateId = 2,
+                title = "Treino B: Costas, Bíceps & Abdômen",
+                dateEpochDay = today - 5,
+                startTimeMillis = now - (5 * 86400000L) - 3000000L,
+                endTimeMillis = now - (5 * 86400000L),
+                durationSeconds = 2880, // 48 min
+                location = "Academia Smart Fit",
+                status = com.example.data.model.SessionStatus.COMPLETED,
+                totalWeightLiftedKg = 3420.0,
+                estimatedCalories = 340,
+                perceivedExertion = 7,
+                notes = "Costas ativadas com sucesso. Puxada alta fechada com 45kg em 4x10.",
+                exercisesDoneJson = jsonAdapter.toJson(session2Plans),
+                aiCaloricEvaluation = "Ótimo estímulo para dorsais e bíceps."
+            ),
+            com.example.data.model.WorkoutSession(
+                id = 3,
+                templateId = 1,
+                title = "Treino A: Peito, Tríceps & Ombros",
+                dateEpochDay = today - 7,
+                startTimeMillis = now - (7 * 86400000L) - 3300000L,
+                endTimeMillis = now - (7 * 86400000L),
+                durationSeconds = 3000, // 50 min
+                location = "Academia Smart Fit",
+                status = com.example.data.model.SessionStatus.COMPLETED,
+                totalWeightLiftedKg = 3520.0,
+                estimatedCalories = 350,
+                perceivedExertion = 8,
+                notes = "Primeiro teste com 60kg no supino reto (10, 9, 8 reps).",
+                exercisesDoneJson = jsonAdapter.toJson(session3Plans),
+                aiCaloricEvaluation = "Treino sólido de hipertrofia."
+            )
+        )
+    }
 }

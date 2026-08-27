@@ -26,27 +26,25 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,7 +56,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -71,12 +68,27 @@ import com.example.data.model.MuscleGroup
 import com.example.data.model.WorkoutCategory
 import com.example.data.model.WorkoutExercisePlan
 import com.example.data.model.WorkoutTemplate
+import com.example.ui.components.BentoCard
+import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
-import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.LimeSuccess
-import com.example.ui.theme.OrangeLight
-import com.example.ui.theme.OrangePrimary
+import com.example.ui.components.PrimaryButton
+import com.example.ui.components.SecondaryButton
+import com.example.ui.theme.AmberWarning
+import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.GlassBorder
+import com.example.ui.theme.GlassBorderSubtle
+import com.example.ui.theme.GradientAction
+import com.example.ui.theme.LilacAccent
+import com.example.ui.theme.LilacSoft
+import com.example.ui.theme.PurpleDarkSurface
+import com.example.ui.theme.PurpleDarkest
+import com.example.ui.theme.PurpleDeepCard
+import com.example.ui.theme.PurplePrimary
+import com.example.ui.theme.PurpleVibrant
 import com.example.ui.theme.RedDestructive
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -93,19 +105,26 @@ fun WorkoutTemplatesScreen(
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
 
     var selectedCategoryFilter by remember { mutableStateOf<WorkoutCategory?>(null) }
+    var filterOnlyFavorites by remember { mutableStateOf(false) }
+    var filterOnlyCustom by remember { mutableStateOf(false) }
     var showCreateCustomDialog by remember { mutableStateOf(false) }
     var templateToStart by remember { mutableStateOf<WorkoutTemplate?>(null) }
     var selectedLocation by remember {
-        mutableStateOf(userProfile?.defaultGymLocation ?: "Academia Smart Fit")
+        mutableStateOf(userProfile?.defaultGymLocation ?: "Smart Fit Paulista")
     }
 
-    val filteredTemplates = if (selectedCategoryFilter == null) {
-        templates
-    } else {
-        templates.filter { it.category == selectedCategoryFilter }
+    val filteredTemplates = templates.filter { template ->
+        val matchesCategory = selectedCategoryFilter == null || template.category == selectedCategoryFilter
+        val matchesFavorites = !filterOnlyFavorites || template.isFavorite
+        val matchesCustom = !filterOnlyCustom || !template.isPreset
+        matchesCategory && matchesFavorites && matchesCustom
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(PurpleDarkest)
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -116,20 +135,20 @@ fun WorkoutTemplatesScreen(
             item {
                 Column {
                     Text(
-                        text = "Modelos & Treinos",
+                        text = "Modelos & Rotinas",
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
                     Text(
-                        text = "Escolha sua rotina ou crie seu próprio treino personalizado",
+                        text = "Treinos prescritos de alta performance e rotinas personalizadas",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
             }
 
-            // Category Filter Chips
+            // Quick Special Filters (Todos, Favoritos, Meus Treinos) & Category Filter Chips
             item {
                 Row(
                     modifier = Modifier
@@ -138,26 +157,102 @@ fun WorkoutTemplatesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
-                        selected = selectedCategoryFilter == null,
-                        onClick = { selectedCategoryFilter = null },
+                        selected = !filterOnlyFavorites && !filterOnlyCustom && selectedCategoryFilter == null,
+                        onClick = {
+                            filterOnlyFavorites = false
+                            filterOnlyCustom = false
+                            selectedCategoryFilter = null
+                        },
                         label = { Text("Todos") },
                         shape = RoundedCornerShape(12.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = OrangePrimary.copy(alpha = 0.2f),
-                            selectedLabelColor = OrangePrimary
+                            selectedContainerColor = PurpleDeepCard,
+                            selectedLabelColor = LilacAccent,
+                            containerColor = PurpleDarkSurface,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = !filterOnlyFavorites && !filterOnlyCustom && selectedCategoryFilter == null,
+                            borderColor = if (!filterOnlyFavorites && !filterOnlyCustom && selectedCategoryFilter == null) LilacAccent else GlassBorder
                         ),
                         modifier = Modifier.testTag("filter_category_all")
                     )
 
+                    FilterChip(
+                        selected = filterOnlyFavorites,
+                        onClick = {
+                            filterOnlyFavorites = !filterOnlyFavorites
+                            if (filterOnlyFavorites) filterOnlyCustom = false
+                        },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp),
+                                    tint = if (filterOnlyFavorites) AmberWarning else TextSecondary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Favoritos")
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PurpleDeepCard,
+                            selectedLabelColor = AmberWarning,
+                            containerColor = PurpleDarkSurface,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = filterOnlyFavorites,
+                            borderColor = if (filterOnlyFavorites) AmberWarning else GlassBorder
+                        ),
+                        modifier = Modifier.testTag("filter_favorites")
+                    )
+
+                    FilterChip(
+                        selected = filterOnlyCustom,
+                        onClick = {
+                            filterOnlyCustom = !filterOnlyCustom
+                            if (filterOnlyCustom) filterOnlyFavorites = false
+                        },
+                        label = { Text("Meus Treinos") },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PurpleDeepCard,
+                            selectedLabelColor = LilacAccent,
+                            containerColor = PurpleDarkSurface,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = filterOnlyCustom,
+                            borderColor = if (filterOnlyCustom) LilacAccent else GlassBorder
+                        ),
+                        modifier = Modifier.testTag("filter_custom")
+                    )
+
                     WorkoutCategory.values().forEach { cat ->
+                        val isSelected = selectedCategoryFilter == cat
                         FilterChip(
-                            selected = selectedCategoryFilter == cat,
-                            onClick = { selectedCategoryFilter = cat },
+                            selected = isSelected,
+                            onClick = {
+                                selectedCategoryFilter = if (isSelected) null else cat
+                            },
                             label = { Text(cat.label) },
                             shape = RoundedCornerShape(12.dp),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = OrangePrimary.copy(alpha = 0.2f),
-                                selectedLabelColor = OrangePrimary
+                                selectedContainerColor = PurpleDeepCard,
+                                selectedLabelColor = LilacAccent,
+                                containerColor = PurpleDarkSurface,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = if (isSelected) LilacAccent else GlassBorder
                             ),
                             modifier = Modifier.testTag("filter_category_${cat.name}")
                         )
@@ -167,29 +262,28 @@ fun WorkoutTemplatesScreen(
 
             if (filteredTemplates.isEmpty()) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    BentoCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Nenhum treino nesta categoria",
+                                text = when {
+                                    filterOnlyFavorites -> "Nenhum treino marcado como favorito"
+                                    filterOnlyCustom -> "Você ainda não criou treinos customizados"
+                                    else -> "Nenhum treino encontrado nesta categoria"
+                                },
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(
-                                onClick = { showCreateCustomDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
-                            ) {
-                                Text("Criar Treino Personalizado")
-                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            PrimaryButton(
+                                text = "Criar Rotina Personalizada",
+                                onClick = { showCreateCustomDialog = true }
+                            )
                         }
                     }
                 }
@@ -200,6 +294,12 @@ fun WorkoutTemplatesScreen(
                         onStartClick = {
                             templateToStart = template
                         },
+                        onToggleFavorite = {
+                            viewModel.toggleFavoriteWorkoutTemplate(template)
+                        },
+                        onDuplicate = {
+                            viewModel.duplicateWorkoutTemplate(template)
+                        },
                         onDeleteClick = if (!template.isPreset) {
                             { viewModel.deleteWorkoutTemplate(template.id) }
                         } else null
@@ -208,24 +308,26 @@ fun WorkoutTemplatesScreen(
             }
         }
 
-        // Floating button to create custom workout
-        FloatingActionButton(
-            onClick = { showCreateCustomDialog = true },
-            containerColor = OrangePrimary,
-            contentColor = Color.White,
-            shape = RoundedCornerShape(16.dp),
+        // Floating Action Button to create custom workout
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 80.dp, end = 20.dp)
-                .testTag("fab_create_workout")
+                .padding(bottom = 86.dp, end = 20.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(GradientAction)
+                    .clickable { showCreateCustomDialog = true }
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+                    .testTag("fab_create_workout"),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Criar Treino")
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Criar Treino", fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Add, contentDescription = "Criar Treino", tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Criar Treino", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+                }
             }
         }
     }
@@ -238,15 +340,16 @@ fun WorkoutTemplatesScreen(
             title = {
                 Text(
                     text = "Iniciar ${template.title}",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black,
+                    color = TextPrimary
                 )
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Onde você vai treinar hoje?",
+                        text = "Onde você vai treinar agora?",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     LocationSelector(
@@ -254,12 +357,20 @@ fun WorkoutTemplatesScreen(
                         onLocationSelected = { selectedLocation = it }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "⏱️ Tempo estimado: ${template.executionDurationMinutes} min • Descanso padrão: ${template.defaultRestSeconds}s",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = OrangeLight,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(PurpleDeepCard)
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = "⏱️ Estimado: ${template.executionDurationMinutes} min • Descanso: ${template.defaultRestSeconds}s",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LilacSoft,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -272,19 +383,19 @@ fun WorkoutTemplatesScreen(
                             onStartWorkout()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.testTag("btn_confirm_start_workout")
                 ) {
-                    Text("Começar Agora", fontWeight = FontWeight.Bold)
+                    Text("Começar Agora", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { templateToStart = null }) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = TextMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
         )
     }
@@ -314,6 +425,8 @@ fun WorkoutTemplatesScreen(
 fun WorkoutTemplateCard(
     template: WorkoutTemplate,
     onStartClick: () -> Unit,
+    onToggleFavorite: (() -> Unit)? = null,
+    onDuplicate: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -330,209 +443,245 @@ fun WorkoutTemplateCard(
         }
     }
 
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    BentoCard(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(20.dp)
-            )
             .testTag("card_template_${template.id}")
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = template.title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
-                    Text(
-                        text = template.subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (template.isFavorite) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Favorito",
+                            tint = AmberWarning,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
+                Text(
+                    text = template.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onToggleFavorite != null) {
+                    IconButton(onClick = onToggleFavorite, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = if (template.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = if (template.isFavorite) "Desfavoritar" else "Favoritar",
+                            tint = if (template.isFavorite) AmberWarning else TextMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (onDuplicate != null) {
+                    IconButton(onClick = onDuplicate, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Duplicar",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(4.dp))
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(OrangePrimary.copy(alpha = 0.15f))
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, LilacAccent.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = template.category.label,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = OrangeLight
+                        color = LilacAccent
                     )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-            // Duration and rest info
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+        // Duration and rest info
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    tint = LilacAccent,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "~${template.executionDurationMinutes} min",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.FitnessCenter,
+                    contentDescription = null,
+                    tint = LilacSoft,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "${plans.size} exercícios",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+
+            Text(
+                text = "Descanso: ${template.defaultRestSeconds}s",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted
+            )
+        }
+
+        if (template.description.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = template.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted
+            )
+        }
+
+        // Exercise list expander
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        tint = OrangeLight,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "~${template.executionDurationMinutes} min",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        tint = CyanAccent,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${plans.size} exercícios",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
                 Text(
-                    text = "Descanso: ${template.defaultRestSeconds}s",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "LISTA DE EXERCÍCIOS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = LilacAccent,
+                    letterSpacing = 0.5.sp
                 )
-            }
-
-            if (template.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = template.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
-            }
-
-            // Exercise list expander
-            AnimatedVisibility(visible = expanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
-                    Text(
-                        text = "Lista de Exercícios:",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = OrangeLight
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    plans.forEachIndexed { idx, p ->
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 3.dp)
+                Spacer(modifier = Modifier.height(6.dp))
+                plans.forEachIndexed { idx, p ->
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = PurpleDarkSurface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "${idx + 1}. ${p.exerciseName}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "${p.muscleGroup} • ${p.sets.size} séries x ${p.sets.firstOrNull()?.reps ?: 10} reps",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                            Column {
                                 Text(
-                                    text = "${p.targetRestSeconds}s descanso",
+                                    text = "${idx + 1}. ${p.exerciseName}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "${p.muscleGroup} • ${p.sets.size} séries x ${p.sets.firstOrNull()?.reps ?: 10} reps",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = OrangeLight
+                                    color = TextSecondary
                                 )
                             }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = { expanded = !expanded },
-                    modifier = Modifier.testTag("btn_expand_${template.id}")
-                ) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = OrangeLight
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (expanded) "Recolher" else "Ver Exercícios",
-                        color = OrangeLight,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (onDeleteClick != null) {
-                        IconButton(
-                            onClick = onDeleteClick,
-                            modifier = Modifier.testTag("btn_delete_template_${template.id}")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Deletar treino",
-                                tint = RedDestructive
+                            Text(
+                                text = "${p.targetRestSeconds}s",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = LilacSoft,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
+                }
+            }
+        }
 
-                    Button(
-                        onClick = onStartClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("btn_start_template_${template.id}")
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Action buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.testTag("btn_expand_${template.id}")
+            ) {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = LilacAccent
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (expanded) "Recolher" else "Ver Exercícios",
+                    color = LilacAccent,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onDeleteClick != null) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.testTag("btn_delete_template_${template.id}")
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Deletar treino",
+                            tint = RedDestructive
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(GradientAction)
+                        .clickable { onStartClick() }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .testTag("btn_start_template_${template.id}"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Iniciar", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Iniciar", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
                     }
                 }
             }
@@ -575,7 +724,8 @@ fun CreateCustomWorkoutDialog(
         title = {
             Text(
                 text = "Criar Treino Personalizado",
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Black,
+                color = TextPrimary
             )
         },
         text = {
@@ -591,6 +741,14 @@ fun CreateCustomWorkoutDialog(
                     label = { Text("Nome do Treino *") },
                     placeholder = { Text("Ex: Treino de Braços & Peitoral") },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent,
+                        unfocusedBorderColor = GlassBorder,
+                        focusedLabelColor = LilacAccent,
+                        unfocusedLabelColor = TextSecondary
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("input_custom_title")
@@ -602,6 +760,14 @@ fun CreateCustomWorkoutDialog(
                     label = { Text("Subtítulo / Divisão") },
                     placeholder = { Text("Ex: Foco em Tríceps e Peitoral Superior") },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent,
+                        unfocusedBorderColor = GlassBorder,
+                        focusedLabelColor = LilacAccent,
+                        unfocusedLabelColor = TextSecondary
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -609,7 +775,8 @@ fun CreateCustomWorkoutDialog(
                 Text(
                     text = "Categoria:",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
                 )
                 Row(
                     modifier = Modifier
@@ -622,7 +789,13 @@ fun CreateCustomWorkoutDialog(
                             selected = category == cat,
                             onClick = { category = cat },
                             label = { Text(cat.label, fontSize = 12.sp) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PurpleDeepCard,
+                                selectedLabelColor = LilacAccent,
+                                containerColor = PurpleDarkSurface,
+                                labelColor = TextSecondary
+                            )
                         )
                     }
                 }
@@ -636,12 +809,24 @@ fun CreateCustomWorkoutDialog(
                         value = durationMinutes.toString(),
                         onValueChange = { durationMinutes = it.toIntOrNull() ?: 45 },
                         label = { Text("Duração (min)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
                         value = restSeconds.toString(),
                         onValueChange = { restSeconds = it.toIntOrNull() ?: 60 },
                         label = { Text("Descanso (s)") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -651,7 +836,7 @@ fun CreateCustomWorkoutDialog(
                     text = "Selecione os Exercícios (${selectedExerciseIds.value.size} selecionados):",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = OrangeLight
+                    color = LilacAccent
                 )
 
                 // Muscle Group filter for exercise picker
@@ -665,25 +850,38 @@ fun CreateCustomWorkoutDialog(
                         selected = selectedMuscleGroupFilter == null,
                         onClick = { selectedMuscleGroupFilter = null },
                         label = { Text("Todos", fontSize = 11.sp) },
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PurpleDeepCard,
+                            selectedLabelColor = LilacAccent,
+                            containerColor = PurpleDarkSurface,
+                            labelColor = TextSecondary
+                        )
                     )
                     MuscleGroup.values().forEach { mg ->
                         FilterChip(
                             selected = selectedMuscleGroupFilter == mg,
                             onClick = { selectedMuscleGroupFilter = mg },
                             label = { Text(mg.displayName, fontSize = 11.sp) },
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PurpleDeepCard,
+                                selectedLabelColor = LilacAccent,
+                                containerColor = PurpleDarkSurface,
+                                labelColor = TextSecondary
+                            )
                         )
                     }
                 }
 
                 // Exercises list checklist
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     filteredExercises.forEach { ex ->
                         val isChecked = selectedExerciseIds.value.contains(ex.id)
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isChecked) OrangePrimary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
+                            color = if (isChecked) PurpleDeepCard else PurpleDarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isChecked) LilacAccent else GlassBorderSubtle),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
@@ -702,12 +900,13 @@ fun CreateCustomWorkoutDialog(
                                     Text(
                                         text = ex.name,
                                         style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
                                     )
                                     Text(
                                         text = "${ex.muscleGroup.displayName} • ${ex.equipment.displayName}",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = TextSecondary
                                     )
                                 }
 
@@ -715,7 +914,7 @@ fun CreateCustomWorkoutDialog(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selecionado",
-                                        tint = OrangePrimary,
+                                        tint = LilacAccent,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -761,19 +960,19 @@ fun CreateCustomWorkoutDialog(
                     }
                 },
                 enabled = title.isNotBlank() && selectedExerciseIds.value.isNotEmpty(),
-                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
+                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.testTag("btn_save_custom_workout")
             ) {
-                Text("Salvar Treino", fontWeight = FontWeight.Bold)
+                Text("Salvar Treino", fontWeight = FontWeight.Bold, color = Color.White)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text("Cancelar", color = TextMuted)
             }
         },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        containerColor = PurpleDarkSurface,
         shape = RoundedCornerShape(24.dp)
     )
 }

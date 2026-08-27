@@ -22,6 +22,9 @@ data class WorkoutSession(
     val endTimeMillis: Long = System.currentTimeMillis(),
     val durationSeconds: Int = 0,
     val location: String = "Academia Smart Fit", // "Smart Fit", "Bluefit", "Academia do Bairro", "Ao Ar Livre", "Em Casa", etc.
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val locationAddress: String? = null,
     val status: SessionStatus = SessionStatus.COMPLETED,
     val totalWeightLiftedKg: Double = 0.0,
     val estimatedCalories: Int = 0,

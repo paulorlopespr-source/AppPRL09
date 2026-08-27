@@ -24,6 +24,19 @@ data class WorkoutTemplate(
     val defaultRestSeconds: Int = 60,
     val executionDurationMinutes: Int = 50,
     val isPreset: Boolean = false,
+    val isFavorite: Boolean = false,
     val exercisesJson: String = "[]",
-    val description: String = ""
-)
+    val description: String = "",
+    val createdAtEpochDay: Long = 0,
+    val timesCompleted: Int = 0
+) {
+    val exerciseCount: Int
+        get() {
+            return try {
+                val count = exercisesJson.split("\"exerciseName\"").size - 1
+                if (count > 0) count else 4
+            } catch (_: Exception) {
+                4
+            }
+        }
+}

@@ -17,8 +17,14 @@ import kotlinx.coroutines.flow.Flow
 interface FitnessDao {
 
     // --- Workout Templates ---
-    @Query("SELECT * FROM workout_templates ORDER BY isPreset DESC, id ASC")
+    @Query("SELECT * FROM workout_templates ORDER BY isFavorite DESC, isPreset DESC, id ASC")
     fun getAllWorkoutTemplates(): Flow<List<WorkoutTemplate>>
+
+    @Query("SELECT * FROM workout_templates WHERE isFavorite = 1 ORDER BY isPreset DESC, id DESC")
+    fun getFavoriteWorkoutTemplates(): Flow<List<WorkoutTemplate>>
+
+    @Query("SELECT * FROM workout_templates WHERE isPreset = 0 ORDER BY isFavorite DESC, id DESC")
+    fun getCustomWorkoutTemplates(): Flow<List<WorkoutTemplate>>
 
     @Query("SELECT * FROM workout_templates WHERE id = :id")
     suspend fun getWorkoutTemplateById(id: Long): WorkoutTemplate?
@@ -28,6 +34,9 @@ interface FitnessDao {
 
     @Update
     suspend fun updateWorkoutTemplate(template: WorkoutTemplate)
+
+    @Query("UPDATE workout_templates SET isFavorite = :isFavorite WHERE id = :id")
+    suspend fun setWorkoutTemplateFavorite(id: Long, isFavorite: Boolean)
 
     @Query("DELETE FROM workout_templates WHERE id = :id")
     suspend fun deleteWorkoutTemplateById(id: Long)
@@ -96,4 +105,33 @@ interface FitnessDao {
 
     @Query("DELETE FROM body_measurements WHERE id = :id")
     suspend fun deleteBodyMeasurementById(id: Long)
+
+    // --- Progress & Body Photos (Evolution) ---
+    @Query("SELECT * FROM progress_photos ORDER BY isInitial DESC, dateEpochDay DESC, timestampMillis DESC")
+    fun getAllProgressPhotos(): Flow<List<com.example.data.model.ProgressPhoto>>
+
+    @Query("SELECT * FROM progress_photos WHERE isInitial = 1 LIMIT 1")
+    fun getInitialProgressPhoto(): Flow<com.example.data.model.ProgressPhoto?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProgressPhoto(photo: com.example.data.model.ProgressPhoto): Long
+
+    @Query("DELETE FROM progress_photos WHERE id = :id")
+    suspend fun deleteProgressPhotoById(id: Long)
+
+    // --- Exercise Performance Targets (Goals) ---
+    @Query("SELECT * FROM exercise_targets ORDER BY isAchieved ASC, id DESC")
+    fun getAllExerciseTargets(): Flow<List<com.example.data.model.ExercisePerformanceTarget>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExerciseTarget(target: com.example.data.model.ExercisePerformanceTarget): Long
+
+    @Update
+    suspend fun updateExerciseTarget(target: com.example.data.model.ExercisePerformanceTarget)
+
+    @Query("UPDATE exercise_targets SET isAchieved = :isAchieved, achievedDateEpochDay = :achievedEpochDay WHERE id = :id")
+    suspend fun setExerciseTargetAchieved(id: Long, isAchieved: Boolean, achievedEpochDay: Long?)
+
+    @Query("DELETE FROM exercise_targets WHERE id = :id")
+    suspend fun deleteExerciseTargetById(id: Long)
 }

@@ -31,29 +31,18 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Park
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SportsSoccer
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,7 +54,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -78,12 +66,27 @@ import com.example.data.model.CardioSession
 import com.example.data.model.CardioType
 import com.example.data.model.IntensityLevel
 import com.example.ui.components.AIEvaluationDialog
+import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
+import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
+import com.example.ui.components.MetricBentoCard
+import com.example.ui.components.PrimaryButton
 import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.GlassBorder
+import com.example.ui.theme.GlassBorderSubtle
+import com.example.ui.theme.GradientAction
+import com.example.ui.theme.LilacAccent
+import com.example.ui.theme.LilacSoft
+import com.example.ui.theme.PurpleDarkSurface
+import com.example.ui.theme.PurpleDarkest
+import com.example.ui.theme.PurpleDeepCard
+import com.example.ui.theme.PurplePrimary
+import com.example.ui.theme.PurpleVibrant
 import com.example.ui.theme.RedDestructive
-import com.example.ui.theme.RoyalBlue
-import com.example.ui.theme.RoyalBlueSubtle
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
 
 fun getCardioIcon(type: CardioType): ImageVector {
@@ -116,7 +119,11 @@ fun CardioScreen(
     val totalCardioCalories = cardioSessions.sumOf { it.caloriesBurned }
     val totalMinutes = cardioSessions.sumOf { it.durationMinutes }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(PurpleDarkest)
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -128,161 +135,143 @@ fun CardioScreen(
             item {
                 Column {
                     Text(
-                        text = "Treinos Cardiovasculares",
+                        text = "Cardio & Resistência",
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
                     Text(
-                        text = "Bicicleta indoor, caminhada (esteira e ar livre), corrida e futebol",
+                        text = "Bicicleta indoor, esteira, ar livre, corrida e futebol com bioenergética IA",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
             }
 
-            // Live Cardio in Progress Card
+            // Live Cardio in Progress
             if (activeCardio.isActive) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(22.dp),
-                        colors = CardDefaults.cardColors(containerColor = RoyalBlueSubtle),
+                    LiquidGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.5.dp, RoyalBlue, RoundedCornerShape(22.dp))
-                            .testTag("card_live_cardio_active")
+                            .testTag("card_live_cardio_active"),
+                        borderColor = LilacAccent
                     ) {
-                        Column(modifier = Modifier.padding(18.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(RoyalBlue.copy(alpha = 0.2f))
-                                    ) {
-                                        Icon(
-                                            imageVector = getCardioIcon(activeCardio.type),
-                                            contentDescription = null,
-                                            tint = RoyalBlue,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = "EM ANDAMENTO: ${activeCardio.type.title.uppercase()}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = RoyalBlue,
-                                            letterSpacing = 1.sp
-                                        )
-                                        Text(
-                                            text = activeCardio.location,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                IconButton(
-                                    onClick = { viewModel.discardLiveCardio() },
-                                    modifier = Modifier.testTag("btn_discard_cardio")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(PurpleDeepCard)
+                                        .border(1.dp, LilacAccent, CircleShape)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cancelar", tint = RedDestructive)
+                                    Icon(
+                                        imageVector = getCardioIcon(activeCardio.type),
+                                        contentDescription = null,
+                                        tint = LilacAccent,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "EM ANDAMENTO: ${activeCardio.type.title.uppercase()}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = LilacAccent,
+                                        letterSpacing = 1.sp
+                                    )
+                                    Text(
+                                        text = activeCardio.location,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceAround
+                            IconButton(
+                                onClick = { viewModel.discardLiveCardio() },
+                                modifier = Modifier.testTag("btn_discard_cardio")
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = DateUtils.formatSecondsToTime(activeCardio.durationSeconds),
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text("Tempo Decorrido", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "~${activeCardio.caloriesBurned}",
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = EmeraldSuccess
-                                    )
-                                    Text("Calorias (kcal)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Button(
-                                onClick = { showFinishLiveDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .testTag("btn_finish_live_cardio")
-                            ) {
-                                Text("Finalizar e Salvar Cardio", color = Color.White, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.Close, contentDescription = "Cancelar", tint = RedDestructive)
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = DateUtils.formatSecondsToTime(activeCardio.durationSeconds),
+                                    fontSize = 30.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = TextPrimary
+                                )
+                                Text("Tempo Decorrido", fontSize = 11.sp, color = TextMuted)
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "~${activeCardio.caloriesBurned}",
+                                    fontSize = 30.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = EmeraldSuccess
+                                )
+                                Text("Calorias (kcal)", fontSize = 11.sp, color = TextMuted)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        PrimaryButton(
+                            text = "Finalizar e Salvar Cardio",
+                            onClick = { showFinishLiveDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("btn_finish_live_cardio")
+                        )
                     }
                 }
             }
 
-            // Quick Stats Banner
+            // Quick Stats Bento Row
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier
-                            .weight(1f)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text("Tempo Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("$totalMinutes min", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = RoyalBlue)
-                        }
-                    }
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier
-                            .weight(1f)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text("Queima Acumulada", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("$totalCardioCalories kcal", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
-                        }
-                    }
+                    MetricBentoCard(
+                        label = "TEMPO TOTAL",
+                        value = "$totalMinutes min",
+                        accentColor = LilacAccent,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricBentoCard(
+                        label = "QUEIMA TOTAL",
+                        value = "$totalCardioCalories kcal",
+                        accentColor = EmeraldSuccess,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            // Cardio Modes Selection Grid
+            // Cardio Modes Selection Section
             item {
                 Text(
-                    text = "Escolha a Modalidade de Cardio",
+                    text = "Iniciar Sessão de Cardio",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Black,
+                    color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -309,42 +298,48 @@ fun CardioScreen(
                     Text(
                         text = "Histórico de Cardios",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
-                    OutlinedButton(
-                        onClick = { showManualLogDialog = true },
-                        shape = RoundedCornerShape(10.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(PurpleDeepCard)
+                            .border(1.dp, LilacAccent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                            .clickable { showManualLogDialog = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Registrar Manual", fontSize = 12.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = LilacAccent, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Manual", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LilacAccent)
+                        }
                     }
                 }
             }
 
             if (cardioSessions.isEmpty()) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    BentoCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 text = "Nenhuma sessão de cardio registrada",
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Inicie uma bicicleta, corrida, caminhada ou partida de futebol para calcular seu gasto calórico com IA!",
+                                text = "Inicie uma bicicleta, esteira ou caminhada para calcular seu gasto calórico com IA!",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
@@ -376,11 +371,11 @@ fun CardioScreen(
                     Icon(
                         imageVector = getCardioIcon(selectedCardioForLive),
                         contentDescription = null,
-                        tint = RoyalBlue,
+                        tint = LilacAccent,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Iniciar ${selectedCardioForLive.title}", fontWeight = FontWeight.Bold)
+                    Text("Iniciar ${selectedCardioForLive.title}", fontWeight = FontWeight.Black, color = TextPrimary)
                 }
             },
             text = {
@@ -393,7 +388,7 @@ fun CardioScreen(
                     Text(
                         text = selectedCardioForLive.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
 
                     LocationSelector(
@@ -404,7 +399,8 @@ fun CardioScreen(
                     Text(
                         text = "Intensidade Estimada:",
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -414,8 +410,14 @@ fun CardioScreen(
                             FilterChip(
                                 selected = intensity == lvl,
                                 onClick = { intensity = lvl },
-                                label = { Text(lvl.label, fontSize = 12.sp) },
-                                shape = RoundedCornerShape(10.dp)
+                                label = { Text(lvl.label, fontSize = 11.sp) },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PurpleDeepCard,
+                                    selectedLabelColor = LilacAccent,
+                                    containerColor = PurpleDarkSurface,
+                                    labelColor = TextSecondary
+                                )
                             )
                         }
                     }
@@ -427,7 +429,7 @@ fun CardioScreen(
                         viewModel.startLiveCardio(selectedCardioForLive, location, intensity)
                         showStartLiveDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.testTag("btn_confirm_start_cardio")
                 ) {
@@ -436,15 +438,15 @@ fun CardioScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showStartLiveDialog = false }) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = TextMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
         )
     }
 
-    // Finish Live Cardio Dialog (to input distance / heart rate optionally)
+    // Finish Live Cardio Dialog
     if (showFinishLiveDialog) {
         var distanceStr by remember { mutableStateOf("") }
         var heartRateStr by remember { mutableStateOf("") }
@@ -452,7 +454,7 @@ fun CardioScreen(
 
         AlertDialog(
             onDismissRequest = { showFinishLiveDialog = false },
-            title = { Text("Finalizar Sessão de Cardio", fontWeight = FontWeight.Bold) },
+            title = { Text("Finalizar Sessão de Cardio", fontWeight = FontWeight.Black, color = TextPrimary) },
             text = {
                 Column(
                     modifier = Modifier
@@ -474,6 +476,12 @@ fun CardioScreen(
                         placeholder = { Text("Ex: 4.5") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -484,6 +492,12 @@ fun CardioScreen(
                         placeholder = { Text("Ex: 142") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -492,6 +506,12 @@ fun CardioScreen(
                         onValueChange = { notes = it },
                         label = { Text("Observações") },
                         placeholder = { Text("Ex: Foco em cadência alta") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -504,7 +524,7 @@ fun CardioScreen(
                         viewModel.finishLiveCardio(dist, hr, notes)
                         showFinishLiveDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Salvar & Avaliar com IA", color = Color.White, fontWeight = FontWeight.Bold)
@@ -512,10 +532,10 @@ fun CardioScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showFinishLiveDialog = false }) {
-                    Text("Voltar")
+                    Text("Voltar", color = TextMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
         )
     }
@@ -547,18 +567,13 @@ fun CardioTypeItemCard(
     type: CardioType,
     onStartLive: () -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    BentoCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("card_cardio_type_${type.name}")
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -571,12 +586,13 @@ fun CardioTypeItemCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(RoyalBlueSubtle)
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, LilacAccent.copy(alpha = 0.5f), CircleShape)
                 ) {
                     Icon(
                         imageVector = getCardioIcon(type),
                         contentDescription = null,
-                        tint = RoyalBlue,
+                        tint = LilacAccent,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -585,22 +601,25 @@ fun CardioTypeItemCard(
                     Text(
                         text = type.title,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
                     Text(
                         text = type.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
             }
 
-            Button(
-                onClick = onStartLive,
-                colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.testTag("btn_start_cardio_${type.name}")
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(GradientAction)
+                    .clickable { onStartLive() }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .testTag("btn_start_cardio_${type.name}"),
+                contentAlignment = Alignment.Center
             ) {
                 Text("Iniciar", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
@@ -614,110 +633,118 @@ fun CardioSessionHistoryItem(
     onViewAi: (String) -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(RoyalBlueSubtle)
-                    ) {
-                        Icon(
-                            imageVector = getCardioIcon(cardio.type),
-                            contentDescription = null,
-                            tint = RoyalBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = cardio.type.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = DateUtils.formatEpochDayShort(cardio.dateEpochDay),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+    BentoCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, LilacAccent.copy(alpha = 0.4f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = getCardioIcon(cardio.type),
+                        contentDescription = null,
+                        tint = LilacAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(EmeraldSuccess.copy(alpha = 0.15f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "${cardio.durationMinutes} min • ~${cardio.caloriesBurned} kcal",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = EmeraldSuccess
-                        )
-                    }
-
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = RedDestructive, modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "📍 ${cardio.location}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "⚡ Intensidade: ${cardio.intensity.label}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (cardio.distanceKm != null) {
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
                     Text(
-                        text = "📏 ${cardio.distanceKm} km",
+                        text = cardio.type.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = DateUtils.formatEpochDayShort(cardio.dateEpochDay),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
             }
 
-            if (cardio.aiEvaluation.isNotBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                FilledTonalButton(
-                    onClick = { onViewAi(cardio.aiEvaluation) },
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, EmeraldSuccess.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "${cardio.durationMinutes} min • ~${cardio.caloriesBurned} kcal",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldSuccess
+                    )
+                }
+
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = RedDestructive, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "📍 ${cardio.location}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Text(
+                text = "⚡ Intensidade: ${cardio.intensity.label}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            if (cardio.distanceKm != null) {
+                Text(
+                    text = "📏 ${cardio.distanceKm} km",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+        }
+
+        if (cardio.aiEvaluation.isNotBlank()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                onClick = { onViewAi(cardio.aiEvaluation) },
+                shape = RoundedCornerShape(10.dp),
+                color = PurpleDarkSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.AutoAwesome,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = RoyalBlue
+                        tint = LilacAccent
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Ver Avaliação Calórica da IA", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        "Ver Avaliação Calórica da IA",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LilacAccent
+                    )
                 }
             }
         }
@@ -738,7 +765,7 @@ fun ManualCardioLogDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Registrar Sessão de Cardio", fontWeight = FontWeight.Bold) },
+        title = { Text("Registrar Sessão de Cardio", fontWeight = FontWeight.Black, color = TextPrimary) },
         text = {
             Column(
                 modifier = Modifier
@@ -746,7 +773,7 @@ fun ManualCardioLogDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Tipo de Cardio:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text("Tipo de Cardio:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -758,7 +785,13 @@ fun ManualCardioLogDialog(
                             selected = type == cType,
                             onClick = { type = cType },
                             label = { Text(cType.title, fontSize = 11.sp) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PurpleDeepCard,
+                                selectedLabelColor = LilacAccent,
+                                containerColor = PurpleDarkSurface,
+                                labelColor = TextSecondary
+                            )
                         )
                     }
                 }
@@ -773,6 +806,12 @@ fun ManualCardioLogDialog(
                     onValueChange = { durationMinutes = it.toIntOrNull() ?: 20 },
                     label = { Text("Duração (minutos) *") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent,
+                        unfocusedBorderColor = GlassBorder
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -781,10 +820,16 @@ fun ManualCardioLogDialog(
                     onValueChange = { distanceStr = it },
                     label = { Text("Distância (km) - Opcional") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent,
+                        unfocusedBorderColor = GlassBorder
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Text("Intensidade:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text("Intensidade:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -793,8 +838,14 @@ fun ManualCardioLogDialog(
                         FilterChip(
                             selected = intensity == lvl,
                             onClick = { intensity = lvl },
-                            label = { Text(lvl.label, fontSize = 12.sp) },
-                            shape = RoundedCornerShape(10.dp)
+                            label = { Text(lvl.label, fontSize = 11.sp) },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PurpleDeepCard,
+                                selectedLabelColor = LilacAccent,
+                                containerColor = PurpleDarkSurface,
+                                labelColor = TextSecondary
+                            )
                         )
                     }
                 }
@@ -823,7 +874,7 @@ fun ManualCardioLogDialog(
                     )
                     onSave(session)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Salvar", color = Color.White, fontWeight = FontWeight.Bold)
@@ -831,10 +882,10 @@ fun ManualCardioLogDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text("Cancelar", color = TextMuted)
             }
         },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = PurpleDarkSurface,
         shape = RoundedCornerShape(24.dp)
     )
 }

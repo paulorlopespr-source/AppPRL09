@@ -17,9 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -27,8 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
@@ -39,16 +34,11 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -71,12 +60,28 @@ import com.example.data.model.SessionStatus
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
 import com.example.ui.components.AIEvaluationDialog
+import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
+import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
+import com.example.ui.components.PrimaryButton
+import com.example.ui.theme.AmberWarning
+import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.GlassBorder
+import com.example.ui.theme.GlassBorderSubtle
+import com.example.ui.theme.GradientAction
+import com.example.ui.theme.LilacAccent
+import com.example.ui.theme.LilacSoft
+import com.example.ui.theme.PurpleDarkSurface
+import com.example.ui.theme.PurpleDarkest
+import com.example.ui.theme.PurpleDeepCard
+import com.example.ui.theme.PurplePrimary
+import com.example.ui.theme.PurpleVibrant
 import com.example.ui.theme.RedDestructive
-import com.example.ui.theme.RoyalBlue
-import com.example.ui.theme.RoyalBlueSubtle
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
 import java.time.LocalDate
 import java.time.YearMonth
@@ -108,11 +113,14 @@ fun AgendaScreen(
     val workoutsForSelectedDay = workoutSessions.filter { it.dateEpochDay == selectedEpochDay }
     val cardiosForSelectedDay = cardioSessions.filter { it.dateEpochDay == selectedEpochDay }
 
-    // Map epochDays with sessions
     val workoutDaysSet = remember(workoutSessions) { workoutSessions.map { it.dateEpochDay }.toSet() }
     val cardioDaysSet = remember(cardioSessions) { cardioSessions.map { it.dateEpochDay }.toSet() }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(PurpleDarkest)
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -124,145 +132,137 @@ fun AgendaScreen(
             item {
                 Column {
                     Text(
-                        text = "Agenda & Calendário",
+                        text = "Agenda & Planejamento",
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
                     Text(
-                        text = "Planeje seus treinos e marque as academias/locais onde vai treinar",
+                        text = "Gerencie sua frequência semanal e locais de treino programados",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
             }
 
-            // Month Navigation Card
+            // Month Navigation Bento Card
             item {
-                Card(
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(22.dp))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
-                                Icon(Icons.Default.ChevronLeft, contentDescription = "Mês anterior", tint = RoyalBlue)
-                            }
+                BentoCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
+                            Icon(Icons.Default.ChevronLeft, contentDescription = "Mês anterior", tint = LilacAccent)
+                        }
 
+                        Text(
+                            text = "${currentMonth.month.getDisplayName(TextStyle.FULL, ptLocale).replaceFirstChar { it.titlecase(ptLocale) }} ${currentMonth.year}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
+                        )
+
+                        IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Próximo mês", tint = LilacAccent)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Weekday headers
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        listOf("DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB").forEach { day ->
                             Text(
-                                text = "${currentMonth.month.getDisplayName(TextStyle.FULL, ptLocale).replaceFirstChar { it.titlecase(ptLocale) }} ${currentMonth.year}",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = day,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = TextMuted,
+                                modifier = Modifier.width(38.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
-
-                            IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
-                                Icon(Icons.Default.ChevronRight, contentDescription = "Próximo mês", tint = RoyalBlue)
-                            }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        // Weekday headers
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            listOf("DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB").forEach { day ->
-                                Text(
-                                    text = day,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.width(36.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
+                    // Month Days Grid
+                    val firstDayOfMonth = currentMonth.atDay(1)
+                    val daysInMonth = currentMonth.lengthOfMonth()
+                    val startDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
+                    val totalCells = ((startDayOfWeek + daysInMonth + 6) / 7) * 7
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (row in 0 until (totalCells / 7)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                for (col in 0 until 7) {
+                                    val dayIndex = row * 7 + col
+                                    val dayNumber = dayIndex - startDayOfWeek + 1
+                                    if (dayNumber in 1..daysInMonth) {
+                                        val cellDate = currentMonth.atDay(dayNumber)
+                                        val cellEpoch = cellDate.toEpochDay()
+                                        val isSelected = cellDate == selectedDate
+                                        val isToday = cellDate == LocalDate.now()
+                                        val hasWorkout = workoutDaysSet.contains(cellEpoch)
+                                        val hasCardio = cardioDaysSet.contains(cellEpoch)
 
-                        // Month Days Grid
-                        val firstDayOfMonth = currentMonth.atDay(1)
-                        val daysInMonth = currentMonth.lengthOfMonth()
-                        val startDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7 // Sunday = 0
-                        val totalCells = ((startDayOfWeek + daysInMonth + 6) / 7) * 7
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (isSelected) PurpleVibrant
+                                                    else if (isToday) PurpleDeepCard
+                                                    else Color.Transparent
+                                                )
+                                                .border(
+                                                    width = if (isToday && !isSelected) 1.5.dp else 0.dp,
+                                                    color = LilacAccent,
+                                                    shape = CircleShape
+                                                )
+                                                .clickable { selectedDate = cellDate }
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text(
+                                                    text = "$dayNumber",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected || isToday) FontWeight.Black else FontWeight.Normal,
+                                                    color = if (isSelected) Color.White else TextPrimary
+                                                )
 
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            for (row in 0 until (totalCells / 7)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    for (col in 0 until 7) {
-                                        val dayIndex = row * 7 + col
-                                        val dayNumber = dayIndex - startDayOfWeek + 1
-                                        if (dayNumber in 1..daysInMonth) {
-                                            val cellDate = currentMonth.atDay(dayNumber)
-                                            val cellEpoch = cellDate.toEpochDay()
-                                            val isSelected = cellDate == selectedDate
-                                            val isToday = cellDate == LocalDate.now()
-                                            val hasWorkout = workoutDaysSet.contains(cellEpoch)
-                                            val hasCardio = cardioDaysSet.contains(cellEpoch)
-
-                                            Box(
-                                                contentAlignment = Alignment.Center,
-                                                modifier = Modifier
-                                                    .size(38.dp)
-                                                    .clip(CircleShape)
-                                                    .background(
-                                                        if (isSelected) RoyalBlue
-                                                        else if (isToday) RoyalBlueSubtle
-                                                        else Color.Transparent
-                                                    )
-                                                    .border(
-                                                        width = if (isToday && !isSelected) 1.5.dp else 0.dp,
-                                                        color = RoyalBlue,
-                                                        shape = CircleShape
-                                                    )
-                                                    .clickable { selectedDate = cellDate }
-                                            ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text(
-                                                        text = "$dayNumber",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                                                    )
-
-                                                    // Dots for sessions
-                                                    if (hasWorkout || hasCardio) {
-                                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                                            if (hasWorkout) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .size(4.dp)
-                                                                        .clip(CircleShape)
-                                                                        .background(if (isSelected) Color.White else RoyalBlue)
-                                                                )
-                                                            }
-                                                            if (hasCardio) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .size(4.dp)
-                                                                        .clip(CircleShape)
-                                                                        .background(if (isSelected) Color.White else EmeraldSuccess)
-                                                                )
-                                                            }
+                                                // Dots for sessions
+                                                if (hasWorkout || hasCardio) {
+                                                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                        if (hasWorkout) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(4.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(if (isSelected) Color.White else LilacAccent)
+                                                            )
+                                                        }
+                                                        if (hasCardio) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(4.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(if (isSelected) Color.White else EmeraldSuccess)
+                                                            )
                                                         }
                                                     }
                                                 }
                                             }
-                                        } else {
-                                            Spacer(modifier = Modifier.size(38.dp))
                                         }
+                                    } else {
+                                        Spacer(modifier = Modifier.size(38.dp))
                                     }
                                 }
                             }
@@ -271,7 +271,7 @@ fun AgendaScreen(
                 }
             }
 
-            // Selected Date Summary Bar
+            // Selected Date Summary & Action Bar
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -282,25 +282,34 @@ fun AgendaScreen(
                         Text(
                             text = DateUtils.formatEpochDayWithWeekday(selectedEpochDay),
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
                         )
-                        Text(
-                            text = if (selectedEpochDay == DateUtils.todayEpochDay()) "Hoje" else "",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = RoyalBlue
-                        )
+                        if (selectedEpochDay == DateUtils.todayEpochDay()) {
+                            Text(
+                                text = "HOJE",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LilacAccent,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
 
-                    Button(
-                        onClick = { showScheduleDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("btn_schedule_workout_agenda")
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GradientAction)
+                            .clickable { showScheduleDialog = true }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .testTag("btn_schedule_workout_agenda"),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Agendar Treino", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Agendar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     }
                 }
             }
@@ -308,29 +317,25 @@ fun AgendaScreen(
             // List of Workouts on Selected Day
             if (workoutsForSelectedDay.isEmpty() && cardiosForSelectedDay.isEmpty()) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-                    ) {
+                    BentoCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 text = "Nenhum treino agendado para este dia",
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Clique em 'Agendar Treino' para marcar um treino de musculação ou cardio e o local onde vai realizá-lo!",
+                                text = "Clique em 'Agendar' para planejar seu treino ou registrar suas atividades no local escolhido.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
@@ -358,17 +363,9 @@ fun AgendaScreen(
                 }
 
                 items(cardiosForSelectedDay, key = { it.id }) { cardio ->
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-                    ) {
+                    BentoCard(modifier = Modifier.fillMaxWidth()) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -378,18 +375,38 @@ fun AgendaScreen(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(RoyalBlueSubtle)
-                                    ) {
-                                    Icon(Icons.Default.DirectionsBike, contentDescription = null, tint = RoyalBlue, modifier = Modifier.size(20.dp))
+                                        .background(PurpleDarkSurface)
+                                        .border(1.dp, LilacAccent.copy(alpha = 0.4f), CircleShape)
+                                ) {
+                                    Icon(
+                                        Icons.Default.DirectionsBike,
+                                        contentDescription = null,
+                                        tint = LilacAccent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(cardio.type.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                    Text("📍 ${cardio.location} • ${cardio.durationMinutes} min", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = cardio.type.title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Black,
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        text = "📍 ${cardio.location} • ${cardio.durationMinutes} min",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
                                 }
                             }
 
-                            Text("~${cardio.caloriesBurned} kcal", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                            Text(
+                                text = "~${cardio.caloriesBurned} kcal",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Black,
+                                color = EmeraldSuccess
+                            )
                         }
                     }
                 }
@@ -421,8 +438,16 @@ fun AgendaScreen(
             selectedDateEpoch = selectedEpochDay,
             templates = templates,
             onDismiss = { showScheduleDialog = false },
-            onConfirm = { title, location, templateId ->
-                viewModel.scheduleWorkout(title, selectedEpochDay, location, templateId)
+            onConfirm = { title, location, templateId, coordinates ->
+                viewModel.scheduleWorkout(
+                    title = title,
+                    epochDay = selectedEpochDay,
+                    location = location,
+                    templateId = templateId,
+                    latitude = coordinates?.latitude,
+                    longitude = coordinates?.longitude,
+                    locationAddress = coordinates?.formattedAddress ?: coordinates?.locality
+                )
                 showScheduleDialog = false
             }
         )
@@ -440,165 +465,184 @@ fun AgendaWorkoutItemCard(
 ) {
     val isCompleted = session.status == SessionStatus.COMPLETED
 
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    BentoCard(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                1.dp,
-                if (isCompleted) EmeraldSuccess.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline,
-                RoundedCornerShape(18.dp)
-            )
             .testTag("card_agenda_session_${session.id}")
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(if (isCompleted) EmeraldSuccess.copy(alpha = 0.15f) else PurpleDarkSurface)
+                        .border(1.dp, if (isCompleted) EmeraldSuccess else LilacAccent.copy(alpha = 0.4f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = if (isCompleted) EmeraldSuccess else LilacAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = session.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = LilacAccent,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = session.location,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextSecondary
+                        )
+                    }
+                    if (session.latitude != null && session.longitude != null) {
+                        Text(
+                            text = "📍 GPS: ${String.format(java.util.Locale.US, "%.4f, %.4f", session.latitude, session.longitude)}",
+                            fontSize = 10.sp,
+                            color = EmeraldSuccess,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isCompleted) EmeraldSuccess.copy(alpha = 0.15f) else PurpleDarkSurface)
+                    .border(1.dp, if (isCompleted) EmeraldSuccess.copy(alpha = 0.4f) else LilacAccent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (isCompleted) "Realizado" else "Agendado",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isCompleted) EmeraldSuccess else LilacAccent
+                )
+            }
+        }
+
+        if (isCompleted) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "⏱️ ${session.durationSeconds / 60} min • Volume: ${session.totalWeightLiftedKg.toInt()}kg",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                Text(
+                    text = "~${session.estimatedCalories} kcal",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Black,
+                    color = EmeraldSuccess
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            if (session.aiCaloricEvaluation.isNotBlank()) {
+                Surface(
+                    onClick = { onViewAiFeedback(session.aiCaloricEvaluation) },
+                    shape = RoundedCornerShape(10.dp),
+                    color = PurpleDarkSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = LilacAccent
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Ver Avaliação de Calorias (IA)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LilacAccent
+                        )
+                    }
+                }
+            } else {
+                Surface(
+                    onClick = onAnalyzeWithAi,
+                    shape = RoundedCornerShape(10.dp),
+                    color = PurpleDarkSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = LilacSoft
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Calcular Calorias & IA",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LilacSoft
+                        )
+                    }
+                }
+            }
+        } else {
+            Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remover", tint = RedDestructive)
+                }
+
+                val template = templates.find { it.id == session.templateId } ?: templates.firstOrNull()
+                if (template != null) {
                     Box(
-                        contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(if (isCompleted) EmeraldSuccess.copy(alpha = 0.15f) else RoyalBlueSubtle)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(GradientAction)
+                            .clickable { onStart(template, session.location) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.FitnessCenter,
-                            contentDescription = null,
-                            tint = if (isCompleted) EmeraldSuccess else RoyalBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = session.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = RoyalBlue,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = session.location,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isCompleted) EmeraldSuccess.copy(alpha = 0.15f) else RoyalBlue.copy(alpha = 0.15f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = if (isCompleted) "Realizado" else "Agendado",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isCompleted) EmeraldSuccess else RoyalBlue
-                    )
-                }
-            }
-
-            if (isCompleted) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "⏱️ ${session.durationSeconds / 60} min • Volume: ${session.totalWeightLiftedKg.toInt()}kg",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "~${session.estimatedCalories} kcal",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = EmeraldSuccess
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-                if (session.aiCaloricEvaluation.isNotBlank()) {
-                    FilledTonalButton(
-                        onClick = { onViewAiFeedback(session.aiCaloricEvaluation) },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = RoyalBlueSubtle,
-                            contentColor = RoyalBlue
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = RoyalBlue
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            "Ver Avaliação de Calorias (IA)",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                } else {
-                    OutlinedButton(
-                        onClick = onAnalyzeWithAi,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = RoyalBlue
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            "Calcular Calorias & IA",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = RoyalBlue
-                        )
-                    }
-                }
-            } else {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Remover", tint = RedDestructive)
-                    }
-
-                    val template = templates.find { it.id == session.templateId } ?: templates.firstOrNull()
-                    if (template != null) {
-                        Button(
-                            onClick = { onStart(template, session.location) },
-                            colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Iniciar Agora", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Iniciar Agora", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
                         }
                     }
                 }
@@ -612,17 +656,19 @@ fun ScheduleWorkoutDialog(
     selectedDateEpoch: Long,
     templates: List<WorkoutTemplate>,
     onDismiss: () -> Unit,
-    onConfirm: (title: String, location: String, templateId: Long?) -> Unit
+    onConfirm: (title: String, location: String, templateId: Long?, coordinates: com.example.util.WorkoutLocationCoordinates?) -> Unit
 ) {
     var selectedTemplate by remember { mutableStateOf(templates.firstOrNull()) }
-    var location by remember { mutableStateOf("Academia Smart Fit") }
+    var location by remember { mutableStateOf("Smart Fit Paulista") }
+    var capturedCoordinates by remember { mutableStateOf<com.example.util.WorkoutLocationCoordinates?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Agendar Treino para ${DateUtils.formatEpochDayShort(selectedDateEpoch)}",
-                fontWeight = FontWeight.Bold
+                text = "Agendar para ${DateUtils.formatEpochDayShort(selectedDateEpoch)}",
+                fontWeight = FontWeight.Black,
+                color = TextPrimary
             )
         },
         text = {
@@ -633,7 +679,8 @@ fun ScheduleWorkoutDialog(
                 Text(
                     text = "Selecione o Modelo de Treino:",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
                 )
 
                 Row(
@@ -643,11 +690,18 @@ fun ScheduleWorkoutDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     templates.forEach { tmpl ->
+                        val isSelected = selectedTemplate?.id == tmpl.id
                         FilterChip(
-                            selected = selectedTemplate?.id == tmpl.id,
+                            selected = isSelected,
                             onClick = { selectedTemplate = tmpl },
                             label = { Text(tmpl.title, fontSize = 11.sp) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PurpleDeepCard,
+                                selectedLabelColor = LilacAccent,
+                                containerColor = PurpleDarkSurface,
+                                labelColor = TextSecondary
+                            )
                         )
                     }
                 }
@@ -656,7 +710,9 @@ fun ScheduleWorkoutDialog(
 
                 LocationSelector(
                     selectedLocation = location,
-                    onLocationSelected = { location = it }
+                    onLocationSelected = { location = it },
+                    capturedCoordinates = capturedCoordinates,
+                    onCoordinatesCaptured = { capturedCoordinates = it }
                 )
             }
         },
@@ -664,9 +720,9 @@ fun ScheduleWorkoutDialog(
             Button(
                 onClick = {
                     val title = selectedTemplate?.title ?: "Treino de Musculação"
-                    onConfirm(title, location, selectedTemplate?.id)
+                    onConfirm(title, location, selectedTemplate?.id, capturedCoordinates)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.testTag("btn_confirm_schedule_dialog")
             ) {
@@ -675,10 +731,10 @@ fun ScheduleWorkoutDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text("Cancelar", color = TextMuted)
             }
         },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = PurpleDarkSurface,
         shape = RoundedCornerShape(24.dp)
     )
 }

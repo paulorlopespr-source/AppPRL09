@@ -28,6 +28,36 @@ object DateUtils {
         return localDate.format(formatter)
     }
 
+    fun formatEpochDayFull(epochDay: Long): String {
+        val localDate = LocalDate.ofEpochDay(epochDay)
+        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", ptLocale)
+        return localDate.format(formatter)
+    }
+
+    fun formatEpochDay(epochDay: Long): String {
+        return try {
+            val date = LocalDate.ofEpochDay(epochDay)
+            val today = LocalDate.now()
+            when {
+                date == today -> "Hoje"
+                date == today.minusDays(1) -> "Ontem"
+                date.isAfter(today.minusDays(7)) -> "${today.toEpochDay() - epochDay}d atrás"
+                else -> {
+                    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", ptLocale)
+                    date.format(formatter)
+                }
+            }
+        } catch (e: Exception) {
+            "Recente"
+        }
+    }
+
+    fun formatEpochDayToMonthYear(epochDay: Long): String {
+        val localDate = LocalDate.ofEpochDay(epochDay)
+        val formatter = DateTimeFormatter.ofPattern("MMMM yyyy", ptLocale)
+        return localDate.format(formatter).replaceFirstChar { if (it.isLowerCase()) it.titlecase(ptLocale) else it.toString() }
+    }
+
     fun formatEpochDayWithWeekday(epochDay: Long): String {
         val localDate = LocalDate.ofEpochDay(epochDay)
         val formatter = DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM", ptLocale)

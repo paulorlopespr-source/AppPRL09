@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
@@ -9,9 +10,13 @@ import com.example.data.model.BodyMeasurement
 import com.example.data.model.CardioSession
 import com.example.data.model.CardioType
 import com.example.data.model.Exercise
+import com.example.data.model.ExerciseEvolutionSummary
+import com.example.data.model.ExerciseExecutionRecord
 import com.example.data.model.ExerciseSetEntry
 import com.example.data.model.FitnessGoal
 import com.example.data.model.IntensityLevel
+import com.example.data.model.ProgressionSuggestion
+import com.example.data.model.ProgressPhoto
 import com.example.data.model.SessionStatus
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutCategory
@@ -23,6 +28,9 @@ import com.example.ui.components.DateUtils
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import java.io.File
+import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +39,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ActiveWorkoutState(
     val isActive: Boolean = false,
@@ -72,6 +81,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     val workoutTemplates: StateFlow<List<WorkoutTemplate>> = repository.allWorkoutTemplates
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val favoriteWorkoutTemplates: StateFlow<List<WorkoutTemplate>> = repository.favoriteWorkoutTemplates
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val customWorkoutTemplates: StateFlow<List<WorkoutTemplate>> = repository.customWorkoutTemplates
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val allExercises: StateFlow<List<Exercise>> = repository.allExercises
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -85,6 +100,15 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DefaultFitnessData.getDefaultUserProfile())
 
     val allBodyMeasurements: StateFlow<List<BodyMeasurement>> = repository.allBodyMeasurements
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allProgressPhotos: StateFlow<List<ProgressPhoto>> = repository.allProgressPhotos
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val initialProgressPhoto: StateFlow<ProgressPhoto?> = repository.initialProgressPhoto
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val allExerciseTargets: StateFlow<List<com.example.data.model.ExercisePerformanceTarget>> = repository.allExerciseTargets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Active Workout State ---
@@ -110,7 +134,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     val aiCoachAdvice: StateFlow<String?> = _aiCoachAdvice.asStateFlow()
 
     // --- Active Workout Functions ---
-    fun startWorkoutFromTemplate(template: WorkoutTemplate, location: String) {
+    fun startWorkoutFromTemplate(template: WorkoutTemplate, location: String = "Academia Smart Fit") {
         val parsedPlans = try {
             plansAdapter.fromJson(template.exercisesJson) ?: emptyList()
         } catch (e: Exception) {
@@ -139,6 +163,10 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         )
 
         startWorkoutDurationTimer()
+    }
+
+    fun startEmptyWorkout(title: String = "Treino Personalizado", location: String = "Academia Smart Fit") {
+        startCustomWorkout(title = title, location = location, selectedExercises = emptyList())
     }
 
     fun startCustomWorkout(title: String, location: String, selectedExercises: List<Exercise>, defaultRest: Int = 60) {
@@ -485,13 +513,24 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- Schedule & Agenda ---
-    fun scheduleWorkout(title: String, epochDay: Long, location: String, templateId: Long? = null) {
+    fun scheduleWorkout(
+        title: String,
+        epochDay: Long,
+        location: String,
+        templateId: Long? = null,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        locationAddress: String? = null
+    ) {
         viewModelScope.launch {
             val session = WorkoutSession(
                 templateId = templateId,
                 title = title,
                 dateEpochDay = epochDay,
                 location = location,
+                latitude = latitude,
+                longitude = longitude,
+                locationAddress = locationAddress,
                 status = SessionStatus.SCHEDULED,
                 durationSeconds = 0,
                 totalWeightLiftedKg = 0.0,
@@ -501,13 +540,45 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // --- Goal Setting & Exercise Targets ---
+    fun updateWeeklyGoalDays(days: Int) {
+        val currentProfile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+        viewModelScope.launch {
+            repository.saveUserProfile(currentProfile.copy(weeklyGoalDays = days.coerceIn(1, 7)))
+        }
+    }
+
+    fun saveExerciseTarget(target: com.example.data.model.ExercisePerformanceTarget) {
+        viewModelScope.launch {
+            if (target.id == 0L) {
+                repository.saveExerciseTarget(target)
+            } else {
+                repository.updateExerciseTarget(target)
+            }
+        }
+    }
+
+    fun toggleExerciseTargetAchieved(target: com.example.data.model.ExercisePerformanceTarget) {
+        viewModelScope.launch {
+            val newAchieved = !target.isAchieved
+            val achievedEpochDay = if (newAchieved) DateUtils.todayEpochDay() else null
+            repository.setExerciseTargetAchieved(target.id, newAchieved, achievedEpochDay)
+        }
+    }
+
+    fun deleteExerciseTarget(id: Long) {
+        viewModelScope.launch {
+            repository.deleteExerciseTargetById(id)
+        }
+    }
+
     fun deleteWorkoutSession(id: Long) {
         viewModelScope.launch {
             repository.deleteWorkoutSessionById(id)
         }
     }
 
-    // --- Custom Template Creation ---
+    // --- Custom Template Creation & Favorite Management ---
     fun createAndSaveWorkoutTemplate(
         title: String,
         subtitle: String,
@@ -515,7 +586,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         exercises: List<WorkoutExercisePlan>,
         description: String,
         durationMin: Int = 50,
-        restSec: Int = 60
+        restSec: Int = 60,
+        isFavorite: Boolean = false
     ) {
         viewModelScope.launch {
             val json = plansAdapter.toJson(exercises)
@@ -526,10 +598,25 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 defaultRestSeconds = restSec,
                 executionDurationMinutes = durationMin,
                 isPreset = false,
+                isFavorite = isFavorite,
                 exercisesJson = json,
-                description = description
+                description = description,
+                createdAtEpochDay = DateUtils.todayEpochDay(),
+                timesCompleted = 0
             )
             repository.saveWorkoutTemplate(template)
+        }
+    }
+
+    fun toggleFavoriteWorkoutTemplate(template: WorkoutTemplate) {
+        viewModelScope.launch {
+            repository.setWorkoutTemplateFavorite(template.id, !template.isFavorite)
+        }
+    }
+
+    fun duplicateWorkoutTemplate(template: WorkoutTemplate) {
+        viewModelScope.launch {
+            repository.duplicateWorkoutTemplate(template)
         }
     }
 
@@ -561,6 +648,79 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // --- Progress & Body Photos (Evolution) ---
+    fun saveProgressPhoto(
+        sourceUri: Uri,
+        weightKg: Double?,
+        monthLabel: String,
+        isInitial: Boolean,
+        bodyFatPercentage: Double?,
+        notes: String,
+        onComplete: (Boolean) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val permanentPath = withContext(Dispatchers.IO) {
+                try {
+                    val photosDir = File(app.filesDir, "progress_photos")
+                    if (!photosDir.exists()) {
+                        photosDir.mkdirs()
+                    }
+                    val fileName = "photo_${System.currentTimeMillis()}.jpg"
+                    val destFile = File(photosDir, fileName)
+
+                    app.contentResolver.openInputStream(sourceUri)?.use { input ->
+                        FileOutputStream(destFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    destFile.absolutePath
+                } catch (e: Exception) {
+                    sourceUri.toString()
+                }
+            }
+
+            val photoRecord = ProgressPhoto(
+                dateEpochDay = DateUtils.todayEpochDay(),
+                timestampMillis = System.currentTimeMillis(),
+                imageUri = permanentPath,
+                weightKg = weightKg,
+                monthLabel = monthLabel.ifBlank {
+                    if (isInitial) "Foto Inicial" else DateUtils.formatEpochDayToMonthYear(DateUtils.todayEpochDay())
+                },
+                isInitial = isInitial,
+                bodyFatPercentage = bodyFatPercentage,
+                notes = notes
+            )
+            repository.saveProgressPhoto(photoRecord)
+
+            // Update user profile weights if provided
+            userProfile.value?.let { prof ->
+                if (isInitial && weightKg != null) {
+                    repository.saveUserProfile(prof.copy(startingWeightKg = weightKg))
+                } else if (!isInitial && weightKg != null) {
+                    repository.saveUserProfile(prof.copy(currentWeightKg = weightKg))
+                }
+            }
+
+            onComplete(true)
+        }
+    }
+
+    fun deleteProgressPhoto(photo: ProgressPhoto) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    val file = File(photo.imageUri)
+                    if (file.exists() && file.isFile) {
+                        file.delete()
+                    }
+                } catch (_: Exception) {}
+            }
+            repository.deleteProgressPhotoById(photo.id)
+        }
+    }
+
     // --- AI Evaluations ---
     fun evaluateSessionWithAI(session: WorkoutSession, profile: UserProfile) {
         viewModelScope.launch {
@@ -583,6 +743,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // --- Progression & Overload State ---
+    private val _dismissedProgressions = MutableStateFlow<Set<String>>(emptySet())
+    val dismissedProgressions: StateFlow<Set<String>> = _dismissedProgressions.asStateFlow()
+
+    private val _appliedProgressions = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val appliedProgressions: StateFlow<Map<String, Double>> = _appliedProgressions.asStateFlow()
+
     fun requestAICoachAdvice() {
         val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
         val sessions = allWorkoutSessions.value
@@ -597,5 +764,134 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             _aiCoachAdvice.value = advice
             _isAIEvaluating.value = false
         }
+    }
+
+    // --- Automatic Exercise History & Overload Engine ---
+
+    fun getExerciseHistoryRecords(exerciseName: String, exerciseId: Long? = null): List<ExerciseExecutionRecord> {
+        val sessions = allWorkoutSessions.value
+            .filter { it.status == SessionStatus.COMPLETED }
+            .sortedWith(compareByDescending<WorkoutSession> { it.dateEpochDay }.thenByDescending { it.startTimeMillis })
+
+        val records = mutableListOf<ExerciseExecutionRecord>()
+
+        for (session in sessions) {
+            val plans = try {
+                plansAdapter.fromJson(session.exercisesDoneJson) ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            val matchingPlan = plans.firstOrNull { plan ->
+                (exerciseId != null && plan.exerciseId == exerciseId) ||
+                    plan.exerciseName.trim().equals(exerciseName.trim(), ignoreCase = true)
+            }
+
+            if (matchingPlan != null && matchingPlan.sets.any { it.isCompleted }) {
+                records.add(
+                    ExerciseExecutionRecord(
+                        sessionId = session.id,
+                        workoutTitle = session.title,
+                        sessionDateEpochDay = session.dateEpochDay,
+                        sessionStartTimeMillis = session.startTimeMillis,
+                        location = session.location,
+                        exerciseId = matchingPlan.exerciseId,
+                        exerciseName = matchingPlan.exerciseName,
+                        muscleGroup = matchingPlan.muscleGroup,
+                        sets = matchingPlan.sets,
+                        notes = matchingPlan.notes.ifBlank { session.notes },
+                        targetRestSeconds = matchingPlan.targetRestSeconds
+                    )
+                )
+            }
+        }
+
+        return records
+    }
+
+    fun getLastExerciseExecution(exerciseName: String, exerciseId: Long? = null): ExerciseExecutionRecord? {
+        return getExerciseHistoryRecords(exerciseName, exerciseId).firstOrNull()
+    }
+
+    fun getProgressionSuggestion(
+        exerciseName: String,
+        currentPlan: WorkoutExercisePlan
+    ): ProgressionSuggestion? {
+        if (_dismissedProgressions.value.contains(exerciseName)) {
+            return null
+        }
+
+        val history = getExerciseHistoryRecords(exerciseName, currentPlan.exerciseId)
+        if (history.isEmpty()) return null
+
+        val lastRecord = history.first()
+        val lastCompletedSets = lastRecord.completedSets
+        if (lastCompletedSets.isEmpty()) return null
+
+        val currentWeight = currentPlan.sets.firstOrNull()?.weightKg ?: lastRecord.primaryWeightKg
+        val targetReps = currentPlan.sets.firstOrNull()?.reps ?: 10
+
+        // Check if user hit the target reps across all completed sets in the last session
+        val allSetsHitTarget = lastCompletedSets.all { it.reps >= targetReps }
+        val highRepConsistency = lastCompletedSets.size >= 2 && lastCompletedSets.count { it.reps >= targetReps } >= (lastCompletedSets.size - 1)
+
+        if (allSetsHitTarget || highRepConsistency) {
+            // Determine smart progressive increment (+2.5kg standard, +2kg for light dumbbells, +5kg for heavy compounds)
+            val increment = when {
+                currentWeight >= 80.0 -> 5.0
+                currentWeight in 20.0..79.0 -> 2.5
+                currentWeight > 0.0 -> 2.0
+                else -> 2.5
+            }
+
+            val suggestedWeight = currentWeight + increment
+            val isAlreadyApplied = _appliedProgressions.value[exerciseName] == suggestedWeight
+
+            val repsSummary = lastCompletedSets.joinToString("/") { "${it.reps}" }
+
+            return ProgressionSuggestion(
+                exerciseName = exerciseName,
+                exerciseId = currentPlan.exerciseId,
+                currentWeightKg = currentWeight,
+                suggestedWeightKg = suggestedWeight,
+                weightDeltaKg = increment,
+                reason = "Você atingiu sua meta nas últimas sessões ($repsSummary reps com ${formatWeightDisplay(currentWeight)}kg).",
+                recentSessionsSummary = "Última sessão: ${lastCompletedSets.size} séries completadas com sucesso.",
+                suggestedReps = targetReps,
+                isAccepted = isAlreadyApplied,
+                isDismissed = false
+            )
+        }
+
+        return null
+    }
+
+    fun applyProgressionSuggestion(exerciseIndex: Int, suggestedWeight: Double) {
+        val current = _activeWorkout.value
+        val updatedExercises = current.exercises.toMutableList()
+        if (exerciseIndex in updatedExercises.indices) {
+            val plan = updatedExercises[exerciseIndex]
+            val updatedSets = plan.sets.map { set ->
+                if (!set.isCompleted) {
+                    set.copy(weightKg = suggestedWeight)
+                } else set
+            }
+            updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
+            _activeWorkout.value = current.copy(exercises = updatedExercises)
+
+            val map = _appliedProgressions.value.toMutableMap()
+            map[plan.exerciseName] = suggestedWeight
+            _appliedProgressions.value = map
+        }
+    }
+
+    fun dismissProgressionSuggestion(exerciseName: String) {
+        val set = _dismissedProgressions.value.toMutableSet()
+        set.add(exerciseName)
+        _dismissedProgressions.value = set
+    }
+
+    private fun formatWeightDisplay(weight: Double): String {
+        return if (weight % 1.0 == 0.0) weight.toInt().toString() else String.format(java.util.Locale.US, "%.1f", weight)
     }
 }

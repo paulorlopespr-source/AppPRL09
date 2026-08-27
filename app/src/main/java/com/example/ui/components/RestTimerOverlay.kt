@@ -35,11 +35,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,18 +46,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.AmberSubtle
 import com.example.ui.theme.AmberWarning
-import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.GlassBorder
+import com.example.ui.theme.GlassSurfaceDark
+import com.example.ui.theme.GlowPurple
+import com.example.ui.theme.GradientAction
+import com.example.ui.theme.LilacAccent
+import com.example.ui.theme.LilacSoft
+import com.example.ui.theme.PurpleDarkSurface
+import com.example.ui.theme.PurpleDarkest
+import com.example.ui.theme.PurpleDeepCard
+import com.example.ui.theme.PurpleVibrant
 import com.example.ui.theme.RedDestructive
-import com.example.ui.theme.RoyalBlue
-import com.example.ui.theme.RoyalBlueSubtle
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 
 fun triggerVibration(context: Context) {
     try {
@@ -80,8 +87,9 @@ fun triggerVibration(context: Context) {
 }
 
 /**
- * Componente de Cronômetro de Descanso (Rest Timer) com contagem regressiva
- * para intervalos entre séries, permitindo iniciar, pausar, retomar e ajustar o tempo.
+ * Cronômetro de Descanso (Rest Timer) com visual Liquid Glass & Dark Mode Premium
+ * com anel circular de contagem regressiva, presets (30s, 45s, 60s, 90s, 120s),
+ * controles rápidos (+/- 15s, pausar, pular) e notificação háptica.
  */
 @Composable
 fun RestTimerOverlay(
@@ -115,210 +123,243 @@ fun RestTimerOverlay(
             label = "timer_progress"
         )
 
-        val accentColor by animateColorAsState(
-            targetValue = if (isPaused) AmberWarning else RoyalBlue,
-            label = "timer_accent_color"
+        val ringColor by animateColorAsState(
+            targetValue = if (isPaused) AmberWarning else LilacAccent,
+            label = "timer_ring_color"
         )
 
         Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp,
-            shadowElevation = 16.dp,
+            shape = RoundedCornerShape(28.dp),
+            color = Color.Transparent,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                .border(
-                    width = 1.5.dp,
-                    color = accentColor.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(24.dp)
+                .shadow(
+                    elevation = 20.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    ambientColor = GlowPurple,
+                    spotColor = PurpleVibrant
                 )
                 .testTag("rest_timer_overlay")
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .background(GlassSurfaceDark)
+                    .border(1.2.dp, GlassBorder, RoundedCornerShape(28.dp))
+                    .padding(20.dp)
             ) {
-                // Header Row
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isPaused) AmberSubtle else RoyalBlueSubtle,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Timer,
-                                    contentDescription = "Ícone de descanso",
-                                    tint = accentColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Descanso Entre Séries",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (isPaused) "⏸️ Cronômetro Pausado" else "⏳ Contagem Regressiva Ativa",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = accentColor
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .testTag("btn_close_timer")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Fechar timer",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Circular Countdown Display
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(140.dp)
-                ) {
-                    CircularProgressIndicator(
-                        progress = { 1f },
-                        modifier = Modifier.size(140.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        strokeWidth = 10.dp,
-                    )
-                    CircularProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.size(140.dp),
-                        color = accentColor,
-                        strokeWidth = 10.dp,
-                    )
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = DateUtils.formatSecondsToTime(remainingSeconds),
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = if (isPaused) "PAUSADO" else "RECUPERANDO",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = accentColor
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Quick Presets row
-                if (onSelectPreset != null) {
+                    // Header Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf(30, 45, 60, 90, 120).forEach { presetSeconds ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (totalSeconds == presetSeconds && !isPaused) RoyalBlueSubtle else MaterialTheme.colorScheme.surfaceVariant,
-                                border = if (totalSeconds == presetSeconds && !isPaused) androidx.compose.foundation.BorderStroke(1.dp, RoyalBlue) else null,
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onSelectPreset(presetSeconds) }
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(PurpleDeepCard)
+                                    .border(1.dp, LilacAccent.copy(alpha = 0.4f), CircleShape)
                             ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = null,
+                                    tint = ringColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
                                 Text(
-                                    text = "${presetSeconds}s",
-                                    fontSize = 11.sp,
+                                    text = "Descanso Entre Séries",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = if (isPaused) "⏸️ Pausado" else "⏳ Recuperando Energia",
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (totalSeconds == presetSeconds && !isPaused) RoyalBlue else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    color = ringColor
                                 )
                             }
                         }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
 
-                // Controls: -15s, Play/Pause, +15s, Skip
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FilledTonalButton(
-                        onClick = { onAddSeconds(-15) },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("btn_timer_sub_15")
-                    ) {
-                        Icon(Icons.Default.Remove, contentDescription = "-15s", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text("15s", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(PurpleDarkSurface)
+                                .clickable { onDismiss() }
+                                .testTag("btn_close_timer"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Fechar timer",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
 
-                    // Main Start / Pause / Resume Button
-                    IconButton(
-                        onClick = onPauseResume,
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(accentColor)
-                            .testTag("btn_timer_pause_resume")
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Circular Countdown Ring Display
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(140.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                            contentDescription = if (isPaused) "Iniciar / Retomar" else "Pausar",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                        // Track Background Ring
+                        CircularProgressIndicator(
+                            progress = { 1f },
+                            modifier = Modifier.size(140.dp),
+                            color = PurpleDarkest,
+                            strokeWidth = 10.dp,
                         )
+                        // Dynamic Progress Ring
+                        CircularProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.size(140.dp),
+                            color = ringColor,
+                            strokeWidth = 10.dp,
+                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = DateUtils.formatSecondsToTime(remainingSeconds),
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.Black,
+                                color = TextPrimary,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = if (isPaused) "PAUSADO" else "DESCANSO",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = ringColor
+                            )
+                        }
                     }
 
-                    FilledTonalButton(
-                        onClick = { onAddSeconds(15) },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("btn_timer_add_15")
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "+15s", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text("15s", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Quick Presets Row (30s, 45s, 60s, 90s, 120s)
+                    if (onSelectPreset != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf(30, 45, 60, 90, 120).forEach { presetSeconds ->
+                                val isSelected = totalSeconds == presetSeconds && !isPaused
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isSelected) PurpleDeepCard else PurpleDarkSurface)
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) LilacAccent else GlassBorder,
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .clickable { onSelectPreset(presetSeconds) }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "${presetSeconds}s",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) LilacAccent else TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
 
-                    FilledTonalButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        modifier = Modifier.testTag("btn_timer_skip")
+                    // Controls: -15s, Play/Pause, +15s, Pular
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Pular", fontWeight = FontWeight.SemiBold, color = RedDestructive, fontSize = 12.sp)
+                        // -15s
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(PurpleDarkSurface)
+                                .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
+                                .clickable { onAddSeconds(-15) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                                .testTag("btn_timer_sub_15"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Remove, contentDescription = "-15s", tint = TextPrimary, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text("15s", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                            }
+                        }
+
+                        // Play/Pause Main FAB
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(GradientAction)
+                                .border(1.dp, LilacSoft.copy(alpha = 0.5f), CircleShape)
+                                .clickable { onPauseResume() }
+                                .testTag("btn_timer_pause_resume"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = if (isPaused) "Iniciar / Retomar" else "Pausar",
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+
+                        // +15s
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(PurpleDarkSurface)
+                                .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
+                                .clickable { onAddSeconds(15) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                                .testTag("btn_timer_add_15"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Add, contentDescription = "+15s", tint = TextPrimary, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text("15s", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                            }
+                        }
+
+                        // Pular
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(PurpleDarkSurface)
+                                .border(1.dp, RedDestructive.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                .clickable { onDismiss() }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                                .testTag("btn_timer_skip"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Pular", fontWeight = FontWeight.Bold, color = RedDestructive, fontSize = 12.sp)
+                        }
                     }
                 }
             }
         }
     }
 }
-

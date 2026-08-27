@@ -9,6 +9,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.BodyMeasurement
 import com.example.data.model.CardioSession
 import com.example.data.model.Exercise
+import com.example.data.model.ExercisePerformanceTarget
+import com.example.data.model.ProgressPhoto
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
@@ -23,15 +25,19 @@ import kotlinx.coroutines.launch
         WorkoutSession::class,
         CardioSession::class,
         UserProfile::class,
-        BodyMeasurement::class
+        BodyMeasurement::class,
+        ProgressPhoto::class,
+        ExercisePerformanceTarget::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun fitnessDao(): FitnessDao
+    abstract fun workoutTemplateDao(): WorkoutTemplateDao
+    abstract fun exerciseTargetDao(): ExerciseTargetDao
 
     companion object {
         @Volatile
@@ -44,6 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fittreino_database"
                 )
+                    .fallbackToDestructiveMigration()
                     .addCallback(DatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
@@ -72,6 +79,14 @@ abstract class AppDatabase : RoomDatabase() {
             templates.forEach { dao.insertWorkoutTemplate(it) }
 
             dao.insertUserProfile(DefaultFitnessData.getDefaultUserProfile())
+
+            DefaultFitnessData.getDefaultExerciseTargets().forEach {
+                dao.insertExerciseTarget(it)
+            }
+
+            DefaultFitnessData.getDefaultWorkoutSessions().forEach {
+                dao.insertWorkoutSession(it)
+            }
         }
     }
 }

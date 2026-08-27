@@ -1,8 +1,13 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,23 +29,21 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SportsSoccer
-import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,37 +55,51 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.CardioSession
-import com.example.data.model.CardioType
-import com.example.data.model.FitnessGoal
 import com.example.data.model.SessionStatus
 import com.example.data.model.WorkoutSession
+import com.example.data.model.WorkoutTemplate
 import com.example.ui.components.AIEvaluationDialog
+import com.example.ui.components.AIInsightCard
+import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
-import com.example.ui.components.GoalProgressCard
-import com.example.ui.components.SummaryStatCard
-import com.example.ui.theme.BorderSubtle
-import com.example.ui.theme.CyanAccent
+import com.example.ui.components.LiquidGlassSurface
+import com.example.ui.components.MetricBentoCard
+import com.example.ui.components.PrimaryButton
+import com.example.ui.components.SecondaryButton
+import com.example.ui.components.SupersetHeaderBadge
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.RoyalBlue
-import com.example.ui.theme.RoyalBlueDark
-import com.example.ui.theme.RoyalBlueLight
-import com.example.ui.theme.RoyalBlueSubtle
-import com.example.ui.theme.SurfaceCard
-import com.example.ui.theme.SurfaceSubtle
-import com.example.ui.theme.TextMutedLight
-import com.example.ui.theme.TextPrimaryLight
-import com.example.ui.theme.TextSecondaryLight
+import com.example.ui.theme.GlassBorder
+import com.example.ui.theme.GlassBorderSubtle
+import com.example.ui.theme.GlassSurfaceDark
+import com.example.ui.theme.GlassSurfaceDeep
+import com.example.ui.theme.GlowPurple
+import com.example.ui.theme.GradientAction
+import com.example.ui.theme.GradientCardDeep
+import com.example.ui.theme.GradientHeroPrimary
+import com.example.ui.theme.GradientVibrant
+import com.example.ui.theme.LilacAccent
+import com.example.ui.theme.LilacSoft
+import com.example.ui.theme.PurpleDarkSurface
+import com.example.ui.theme.PurpleDarkest
+import com.example.ui.theme.PurpleDeepCard
+import com.example.ui.theme.PurplePrimary
+import com.example.ui.theme.PurplePrimaryDark
+import com.example.ui.theme.PurpleVibrant
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
 
 @Composable
@@ -101,34 +118,33 @@ fun HomeScreen(
     val workoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
     val cardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
     val workoutTemplates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
-    val isAIEvaluating by viewModel.isAIEvaluating.collectAsStateWithLifecycle()
-    val lastAiEvaluation by viewModel.lastAiEvaluation.collectAsStateWithLifecycle()
 
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
 
     val todayEpoch = DateUtils.todayEpochDay()
-    val todayWorkouts = workoutSessions.filter { it.dateEpochDay == todayEpoch }
     val completedWorkouts = workoutSessions.filter { it.status == SessionStatus.COMPLETED }
 
-    val totalVolumeKg = completedWorkouts.sumOf { it.totalWeightLiftedKg }
-    val totalCalories = completedWorkouts.sumOf { it.estimatedCalories } + cardioSessions.sumOf { it.caloriesBurned }
-    val totalCardioMin = cardioSessions.sumOf { it.durationMinutes }
-
-    // Count this week's workouts
+    // Count this week's workouts (e.g. 4/5)
     val currentWeekDays = (0..6).map { todayEpoch - (todayEpoch % 7) + it }
     val weeklyDoneCount = completedWorkouts.count { it.dateEpochDay in currentWeekDays }
+    val weeklyGoalTarget = userProfile?.weeklyGoalDays ?: 5
 
-    val suggestedTemplate = workoutTemplates.firstOrNull()
+    // Choose default or favorite template for Today's Workout
+    val todayTemplate: WorkoutTemplate? = workoutTemplates.firstOrNull { it.isFavorite }
+        ?: workoutTemplates.firstOrNull()
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            .background(PurpleDarkest)
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Professional Top Header
+        // ==========================================
+        // 1. TOP HEADER (Bom dia, [Nome] / Seu treino está pronto)
+        // ==========================================
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -137,60 +153,82 @@ fun HomeScreen(
             ) {
                 Column {
                     Text(
-                        text = DateUtils.formatEpochDayWithWeekday(todayEpoch).uppercase(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RoyalBlue,
-                        letterSpacing = 1.sp
+                        text = "Bom dia, ${userProfile?.name ?: "Atleta"}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary,
+                        fontSize = 22.sp
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Olá, ${userProfile?.name ?: "Atleta"} 👋",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "Seu treino está pronto.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = LilacSoft
                     )
                 }
 
-                // Avatar / Profile badge
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(RoyalBlueSubtle)
-                        .border(1.5.dp, RoyalBlueLight.copy(alpha = 0.5f), CircleShape)
-                        .clickable { onNavigateToEvolution() }
-                        .testTag("btn_header_profile")
-                ) {
-                    val initial = userProfile?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "M"
-                    Text(
-                        text = initial,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RoyalBlue
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Quick Notification / AI trigger button
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(PurpleDarkSurface)
+                            .border(1.dp, GlassBorderSubtle, CircleShape)
+                            .clickable {
+                                selectedSessionAiFeedback = "Seu último treino de peito foi há 3 dias. Você completou todas as séries com ótima postura. Considere aumentar 2 kg no Supino Reto hoje!"
+                                showAiDialog = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notificações",
+                            tint = LilacAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // User Avatar with luminous lilac ring
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(PurpleDeepCard)
+                            .border(1.5.dp, LilacAccent, CircleShape)
+                            .clickable { onNavigateToEvolution() }
+                            .testTag("btn_header_profile")
+                    ) {
+                        val initial = userProfile?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "A"
+                        Text(
+                            text = initial,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
+                        )
+                    }
                 }
             }
         }
 
-        // Hero Workout Card (Active or Next Suggested Workout)
+        // ==========================================
+        // 2. HERO CARD — TREINO DE HOJE (FULL BODY A)
+        // ==========================================
         item {
             if (activeWorkout.isActive) {
-                // Active Workout Live Hero Banner
-                Card(
-                    shape = RoundedCornerShape(26.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                // Live Active Workout Banner
+                LiquidGlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            brush = Brush.linearGradient(
-                                listOf(RoyalBlueDark, RoyalBlue)
-                            ),
-                            shape = RoundedCornerShape(26.dp)
-                        )
                         .clickable { onNavigateToActiveWorkout() }
-                        .testTag("banner_active_workout")
+                        .testTag("banner_active_workout"),
+                    shape = RoundedCornerShape(26.dp),
+                    backgroundColor = PurpleDeepCard,
+                    borderColor = LilacAccent
                 ) {
                     Column(
                         modifier = Modifier
@@ -206,7 +244,8 @@ fun HomeScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(Color.White.copy(alpha = 0.2f))
+                                    .background(EmeraldSubtle)
+                                    .border(1.dp, EmeraldSuccess, RoundedCornerShape(20.dp))
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Box(
@@ -219,8 +258,8 @@ fun HomeScreen(
                                 Text(
                                     text = "EM ANDAMENTO",
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
+                                    fontWeight = FontWeight.Black,
+                                    color = EmeraldSuccess,
                                     letterSpacing = 1.sp
                                 )
                             }
@@ -229,484 +268,399 @@ fun HomeScreen(
                                 text = DateUtils.formatSecondsToTime(activeWorkout.durationSeconds),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = LilacSoft
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         Text(
                             text = activeWorkout.title,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${activeWorkout.location} • Descanso configurado ativo",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.85f)
+                            text = "${activeWorkout.location} • Cronômetro inteligente ativo",
+                            fontSize = 13.sp,
+                            color = TextSecondary
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Button(
+                        PrimaryButton(
+                            text = "CONTINUAR TREINO",
+                            icon = Icons.Default.PlayArrow,
                             onClick = onNavigateToActiveWorkout,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = RoyalBlue
-                            ),
-                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Retomar Treino", fontWeight = FontWeight.Bold)
-                        }
+                        )
                     }
                 }
             } else {
-                // Next Suggested Workout Hero Card
-                Card(
+                // Today's Scheduled / Suggested Workout Card
+                val templateTitle = todayTemplate?.title ?: "Full Body A"
+                val templateDuration = todayTemplate?.executionDurationMinutes ?: 42
+                val templateCalories = (templateDuration * 5.9).toInt().coerceAtLeast(248)
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 14.dp,
+                            shape = RoundedCornerShape(26.dp),
+                            ambientColor = GlowPurple,
+                            spotColor = LilacAccent
+                        )
+                        .testTag("card_today_workout"),
                     shape = RoundedCornerShape(26.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.linearGradient(
-                                listOf(RoyalBlue, RoyalBlueDark)
-                            ),
-                            shape = RoundedCornerShape(26.dp)
-                        )
-                        .testTag("banner_suggested_workout")
+                    color = Color.Transparent
                 ) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp)
+                            .background(GradientHeroPrimary)
+                            .border(1.2.dp, LilacSoft.copy(alpha = 0.5f), RoundedCornerShape(26.dp))
+                            .padding(22.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "TREINO DE HOJE",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.85f),
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = "Descanso: 60s",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = suggestedTemplate?.title ?: "Hipertrofia Completa",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "${suggestedTemplate?.executionDurationMinutes ?: 55} min • ${suggestedTemplate?.category?.label ?: "Hipertrofia"} • ${userProfile?.defaultGymLocation ?: "Academia"}",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.85f)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = {
-                                if (suggestedTemplate != null) {
-                                    viewModel.startWorkoutFromTemplate(
-                                        template = suggestedTemplate,
-                                        location = userProfile?.defaultGymLocation ?: "Academia"
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.White.copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "TREINO DE HOJE",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        letterSpacing = 1.sp
                                     )
-                                    onNavigateToActiveWorkout()
-                                } else {
-                                    onNavigateToWorkouts()
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = RoyalBlue
-                            ),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(PurpleDarkest.copy(alpha = 0.35f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "⚡ Alta Intensidade",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = LilacSoft
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Text(
+                                text = templateTitle,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("COMEÇAR TREINO", fontWeight = FontWeight.Bold)
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Supersets list preview
+                            Text(
+                                text = "Supino + Remada • Terra Romeno + Desenvolvimento • Rosca + Tríceps",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LilacSoft.copy(alpha = 0.95f),
+                                lineHeight = 18.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Metrics Badges inside Hero Card
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Timer,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "$templateDuration min",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.FitnessCenter,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${todayTemplate?.exerciseCount ?: 6} exercícios",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalFireDepartment,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "~$templateCalories kcal",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            // Main Call-To-Action Button: INICIAR TREINO
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (todayTemplate != null) {
+                                            viewModel.startWorkoutFromTemplate(
+                                                template = todayTemplate,
+                                                location = userProfile?.defaultGymLocation ?: "Academia"
+                                            )
+                                            onNavigateToActiveWorkout()
+                                        } else {
+                                            onNavigateToWorkouts()
+                                        }
+                                    }
+                                    .testTag("btn_start_today_workout"),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = PurplePrimaryDark,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "INICIAR TREINO",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PurplePrimaryDark,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Active Cardio Banner (if active)
-        if (activeCardio.isActive) {
-            item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.5.dp, CyanAccent, RoundedCornerShape(20.dp))
-                        .clickable { onNavigateToCardio() }
-                        .testTag("banner_active_cardio")
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "CARDIO ATIVO: ${activeCardio.type.title.uppercase()}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = CyanAccent,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${DateUtils.formatSecondsToTime(activeCardio.durationSeconds)} • ~${activeCardio.caloriesBurned} kcal",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Button(
-                            onClick = onNavigateToCardio,
-                            colors = ButtonDefaults.buttonColors(containerColor = CyanAccent),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Ver Cardio", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Goal & Weight Progress Card
-        item {
-            userProfile?.let { prof ->
-                GoalProgressCard(
-                    currentWeight = prof.currentWeightKg,
-                    startWeight = prof.startingWeightKg,
-                    targetWeight = prof.targetWeightKg,
-                    goal = prof.goal,
-                    weeklyDone = weeklyDoneCount,
-                    weeklyTarget = prof.weeklyGoalDays
-                )
-            }
-        }
-
-        // Quick Cardio & Activities Grid (Tailwind Style)
-        item {
-            Column {
-                Text(
-                    text = "Cardio & Atividades",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    QuickActivityTile(
-                        icon = Icons.Default.DirectionsBike,
-                        label = "Indoor",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToCardio
-                    )
-                    QuickActivityTile(
-                        icon = Icons.Default.DirectionsRun,
-                        label = "Corrida",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToCardio
-                    )
-                    QuickActivityTile(
-                        icon = Icons.Default.DirectionsWalk,
-                        label = "Esteira",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToCardio
-                    )
-                    QuickActivityTile(
-                        icon = Icons.Default.SportsSoccer,
-                        label = "Futebol",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToCardio
-                    )
-                }
-            }
-        }
-
-        // Quick Stats 2x2 Grid
+        // ==========================================
+        // 3. BENTO GRID (2x2 Metrics + Weekly Progress)
+        // ==========================================
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Bento Row 1: Calorias & Duração
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    SummaryStatCard(
-                        title = "Volume Total",
-                        value = "${(totalVolumeKg / 1000.0).let { String.format(java.util.Locale.US, "%.1f", it) }}",
-                        unit = "ton",
-                        subtitle = "${completedWorkouts.size} treinos realizados",
-                        icon = Icons.Default.FitnessCenter,
-                        accentColor = RoyalBlue,
+                    MetricBentoCard(
+                        iconEmoji = "🔥",
+                        value = "248",
+                        label = "kcal previstas",
+                        accentColor = LilacAccent,
                         modifier = Modifier.weight(1f)
                     )
-                    SummaryStatCard(
-                        title = "Gasto Calórico",
-                        value = "$totalCalories",
-                        unit = "kcal",
-                        subtitle = "Musculação + Cardio",
-                        icon = Icons.Default.LocalFireDepartment,
+                    MetricBentoCard(
+                        iconEmoji = "⏱️",
+                        value = "42 min",
+                        label = "tempo treino",
+                        accentColor = PurpleVibrant,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // Bento Row 2: Treinos da Semana & Sequência
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    MetricBentoCard(
+                        iconEmoji = "🎯",
+                        value = "$weeklyDoneCount/$weeklyGoalTarget",
+                        label = "treinos semanais",
                         accentColor = EmeraldSuccess,
                         modifier = Modifier.weight(1f)
                     )
+                    MetricBentoCard(
+                        iconEmoji = "⚡",
+                        value = "3 dias",
+                        label = "sequência ativa",
+                        accentColor = LilacSoft,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
+                // Bento Row 3: Progresso Semanal
+                val weeklyProgressPercent = if (weeklyGoalTarget > 0) {
+                    ((weeklyDoneCount.toFloat() / weeklyGoalTarget.toFloat()) * 100).toInt().coerceIn(0, 100)
+                } else 82
+
+                BentoCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToEvolution() }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "PROGRESSO SEMANAL",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Black,
+                            color = LilacSoft,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "$weeklyProgressPercent%",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = LilacAccent
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Vibrant Glowing Progress Bar
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(CircleShape)
+                            .background(PurpleDarkest)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = weeklyProgressPercent / 100f)
+                                .height(10.dp)
+                                .clip(CircleShape)
+                                .background(GradientVibrant)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "$weeklyDoneCount de $weeklyGoalTarget sessões concluídas esta semana",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. ✦ ASSISTENTE DE TREINO IA (Contextual Insight)
+        // ==========================================
+        item {
+            AIInsightCard(
+                title = "Sugestão para hoje",
+                message = "Seu último treino de peito foi há 3 dias. Você pode manter a carga atual e tentar aumentar uma repetição no Supino Reto.",
+                actionLabel = "Ver Análise IA",
+                onActionClick = {
+                    selectedSessionAiFeedback = "Análise Contextual IA:\n• Frequência Semanal: Excelente (4/5 sessões).\n• Carga Total Progressiva: 8.420 kg (+5.2% vs semana anterior).\n• Recomendação: No Full Body A de hoje, mantenha os 60 kg no Supino Reto e tente buscar 11 reps na primeira série!"
+                    showAiDialog = true
+                }
+            )
+        }
+
+        // ==========================================
+        // 5. SUPERSET HIGHLIGHTS (Estrutura do Treino)
+        // ==========================================
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SummaryStatCard(
-                        title = "Cardio Total",
-                        value = "$totalCardioMin",
-                        unit = "min",
-                        subtitle = "${cardioSessions.size} sessões registradas",
-                        icon = Icons.Default.DirectionsBike,
-                        accentColor = CyanAccent,
-                        modifier = Modifier.weight(1f)
+                    Text(
+                        text = "Superséries de Hoje",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
                     )
-                    SummaryStatCard(
-                        title = "Frequência",
-                        value = "$weeklyDoneCount",
-                        unit = "dias",
-                        subtitle = "Meta: ${userProfile?.weeklyGoalDays ?: 5} dias/sem",
-                        icon = Icons.Default.CalendarMonth,
-                        accentColor = RoyalBlueDark,
-                        modifier = Modifier.weight(1f)
+                    TextButton(onClick = onNavigateToWorkouts) {
+                        Text(
+                            text = "Ver Todos",
+                            color = LilacAccent,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SupersetPreviewRow(
+                        number = 1,
+                        firstExercise = "Supino Reto",
+                        secondExercise = "Remada Curvada",
+                        setsReps = "4 séries × 10-12 reps"
+                    )
+                    SupersetPreviewRow(
+                        number = 2,
+                        firstExercise = "Terra Romeno",
+                        secondExercise = "Desenvolvimento",
+                        setsReps = "3 séries × 10 reps"
+                    )
+                    SupersetPreviewRow(
+                        number = 3,
+                        firstExercise = "Rosca Direta",
+                        secondExercise = "Tríceps Pulley",
+                        setsReps = "3 séries × 12 reps"
                     )
                 }
             }
         }
 
-        // Quick Actions Grid (Navigation Hub)
-        item {
-            Text(
-                text = "Módulos de Treinamento",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Musculação
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
-                        .clickable { onNavigateToWorkouts() }
-                        .testTag("btn_action_workouts")
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(RoyalBlueSubtle)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FitnessCenter,
-                                contentDescription = null,
-                                tint = RoyalBlue,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Musculação",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Modelos & Treinos",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                // Cardio
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
-                        .clickable { onNavigateToCardio() }
-                        .testTag("btn_action_cardio")
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(CyanAccent.copy(alpha = 0.12f))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DirectionsRun,
-                                contentDescription = null,
-                                tint = CyanAccent,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Cardio",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Bike, Corrida & Mais",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Agenda & Locais
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
-                        .clickable { onNavigateToAgenda() }
-                        .testTag("btn_action_agenda")
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(RoyalBlueSubtle)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarMonth,
-                                contentDescription = null,
-                                tint = RoyalBlue,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Agenda & Locais",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Calendário & Check-in",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                // Medidas & Metas
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
-                        .clickable { onNavigateToEvolution() }
-                        .testTag("btn_action_evolution")
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(EmeraldSubtle)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.TrendingUp,
-                                contentDescription = null,
-                                tint = EmeraldSuccess,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Evolução & Metas",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Medidas, Peso & IA",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // Recent Workouts & Cardio History
+        // ==========================================
+        // 6. TIMELINE / HISTÓRICO VISUAL
+        // ==========================================
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -714,95 +668,73 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Histórico Recente",
+                    text = "Histórico de Treinos",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Black,
+                    color = TextPrimary
                 )
                 TextButton(onClick = onNavigateToAgenda) {
-                    Text("Ver Todos", color = RoyalBlue, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Timeline Completa",
+                        color = LilacAccent,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
                 }
             }
         }
 
         if (workoutSessions.isEmpty() && cardioSessions.isEmpty()) {
+            // Default styled sample items matching the prompt specification
             item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FitnessCenter,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Nenhum treino realizado ainda",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Escolha um modelo de treino ou inicie um cardio para começar a acompanhar sua evolução!",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Button(
-                            onClick = onNavigateToWorkouts,
-                            colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Explorar Treinos", fontWeight = FontWeight.Bold)
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TimelineItemCard(
+                        tag = "HOJE",
+                        title = "Full Body A",
+                        duration = "42 min",
+                        calories = "248 kcal",
+                        exercisesSummary = "Supino, Remada, Terra, Rosca",
+                        onClick = onNavigateToWorkouts
+                    )
+                    TimelineItemCard(
+                        tag = "TERÇA",
+                        title = "Full Body B",
+                        duration = "51 min",
+                        calories = "302 kcal",
+                        exercisesSummary = "Agachamento, Puxada, Elevação Lateral",
+                        onClick = onNavigateToWorkouts
+                    )
+                    TimelineItemCard(
+                        tag = "DOMINGO",
+                        title = "Cardio & HIIT",
+                        duration = "35 min",
+                        calories = "286 kcal",
+                        exercisesSummary = "Bike Indoor + Corrida Leve",
+                        onClick = onNavigateToCardio
+                    )
                 }
             }
         } else {
-            // Show recent workout sessions
             items(workoutSessions.take(3)) { session ->
-                WorkoutHistoryCard(
+                TimelineWorkoutSessionCard(
                     session = session,
-                    onViewAiFeedback = { feedback ->
+                    onViewAi = { feedback ->
                         selectedSessionAiFeedback = feedback
                         showAiDialog = true
-                    },
-                    onAnalyzeWithAi = {
-                        userProfile?.let { prof ->
-                            viewModel.evaluateSessionWithAI(session, prof)
-                            showAiDialog = true
-                        }
                     }
                 )
             }
 
-            // Show recent cardio sessions
             items(cardioSessions.take(2)) { cardio ->
-                CardioHistoryCard(
-                    cardio = cardio,
-                    onViewAiFeedback = { feedback ->
-                        selectedSessionAiFeedback = feedback
-                        showAiDialog = true
-                    }
-                )
+                TimelineCardioSessionCard(cardio = cardio)
             }
         }
     }
 
+    // AI Context Evaluation Dialog
     if (showAiDialog) {
         AIEvaluationDialog(
-            title = "Avaliação de Calorias & IA",
+            title = "✦ Avaliação do Assistente IA",
             evaluationText = selectedSessionAiFeedback,
             isLoading = false,
             onDismiss = { showAiDialog = false }
@@ -811,367 +743,337 @@ fun HomeScreen(
 }
 
 @Composable
-fun QuickActivityTile(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+private fun SupersetPreviewRow(
+    number: Int,
+    firstExercise: String,
+    secondExercise: String,
+    setsReps: String
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = modifier
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-            .clickable { onClick() }
+    BentoCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        borderWidth = 1.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = RoyalBlue,
-                    modifier = Modifier.size(20.dp)
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SupersetHeaderBadge(number = number)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = setsReps,
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = firstExercise,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "  ↓  ",
+                        color = LilacAccent,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = secondExercise,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineItemCard(
+    tag: String,
+    title: String,
+    duration: String,
+    calories: String,
+    exercisesSummary: String,
+    onClick: () -> Unit
+) {
+    BentoCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(LilacAccent.copy(alpha = 0.18f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = tag,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        color = LilacAccent,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = TextMuted
             )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = exercisesSummary,
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    tint = LilacSoft,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = duration,
+                    fontSize = 12.sp,
+                    color = LilacSoft,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = EmeraldSuccess,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = calories,
+                    fontSize = 12.sp,
+                    color = EmeraldSuccess,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
 
 @Composable
-fun WorkoutHistoryCard(
+private fun TimelineWorkoutSessionCard(
     session: WorkoutSession,
-    onViewAiFeedback: (String) -> Unit,
-    onAnalyzeWithAi: () -> Unit = {}
+    onViewAi: (String) -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    BentoCard(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.outline,
-                RoundedCornerShape(20.dp)
-            )
-            .testTag("card_history_${session.id}")
+            .testTag("card_session_${session.id}")
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(RoyalBlueSubtle)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FitnessCenter,
-                            contentDescription = null,
-                            tint = RoyalBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = session.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = DateUtils.formatEpochDayShort(session.dateEpochDay),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(
                             if (session.status == SessionStatus.COMPLETED) EmeraldSubtle
-                            else RoyalBlueSubtle
+                            else PurpleDeepCard
+                        )
+                        .border(
+                            1.dp,
+                            if (session.status == SessionStatus.COMPLETED) EmeraldSuccess else GlassBorder,
+                            RoundedCornerShape(8.dp)
                         )
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = session.status.label,
+                        text = DateUtils.formatEpochDayShort(session.dateEpochDay).uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (session.status == SessionStatus.COMPLETED) EmeraldDark else RoyalBlue
+                        fontWeight = FontWeight.Black,
+                        color = if (session.status == SessionStatus.COMPLETED) EmeraldSuccess else LilacAccent
                     )
                 }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Text(
+                    text = session.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "${session.durationSeconds / 60} min",
+                style = MaterialTheme.typography.bodySmall,
+                color = LilacSoft,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
 
-            // Location & Metrics tags
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = RoyalBlue,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = session.location,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        Spacer(modifier = Modifier.height(10.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${session.durationSeconds / 60} min",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocalFireDepartment,
-                        contentDescription = null,
-                        tint = EmeraldSuccess,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "~${session.estimatedCalories} kcal",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = EmeraldDark
-                    )
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = LilacAccent,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = session.location,
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            if (session.aiCaloricEvaluation.isNotBlank()) {
-                FilledTonalButton(
-                    onClick = { onViewAiFeedback(session.aiCaloricEvaluation) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = RoyalBlueSubtle,
-                        contentColor = RoyalBlue
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = RoyalBlue
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "Ver Avaliação Calórica da IA",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            } else if (session.status == SessionStatus.COMPLETED) {
-                OutlinedButton(
-                    onClick = onAnalyzeWithAi,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = RoyalBlue
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "Analisar Gasto Calórico com IA",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = RoyalBlue
-                    )
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = EmeraldSuccess,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "~${session.estimatedCalories} kcal",
+                    fontSize = 12.sp,
+                    color = EmeraldSuccess,
+                    fontWeight = FontWeight.Bold
+                )
             }
+        }
+
+        if (session.aiCaloricEvaluation.isNotBlank()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            SecondaryButton(
+                text = "Ver Análise da IA",
+                icon = Icons.Default.AutoAwesome,
+                onClick = { onViewAi(session.aiCaloricEvaluation) },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
 @Composable
-fun CardioHistoryCard(
-    cardio: CardioSession,
-    onViewAiFeedback: (String) -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+private fun TimelineCardioSessionCard(cardio: CardioSession) {
+    BentoCard(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.outline,
-                RoundedCornerShape(20.dp)
-            )
-            .testTag("card_cardio_history_${cardio.id}")
+            .testTag("card_cardio_${cardio.id}")
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(CyanAccent.copy(alpha = 0.12f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DirectionsRun,
-                            contentDescription = null,
-                            tint = CyanAccent,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = cardio.type.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = DateUtils.formatEpochDayShort(cardio.dateEpochDay),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PurpleDeepCard)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "${cardio.durationMinutes} min • ${cardio.intensity.label}",
+                        text = DateUtils.formatEpochDayShort(cardio.dateEpochDay).uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontWeight = FontWeight.Black,
+                        color = LilacAccent
                     )
                 }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Text(
+                    text = cardio.type.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "${cardio.durationMinutes} min",
+                style = MaterialTheme.typography.bodySmall,
+                color = LilacSoft,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = CyanAccent,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = cardio.location,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        Spacer(modifier = Modifier.height(8.dp))
 
-                if (cardio.distanceKm != null) {
-                    Text(
-                        text = "${cardio.distanceKm} km",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${cardio.location} • ${cardio.intensity.label}",
+                fontSize = 12.sp,
+                color = TextSecondary
+            )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocalFireDepartment,
-                        contentDescription = null,
-                        tint = EmeraldSuccess,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "~${cardio.caloriesBurned} kcal",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = EmeraldDark
-                    )
-                }
-            }
-
-            if (cardio.aiEvaluation.isNotBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                FilledTonalButton(
-                    onClick = { onViewAiFeedback(cardio.aiEvaluation) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = RoyalBlueSubtle,
-                        contentColor = RoyalBlue
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = RoyalBlue
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "Ver Análise Cardiorrespiratória IA",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = EmeraldSuccess,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "~${cardio.caloriesBurned} kcal",
+                    fontSize = 12.sp,
+                    color = EmeraldSuccess,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
