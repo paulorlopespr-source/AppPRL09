@@ -1,8 +1,17 @@
 package com.example.data.ai
 
 import com.example.BuildConfig
+import com.example.data.model.AICoachMessage
+import com.example.data.model.AICoachSender
+import com.example.data.model.AIWorkoutPlanResult
 import com.example.data.model.CardioSession
+import com.example.data.model.ExerciseSetEntry
+import com.example.data.model.IntensityLevel
+import com.example.data.model.WorkoutCategory
+import com.example.data.model.WorkoutExercisePlan
 import com.example.data.model.FitnessGoal
+import com.example.data.model.MealAnalysisResult
+import com.example.data.model.MealLog
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutSession
 import com.squareup.moshi.JsonClass
@@ -14,6 +23,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 @JsonClass(generateAdapter = true)
@@ -52,6 +62,187 @@ class GeminiCalorieService {
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .build()
+
+    /**
+     * Process a meal description (e.g. "3 ovos mexidos, 2 fatias de pão integral e 1 xícara de café com leite")
+     * and calculate estimated calories, proteins, carbohydrates, fats, and dietary advice with Gemini API.
+     */
+    suspend fun analyzeMealDescription(
+        mealText: String,
+        mealType: String,
+        userProfile: UserProfile
+    ): MealAnalysisResult = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        val goalStr = userProfile.goal.label
+
+        val prompt = """
+            Você é um nutricionista esportivo de alto rendimento.
+            Analise a seguinte refeição informada pelo usuário e forneça uma estimativa detalhada e precisa de calorias e macronutrientes:
+            
+            Informações do Usuário:
+            - Peso: ${userProfile.currentWeightKg}kg | Altura: ${userProfile.heightCm}cm | Meta: $goalStr
+            - Tipo de Refeição: $mealType
+            - Descrição da Refeição: "$mealText"
+            
+            Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown, sem crases ```json) com a seguinte estrutura:
+            {
+                "title": "Nome resumido da refeição",
+                "estimatedCalories": 450,
+                "proteinGrams": 32.5,
+                "carbsGrams": 40.0,
+                "fatsGrams": 14.0,
+                "fiberGrams": 5.0,
+                "healthRating": "Excelente",
+                "summary": "Resumo nutricional de 2 a 3 frases sobre o impacto dessa refeição na meta de $goalStr.",
+                "suggestions": [
+                    "Dica 1 para otimizar os macros",
+                    "Dica 2 sobre timing ou hidratação"
+                ]
+            }
+        """.trimIndent()
+
+        if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY") {
+            try {
+                val geminiReq = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(parts = listOf(GeminiPart(text = prompt)))
+                    )
+                )
+                val jsonBody = requestAdapter.toJson(geminiReq)
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
+                    .post(jsonBody.toRequestBody(mediaType))
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val responseBodyStr = response.body?.string() ?: ""
+                    val geminiRes = responseAdapter.fromJson(responseBodyStr)
+                    val rawText = geminiRes?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (!rawText.isNullOrBlank()) {
+                        // Extract JSON substring
+                        val cleanJson = rawText.substringAfter("{").substringBeforeLast("}")
+                        val parsed = JSONObject("{$cleanJson}")
+                        val suggestionsList = mutableListOf<String>()
+                        val sugArray = parsed.optJSONArray("suggestions")
+                        if (sugArray != null) {
+                            for (i in 0 until sugArray.length()) {
+                                suggestionsList.add(sugArray.getString(i))
+                            }
+                        }
+                        return@withContext MealAnalysisResult(
+                            title = parsed.optString("title", mealType),
+                            estimatedCalories = parsed.optInt("estimatedCalories", 400),
+                            proteinGrams = parsed.optDouble("proteinGrams", 25.0),
+                            carbsGrams = parsed.optDouble("carbsGrams", 35.0),
+                            fatsGrams = parsed.optDouble("fatsGrams", 12.0),
+                            fiberGrams = parsed.optDouble("fiberGrams", 4.0),
+                            healthRating = parsed.optString("healthRating", "Equilibrado"),
+                            summary = parsed.optString("summary", "Refeição nutritiva para suporte de energia e recuperação muscular."),
+                            suggestions = if (suggestionsList.isNotEmpty()) suggestionsList else listOf("Beba 400ml de água para auxiliar a digestão.")
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // Fallback to offline rule-based calculation
+            }
+        }
+        fallbackMealCalculation(mealText, mealType, userProfile)
+    }
+
+    private fun fallbackMealCalculation(
+        mealText: String,
+        mealType: String,
+        userProfile: UserProfile
+    ): MealAnalysisResult {
+        val lower = mealText.lowercase()
+        var cal = 350
+        var p = 20.0
+        var c = 35.0
+        var f = 10.0
+        var fiber = 3.0
+
+        // Heuristic detection of common foods
+        if (lower.contains("ovo") || lower.contains("ovos")) {
+            val count = if (lower.contains("3") || lower.contains("três")) 3 else if (lower.contains("4") || lower.contains("quatro")) 4 else 2
+            cal += count * 80
+            p += count * 6.5
+            f += count * 5.0
+        }
+        if (lower.contains("frango") || lower.contains("peito de frango")) {
+            cal += 180
+            p += 32.0
+            f += 3.5
+        }
+        if (lower.contains("carne") || lower.contains("patinho") || lower.contains("bife")) {
+            cal += 230
+            p += 30.0
+            f += 10.0
+        }
+        if (lower.contains("arroz")) {
+            cal += 130
+            c += 28.0
+            p += 2.5
+        }
+        if (lower.contains("feijão") || lower.contains("feijao")) {
+            cal += 100
+            c += 18.0
+            p += 6.0
+            fiber += 5.0
+        }
+        if (lower.contains("whey") || lower.contains("proteina") || lower.contains("shake")) {
+            cal += 130
+            p += 24.0
+            c += 3.0
+            f += 1.5
+        }
+        if (lower.contains("aveia")) {
+            cal += 120
+            c += 20.0
+            p += 4.5
+            fiber += 3.0
+        }
+        if (lower.contains("banana") || lower.contains("fruta") || lower.contains("maçã") || lower.contains("maca")) {
+            cal += 90
+            c += 23.0
+            fiber += 2.5
+        }
+        if (lower.contains("pão") || lower.contains("pao") || lower.contains("torrada") || lower.contains("tapioca")) {
+            cal += 140
+            c += 26.0
+            p += 4.0
+        }
+        if (lower.contains("queijo") || lower.contains("requeijao") || lower.contains("manteiga")) {
+            cal += 110
+            p += 7.0
+            f += 9.0
+        }
+        if (lower.contains("salada") || lower.contains("legumes") || lower.contains("vegetais")) {
+            cal += 35
+            fiber += 4.0
+            c += 6.0
+        }
+
+        val rating = if (p >= 25.0) "Excelente" else "Equilibrado"
+        val summary = "Refeição estimada em aproximadamente $cal kcal com ${p.toInt()}g de proteínas e ${c.toInt()}g de carboidratos, adequada para a meta de ${userProfile.goal.label}."
+        val suggestions = listOf(
+            "Mantenha uma distribuição uniforme de proteínas ao longo do dia (~25g a 40g por refeição).",
+            "Acompanhe a ingestão hídrica para melhor síntese proteica e absorção de micronutrientes."
+        )
+
+        return MealAnalysisResult(
+            title = mealType,
+            estimatedCalories = cal,
+            proteinGrams = p,
+            carbsGrams = c,
+            fatsGrams = f,
+            fiberGrams = fiber,
+            healthRating = rating,
+            summary = summary,
+            suggestions = suggestions
+        )
+    }
 
     suspend fun evaluateWorkoutCaloriesAndPerformance(
         workout: WorkoutSession,
@@ -328,4 +519,443 @@ class GeminiCalorieService {
             • Contribui diretamente para a meta de ${userProfile.goal.label}.
         """.trimIndent()
     }
+
+    /**
+     * Generate custom workout routine tailored to user request, equipment and fitness goal using Gemini API
+     */
+    suspend fun generateAIWorkoutRoutine(
+        prompt: String,
+        userProfile: UserProfile
+    ): AIWorkoutPlanResult = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        val goalStr = userProfile.goal.label
+
+        val systemPrompt = """
+            Você é um mestre em Fisiologia do Exercício, Biomecânica e Preparação Física de Alto Rendimento.
+            Crie uma ficha de treino personalizada e altamente eficiente com base na solicitação do atleta.
+
+            Informações do Atleta:
+            - Peso: ${userProfile.currentWeightKg} kg | Meta: $goalStr | Local habitual: ${userProfile.defaultGymLocation}
+            - Solicitação do Treino: "$prompt"
+
+            Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown, sem crases ```json) com a seguinte estrutura:
+            {
+                "title": "Nome do Treino (ex: Costas & Bíceps Hipertrofia Intensa)",
+                "subtitle": "Subtítulo curto (ex: Foco em dorsal e pico de contração)",
+                "category": "HIPERTROFIA",
+                "durationMinutes": 45,
+                "description": "Descrição fisiológica de 2 frases sobre os estímulos propostos.",
+                "aiBiomechanicalTips": [
+                    "Dica 1 sobre cadência e ativação escapular",
+                    "Dica 2 sobre respiração e tempo sob tensão"
+                ],
+                "exercises": [
+                    {
+                        "exerciseId": 1,
+                        "exerciseName": "Puxada Frontal na Polia",
+                        "muscleGroup": "Costas",
+                        "setsCount": 4,
+                        "reps": 10,
+                        "weightKg": 50.0,
+                        "targetRestSeconds": 60,
+                        "notes": "Puxe com os cotovelos apontando para o chão e pause 1s na contração máxima."
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY") {
+            try {
+                val geminiReq = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(parts = listOf(GeminiPart(text = systemPrompt)))
+                    )
+                )
+                val jsonBody = requestAdapter.toJson(geminiReq)
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
+                    .post(jsonBody.toRequestBody(mediaType))
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val responseBodyStr = response.body?.string() ?: ""
+                    val geminiRes = responseAdapter.fromJson(responseBodyStr)
+                    val rawText = geminiRes?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (!rawText.isNullOrBlank()) {
+                        val cleanJson = rawText.substringAfter("{").substringBeforeLast("}")
+                        val parsed = JSONObject("{$cleanJson}")
+
+                        val title = parsed.optString("title", "Treino Gerado por IA")
+                        val subtitle = parsed.optString("subtitle", "Personalizado para sua meta")
+                        val categoryStr = parsed.optString("category", "HIPERTROFIA")
+                        val category = try {
+                            WorkoutCategory.valueOf(categoryStr)
+                        } catch (_: Exception) {
+                            WorkoutCategory.PERSONALIZADO
+                        }
+                        val duration = parsed.optInt("durationMinutes", 45)
+                        val description = parsed.optString("description", "Treino montado pela inteligência artificial com base no seu objetivo.")
+
+                        val tipsList = mutableListOf<String>()
+                        val tipsArr = parsed.optJSONArray("aiBiomechanicalTips")
+                        if (tipsArr != null) {
+                            for (i in 0 until tipsArr.length()) {
+                                tipsList.add(tipsArr.getString(i))
+                            }
+                        }
+
+                        val exercisesList = mutableListOf<WorkoutExercisePlan>()
+                        val exercisesArr = parsed.optJSONArray("exercises")
+                        if (exercisesArr != null) {
+                            for (i in 0 until exercisesArr.length()) {
+                                val exObj = exercisesArr.getJSONObject(i)
+                                val exName = exObj.optString("exerciseName", "Exercício ${i + 1}")
+                                val mGroup = exObj.optString("muscleGroup", "Geral")
+                                val sCount = exObj.optInt("setsCount", 4).coerceIn(2, 6)
+                                val reps = exObj.optInt("reps", 10).coerceIn(4, 25)
+                                val weight = exObj.optDouble("weightKg", 20.0)
+                                val rest = exObj.optInt("targetRestSeconds", 60)
+                                val notes = exObj.optString("notes", "")
+
+                                val sets = (1..sCount).map { sNum ->
+                                    ExerciseSetEntry(
+                                        setNumber = sNum,
+                                        weightKg = weight,
+                                        reps = reps,
+                                        isCompleted = false,
+                                        restSeconds = rest
+                                    )
+                                }
+
+                                exercisesList.add(
+                                    WorkoutExercisePlan(
+                                        exerciseId = (i + 100).toLong(),
+                                        exerciseName = exName,
+                                        muscleGroup = mGroup,
+                                        sets = sets,
+                                        targetRestSeconds = rest,
+                                        notes = notes
+                                    )
+                                )
+                            }
+                        }
+
+                        if (exercisesList.isNotEmpty()) {
+                            return@withContext AIWorkoutPlanResult(
+                                title = title,
+                                subtitle = subtitle,
+                                category = category,
+                                durationMinutes = duration,
+                                description = description,
+                                exercises = exercisesList,
+                                aiBiomechanicalTips = if (tipsList.isNotEmpty()) tipsList else listOf("Controle a fase excêntrica por 2 segundos.")
+                            )
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // Fallback to offline rule-based workout builder
+            }
+        }
+
+        fallbackAIWorkoutGeneration(prompt, userProfile)
+    }
+
+    /**
+     * Interactive AI Coach Assistant conversation
+     */
+    suspend fun askAICoach(
+        userQuery: String,
+        userProfile: UserProfile,
+        contextSummary: String
+    ): AICoachMessage = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        val goalStr = userProfile.goal.label
+
+        val prompt = """
+            Você é o Coach IA do FitTreino, um especialista de elite em musculação, biomecânica, nutrição esportiva e hipertrofia.
+            Responda de forma altamente prática, precisa e motivadora à dúvida do atleta:
+
+            Perfil do Atleta:
+            - Nome: ${userProfile.name} | Peso: ${userProfile.currentWeightKg}kg | Altura: ${userProfile.heightCm}cm | Meta: $goalStr
+            - Contexto atual: $contextSummary
+            - Pergunta do Atleta: "$userQuery"
+
+            Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown, sem crases ```json) com a seguinte estrutura:
+            {
+                "answer": "Texto completo e detalhado da resposta em Português do Brasil com explicações claras.",
+                "keyPoints": [
+                    "Ponto chave 1 prático para aplicar hoje",
+                    "Ponto chave 2 sobre segurança ou execução"
+                ],
+                "suggestedFollowUps": [
+                    "Pergunta sugerida de continuação 1",
+                    "Pergunta sugerida de continuação 2"
+                ]
+            }
+        """.trimIndent()
+
+        if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY") {
+            try {
+                val geminiReq = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(parts = listOf(GeminiPart(text = prompt)))
+                    )
+                )
+                val jsonBody = requestAdapter.toJson(geminiReq)
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
+                    .post(jsonBody.toRequestBody(mediaType))
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val responseBodyStr = response.body?.string() ?: ""
+                    val geminiRes = responseAdapter.fromJson(responseBodyStr)
+                    val rawText = geminiRes?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (!rawText.isNullOrBlank()) {
+                        val cleanJson = rawText.substringAfter("{").substringBeforeLast("}")
+                        val parsed = JSONObject("{$cleanJson}")
+
+                        val answer = parsed.optString("answer", "")
+                        val keyPoints = mutableListOf<String>()
+                        val kpArr = parsed.optJSONArray("keyPoints")
+                        if (kpArr != null) {
+                            for (i in 0 until kpArr.length()) {
+                                keyPoints.add(kpArr.getString(i))
+                            }
+                        }
+                        val followUps = mutableListOf<String>()
+                        val fuArr = parsed.optJSONArray("suggestedFollowUps")
+                        if (fuArr != null) {
+                            for (i in 0 until fuArr.length()) {
+                                followUps.add(fuArr.getString(i))
+                            }
+                        }
+
+                        if (answer.isNotBlank()) {
+                            return@withContext AICoachMessage(
+                                sender = AICoachSender.COACH,
+                                text = answer,
+                                keyPoints = keyPoints,
+                                suggestedFollowUps = followUps
+                            )
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // Fallback to heuristic coach answer
+            }
+        }
+
+        fallbackAICoachAnswer(userQuery, userProfile)
+    }
+
+    private fun fallbackAIWorkoutGeneration(prompt: String, userProfile: UserProfile): AIWorkoutPlanResult {
+        val lower = prompt.lowercase()
+        return when {
+            lower.contains("costa") || lower.contains("bicep") || lower.contains("bíceps") || lower.contains("puxar") -> {
+                AIWorkoutPlanResult(
+                    title = "Costas & Bíceps Hipertrofia IA",
+                    subtitle = "Foco em largura dorsal e densidade de bíceps",
+                    category = WorkoutCategory.HIPERTROFIA,
+                    durationMinutes = 45,
+                    description = "Sequência otimizada com ênfase em sobrecarga progressiva e contração de pico para dorsais e flexores do cotovelo.",
+                    aiBiomechanicalTips = listOf(
+                        "Mantenha a escápula em depressão antes de iniciar a tração.",
+                        "Concentre a força nos cotovelos para diminuir o recrutamento excessivo do antebraço."
+                    ),
+                    exercises = listOf(
+                        createExercisePlan("Puxada Frontal na Polia", "Costas", 4, 10, 45.0, 60, "Tronco estável e 1s de isometria embaixo."),
+                        createExercisePlan("Remada Curvada com Barra", "Costas", 4, 8, 50.0, 75, "Mantenha a coluna neutra e puxe na direção do umbigo."),
+                        createExercisePlan("Remada Baixa no Triângulo", "Costas", 3, 12, 40.0, 60, "Alongue a dorsal na fase excêntrica."),
+                        createExercisePlan("Rosca Direta com Barra W", "Bíceps", 3, 10, 20.0, 60, "Cotovelos fixos junto ao tronco."),
+                        createExercisePlan("Rosca Martelo com Halteres", "Bíceps", 3, 12, 12.0, 45, "Foco no braquial e braquiorradial.")
+                    )
+                )
+            }
+            lower.contains("perna") || lower.contains("quadriceps") || lower.contains("gluteo") || lower.contains("glúteo") -> {
+                AIWorkoutPlanResult(
+                    title = "Inferiores & Quadríceps Turbo IA",
+                    subtitle = "Foco em cadeia anterior e glúteos",
+                    category = WorkoutCategory.HIPERTROFIA,
+                    durationMinutes = 50,
+                    description = "Combinação de movimentos compostos de alta demanda biomecânica e exercícios de isolamento com tempo sob tensão elevado.",
+                    aiBiomechanicalTips = listOf(
+                        "Desça controlando a fase excêntrica em 3 segundos no agachamento.",
+                        "Mantenha os joelhos alinhados com a ponta dos pés durante toda a trajetória."
+                    ),
+                    exercises = listOf(
+                        createExercisePlan("Agachamento Livre com Barra", "Quadríceps (Pernas)", 4, 8, 60.0, 90, "Base firme e descida abaixo de 90 graus."),
+                        createExercisePlan("Leg Press 45°", "Quadríceps (Pernas)", 4, 10, 140.0, 75, "Pés na largura dos ombros sem travar os joelhos no topo."),
+                        createExercisePlan("Cadeira Extensora", "Quadríceps (Pernas)", 3, 12, 45.0, 60, "Pico de contração de 1s no topo."),
+                        createExercisePlan("Mesa Flexora", "Posterior & Glúteos", 4, 10, 35.0, 60, "Controle a volta sem deixar o peso bater."),
+                        createExercisePlan("Panturrilha em Pé na Máquina", "Panturrilhas", 4, 15, 50.0, 45, "Amplitude máxima na flexão plantar.")
+                    )
+                )
+            }
+            lower.contains("ombro") || lower.contains("deltoide") || lower.contains("deltóide") -> {
+                AIWorkoutPlanResult(
+                    title = "Ombros & Abdômen 3D IA",
+                    subtitle = "Construção de deltoides densos e core blindado",
+                    category = WorkoutCategory.HIPERTROFIA,
+                    durationMinutes = 40,
+                    description = "Foco em todas as 3 cabeças do deltoide (lateral, anterior e posterior) com estímulos mecânicos variados.",
+                    aiBiomechanicalTips = listOf(
+                        "Na elevação lateral, eleve os halteres em plano escapular (~30 graus à frente do tronco).",
+                        "Evite elevar os trapézios na fase concêntrica."
+                    ),
+                    exercises = listOf(
+                        createExercisePlan("Desenvolvimento com Halteres", "Ombros", 4, 8, 18.0, 75, "Cotovelos a 75 graus do tronco."),
+                        createExercisePlan("Elevação Lateral com Halteres", "Ombros", 4, 12, 10.0, 60, "Movimento suave sem impulso corporal."),
+                        createExercisePlan("Crucifixo Invertido na Máquina", "Ombros", 3, 12, 35.0, 60, "Ativação do deltoide posterior."),
+                        createExercisePlan("Abdominal Crunch na Polia", "Abdômen", 4, 15, 30.0, 45, "Curvatura da coluna torácica sem puxar o pescoço.")
+                    )
+                )
+            }
+            lower.contains("casa") || lower.contains("sem peso") || lower.contains("viagem") || lower.contains("calistenia") -> {
+                AIWorkoutPlanResult(
+                    title = "Full Body Funcional Sem Peso IA",
+                    subtitle = "Treino de alta intensidade com peso do corpo",
+                    category = WorkoutCategory.FULLBODY,
+                    durationMinutes = 35,
+                    description = "Treino completo de calistenia metabólica para estimular grandes grupos musculares sem necessidade de equipamentos.",
+                    aiBiomechanicalTips = listOf(
+                        "Mantenha o core sempre contraído em prancha.",
+                        "Use cadência lenta para compensar a ausência de sobrecarga externa."
+                    ),
+                    exercises = listOf(
+                        createExercisePlan("Flexão de Braços no Solo", "Peito", 4, 15, 0.0, 45, "Descida controlada até quase tocar o peito no chão."),
+                        createExercisePlan("Agachamento Livre Bodyweight", "Quadríceps (Pernas)", 4, 20, 0.0, 45, "Agache profundo e suba com explosão."),
+                        createExercisePlan("Afundo Alternado", "Quadríceps (Pernas)", 3, 12, 0.0, 45, "Passe largo e tronco vertical."),
+                        createExercisePlan("Prancha Isométrica", "Abdômen", 3, 45, 0.0, 45, "Alinhamento perfeito de ombros, quadril e calcanhares."),
+                        createExercisePlan("Polichinelo Metabólico", "Condicionamento", 3, 30, 0.0, 30, "Ritmo contínuo e respiração ritmada.")
+                    )
+                )
+            }
+            else -> {
+                // Default: Peito, Ombros e Tríceps (Push Day)
+                AIWorkoutPlanResult(
+                    title = "Peito, Ombros & Tríceps Hipertrofia IA",
+                    subtitle = "Push Day de alta eficiência biomecânica",
+                    category = WorkoutCategory.HIPERTROFIA,
+                    durationMinutes = 45,
+                    description = "Foco na sobrecarga mecânica dos músculos de empurrar com amplitude máxima e ativação das fibras do peitoral maior.",
+                    aiBiomechanicalTips = listOf(
+                        "Mantenha as escápulas aduzidas e fixadas no banco durante o supino.",
+                        "Evite estender totalmente o cotovelo no topo para manter a tensão constante no músculo-alvo."
+                    ),
+                    exercises = listOf(
+                        createExercisePlan("Supino Reto com Barra", "Peito", 4, 8, 60.0, 90, "Toque suave no peito e subida explosiva."),
+                        createExercisePlan("Supino Inclinado com Halteres", "Peito", 4, 10, 22.0, 75, "Banco a 30 graus para foco no feixe clavicular."),
+                        createExercisePlan("Crucifixo no Crossover", "Peito", 3, 12, 15.0, 60, "Abra os braços sentindo o alongamento do peito."),
+                        createExercisePlan("Desenvolvimento Militar", "Ombros", 3, 10, 30.0, 60, "Barra passando rente ao rosto."),
+                        createExercisePlan("Tríceps na Polia com Corda", "Tríceps", 4, 12, 25.0, 45, "Abra a corda no final da extensão.")
+                    )
+                )
+            }
+        }
+    }
+
+    private fun createExercisePlan(
+        name: String,
+        group: String,
+        setsCount: Int,
+        reps: Int,
+        weight: Double,
+        rest: Int,
+        notes: String
+    ): WorkoutExercisePlan {
+        val sets = (1..setsCount).map {
+            ExerciseSetEntry(
+                setNumber = it,
+                weightKg = weight,
+                reps = reps,
+                isCompleted = false,
+                restSeconds = rest
+            )
+        }
+        return WorkoutExercisePlan(
+            exerciseId = (100..999).random().toLong(),
+            exerciseName = name,
+            muscleGroup = group,
+            sets = sets,
+            targetRestSeconds = rest,
+            notes = notes
+        )
+    }
+
+    private fun fallbackAICoachAnswer(query: String, userProfile: UserProfile): AICoachMessage {
+        val lower = query.lowercase()
+        return when {
+            lower.contains("supino") || lower.contains("peito") || lower.contains("peso") || lower.contains("platô") || lower.contains("plato") -> {
+                AICoachMessage(
+                    sender = AICoachSender.COACH,
+                    text = "Para quebrar o platô de carga no supino ou exercícios básicos, a estratégia padrão de ouro é a periodização ondulatória: reduza a carga em 10% por 1 semana (deload regenerativo), aumente o descanso entre séries para 2 a 3 minutos nas séries pesadas e foque na estabilidade das escápulas e na contração dos glúteos contra o banco.",
+                    keyPoints = listOf(
+                        "Aumente o tempo de descanso entre séries pesadas para 2.5 a 3 minutos.",
+                        "Faça 1 série de aquecimento específico com 50% e 70% da carga de trabalho antes da série principal.",
+                        "Trabalhe o tríceps e deltoide anterior com sobrecarga para fortalecer o bloqueio final do movimento."
+                    ),
+                    suggestedFollowUps = listOf(
+                        "Qual a melhor cadência para hipertrofia?",
+                        "Devo treinar até a falha em todas as séries?",
+                        "Como aquecer corretamente os manguitos rotadores?"
+                    )
+                )
+            }
+            lower.contains("pre-treino") || lower.contains("pré-treino") || lower.contains("comer") || lower.contains("dieta") || lower.contains("alimenta") -> {
+                AICoachMessage(
+                    sender = AICoachSender.COACH,
+                    text = "Para sua meta de ${userProfile.goal.label} (peso atual: ${userProfile.currentWeightKg}kg), a refeição pré-treino ideal deve conter entre 30g e 50g de carboidratos de média absorção (ex: aveia, banana ou pão integral) associados a 20g a 25g de proteína magra cerca de 60 a 90 minutos antes da sessão, acompanhada de 400ml de água para garantir hidratação celular.",
+                    keyPoints = listOf(
+                        "Evite refeições ricas em gorduras logo antes de treinar, pois retardam o esvaziamento gástrico.",
+                        "Se treinar logo ao acordar, 1 banana com mel e 1 dose de whey protein já fornecem glicogênio rápido.",
+                        "Consuma 500ml de água durante o treino para manter o volume plasmático e a força muscular."
+                    ),
+                    suggestedFollowUps = listOf(
+                        "Quanto de creatina devo tomar por dia?",
+                        "Qual a quantidade ideal de proteína por kg de peso corporal?",
+                        "O que consumir no pós-treino imediato?"
+                    )
+                )
+            }
+            lower.contains("dor") || lower.contains("lesao") || lower.contains("lesão") || lower.contains("ombro") || lower.contains("joelho") -> {
+                AICoachMessage(
+                    sender = AICoachSender.COACH,
+                    text = "Dores articulares costumam decorrer de falta de aquecimento, restrição de mobilidade ou trajetória mecânica inadequada. Nunca treine com dor aguda penetrante. Se sentir desconforto no ombro, substitua o supino reto com barra por supino com halteres com pegada neutra e realize rotação externa de ombro no cabo antes de iniciar.",
+                    keyPoints = listOf(
+                        "Substitua barras retas por halteres para permitir uma trajetória articular mais anatômica e livre.",
+                        "Reduza a amplitude temporariamente para a zona em que não haja atrito ou dor.",
+                        "Consulte um fisioterapeuta caso a dor persista por mais de 48 horas em repouso."
+                    ),
+                    suggestedFollowUps = listOf(
+                        "Exercícios de mobilidade para ombros e tornozelos",
+                        "Como fortalecer o manguito rotador?",
+                        "Qual a diferença entre dor muscular tardia e lesão?"
+                    )
+                )
+            }
+            else -> {
+                AICoachMessage(
+                    sender = AICoachSender.COACH,
+                    text = "Excelente pergunta! Para atingir sua meta de ${userProfile.goal.label}, os pilares fundamentais são: sobrecarga progressiva nos treinos (adicionando repetições ou peso a cada 1-2 semanas), consistência com seus ${userProfile.weeklyGoalDays} dias semanais planejados e sono de qualidade (7 a 8 horas) para recuperação do sistema nervoso central e síntese proteica.",
+                    keyPoints = listOf(
+                        "Anote suas cargas em cada treino para garantir que você está progredindo.",
+                        "Mantenha 1 a 2 repetições na reserva (RIR 1-2) na maioria das séries para evitar fadiga excessiva.",
+                        "Beba pelo menos 35ml de água por kg de peso corporal ao longo do dia."
+                    ),
+                    suggestedFollowUps = listOf(
+                        "Como montar uma divisão de treino eficiente?",
+                        "Cardio antes ou depois da musculação?",
+                        "Como calcular meu gasto calórico total diário?"
+                    )
+                )
+            }
+        }
+    }
 }
+

@@ -23,6 +23,19 @@ import com.example.data.model.WorkoutCategory
 import com.example.data.model.WorkoutExercisePlan
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
+import com.example.data.model.AICoachMessage
+import com.example.data.model.AICoachSender
+import com.example.data.model.AIWorkoutPlanResult
+import com.example.data.model.GamificationOverview
+import com.example.data.model.MedalRarity
+import com.example.data.model.GoalPeriod
+import kotlinx.coroutines.flow.map
+import com.example.data.model.WorkoutReminderSettings
+import com.example.util.WorkoutReminderManager
+import com.example.util.HealthConnectManager
+import com.example.util.HealthConnectAvailability
+import com.example.util.HealthConnectDailyMetrics
+import com.example.util.HealthSyncResult
 import com.example.data.repository.FitnessRepository
 import com.example.ui.components.DateUtils
 import com.squareup.moshi.Moshi
@@ -37,6 +50,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,6 +90,21 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     init {
         val db = AppDatabase.getDatabase(application, viewModelScope)
         repository = FitnessRepository(db.fitnessDao())
+        viewModelScope.launch(Dispatchers.IO) {
+            val exercises = DefaultFitnessData.getDefaultExercises()
+            db.fitnessDao().insertExercises(exercises)
+            val templates = DefaultFitnessData.getDefaultWorkoutTemplates(exercises)
+            templates.forEach { db.fitnessDao().insertWorkoutTemplate(it) }
+
+            // Ensure all predefined medals are populated
+            val defaultMedals = DefaultFitnessData.getDefaultMedals()
+            val currentMedals = repository.allMedals.firstOrNull() ?: emptyList()
+            if (currentMedals.size < defaultMedals.size) {
+                repository.insertMedals(defaultMedals)
+            }
+            syncGamificationAndGoals()
+            checkHealthConnectStatus()
+        }
     }
 
     val workoutTemplates: StateFlow<List<WorkoutTemplate>> = repository.allWorkoutTemplates
@@ -111,6 +140,84 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     val allExerciseTargets: StateFlow<List<com.example.data.model.ExercisePerformanceTarget>> = repository.allExerciseTargets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // --- Meals & Nutrition (Gemini AI) ---
+    val allMealLogs: StateFlow<List<com.example.data.model.MealLog>> = repository.allMealLogs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _isAnalyzingMeal = MutableStateFlow(false)
+    val isAnalyzingMeal: StateFlow<Boolean> = _isAnalyzingMeal.asStateFlow()
+
+    private val _lastMealAnalysis = MutableStateFlow<com.example.data.model.MealAnalysisResult?>(null)
+    val lastMealAnalysis: StateFlow<com.example.data.model.MealAnalysisResult?> = _lastMealAnalysis.asStateFlow()
+
+    // --- Gamification & Medals ---
+    val allMedals: StateFlow<List<com.example.data.model.UserMedal>> = repository.allMedals
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val gamificationOverview: StateFlow<GamificationOverview> = repository.allMedals.map { medals ->
+        val unlockedMedals = medals.filter { it.isUnlocked }
+        val totalXp = unlockedMedals.sumOf { it.xpReward }
+        val level = 1 + (totalXp / 500)
+        val levelXp = totalXp % 500
+        val nextLevelXp = 500
+        val levelProgress = levelXp.toFloat() / nextLevelXp.toFloat()
+
+        val title = when {
+            level >= 25 -> "Ouro Master da Superação Suprema ⚡"
+            level >= 18 -> "Titã Imortal dos Pesos 👑"
+            level >= 12 -> "Mestre da Força & Volume ⚔️"
+            level >= 8 -> "Gladiador de Aço 🛡️"
+            level >= 4 -> "Guerreiro de Ferro 🔥"
+            else -> "Novato Determinado 🚀"
+        }
+
+        val bronze = unlockedMedals.count { it.rarity.contains("Bronze", ignoreCase = true) }
+        val prata = unlockedMedals.count { it.rarity.contains("Prata", ignoreCase = true) }
+        val ouro = unlockedMedals.count { it.rarity.equals("Ouro", ignoreCase = true) }
+        val master = unlockedMedals.count { it.rarity.contains("Master", ignoreCase = true) || it.rarity.contains("Superação", ignoreCase = true) }
+
+        GamificationOverview(
+            totalXp = totalXp,
+            currentLevel = level,
+            currentLevelTitle = title,
+            currentLevelXp = levelXp,
+            nextLevelXp = nextLevelXp,
+            levelProgressPercent = levelProgress,
+            unlockedMedalsCount = unlockedMedals.size,
+            totalMedalsCount = medals.size,
+            bronzeCount = bronze,
+            prataCount = prata,
+            ouroCount = ouro,
+            masterCount = master
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        GamificationOverview(
+            totalXp = 450,
+            currentLevel = 1,
+            currentLevelTitle = "Novato Determinado 🚀",
+            currentLevelXp = 450,
+            nextLevelXp = 500,
+            levelProgressPercent = 0.9f,
+            unlockedMedalsCount = 3,
+            totalMedalsCount = 20,
+            bronzeCount = 2,
+            prataCount = 1,
+            ouroCount = 0,
+            masterCount = 0
+        )
+    )
+
+    private val _selectedMedalForDetail = MutableStateFlow<com.example.data.model.UserMedal?>(null)
+    val selectedMedalForDetail: StateFlow<com.example.data.model.UserMedal?> = _selectedMedalForDetail.asStateFlow()
+
+    private val _activeMedalUnlocked = MutableStateFlow<com.example.data.model.UserMedal?>(null)
+    val activeMedalUnlocked: StateFlow<com.example.data.model.UserMedal?> = _activeMedalUnlocked.asStateFlow()
+
+    private val _activePRCelebration = MutableStateFlow<com.example.data.model.PersonalRecordCelebration?>(null)
+    val activePRCelebration: StateFlow<com.example.data.model.PersonalRecordCelebration?> = _activePRCelebration.asStateFlow()
+
     // --- Active Workout State ---
     private val _activeWorkout = MutableStateFlow(ActiveWorkoutState())
     val activeWorkout: StateFlow<ActiveWorkoutState> = _activeWorkout.asStateFlow()
@@ -132,6 +239,58 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     private val _aiCoachAdvice = MutableStateFlow<String?>(null)
     val aiCoachAdvice: StateFlow<String?> = _aiCoachAdvice.asStateFlow()
+
+    // --- AI Workout Generator State ---
+    private val _isGeneratingAIWorkout = MutableStateFlow(false)
+    val isGeneratingAIWorkout: StateFlow<Boolean> = _isGeneratingAIWorkout.asStateFlow()
+
+    private val _generatedAIWorkout = MutableStateFlow<AIWorkoutPlanResult?>(null)
+    val generatedAIWorkout: StateFlow<AIWorkoutPlanResult?> = _generatedAIWorkout.asStateFlow()
+
+    // --- AI Coach Chat Assistant State ---
+    private val _isAICoachThinking = MutableStateFlow(false)
+    val isAICoachThinking: StateFlow<Boolean> = _isAICoachThinking.asStateFlow()
+
+    private val _aiCoachChatHistory = MutableStateFlow<List<AICoachMessage>>(
+        listOf(
+            AICoachMessage(
+                sender = AICoachSender.COACH,
+                text = "Olá, Atleta! Sou seu Coach IA do FitTreino. Como posso otimizar seus treinos, periodização, cargas ou nutrição hoje?",
+                keyPoints = listOf(
+                    "Tire dúvidas sobre execução e biomecânica de qualquer exercício",
+                    "Peça ajustes de dieta e timing de macros para seu objetivo",
+                    "Receba orientações para quebrar platôs de força e hipertrofia"
+                ),
+                suggestedFollowUps = listOf(
+                    "Como quebrar platô no supino?",
+                    "O que comer no pré-treino para mais energia?",
+                    "Como substituir agachamento livre por dores no joelho?"
+                )
+            )
+        )
+    )
+    val aiCoachChatHistory: StateFlow<List<AICoachMessage>> = _aiCoachChatHistory.asStateFlow()
+
+    // --- Daily Workout Reminders State ---
+    private val _reminderSettings = MutableStateFlow(WorkoutReminderManager.loadSettings(application))
+    val reminderSettings: StateFlow<WorkoutReminderSettings> = _reminderSettings.asStateFlow()
+
+    // --- Health Connect (Smartwatch & Google Health Sync) State ---
+    val healthConnectManager = HealthConnectManager(application)
+    private val _healthAvailability = MutableStateFlow(healthConnectManager.checkAvailability())
+    val healthAvailability: StateFlow<HealthConnectAvailability> = _healthAvailability.asStateFlow()
+
+    private val _healthPermissionsGranted = MutableStateFlow(false)
+    val healthPermissionsGranted: StateFlow<Boolean> = _healthPermissionsGranted.asStateFlow()
+
+    private val _healthDailyMetrics = MutableStateFlow(HealthConnectDailyMetrics())
+    val healthDailyMetrics: StateFlow<HealthConnectDailyMetrics> = _healthDailyMetrics.asStateFlow()
+
+    private val _isHealthSyncing = MutableStateFlow(false)
+    val isHealthSyncing: StateFlow<Boolean> = _isHealthSyncing.asStateFlow()
+
+    private val _healthSyncResultMessage = MutableStateFlow<String?>(null)
+    val healthSyncResultMessage: StateFlow<String?> = _healthSyncResultMessage.asStateFlow()
 
     // --- Active Workout Functions ---
     fun startWorkoutFromTemplate(template: WorkoutTemplate, location: String = "Academia Smart Fit") {
@@ -234,12 +393,140 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
                 _activeWorkout.value = current.copy(exercises = updatedExercises)
 
-                // Trigger rest countdown when completing a set for the first time
-                if (completed && !wasCompleted && autoRest) {
-                    val restTime = if (oldSet.restSeconds > 0) oldSet.restSeconds else plan.targetRestSeconds
-                    triggerRestTimer(restTime)
+                // Sound and PR check when completing a set for the first time
+                if (completed && !wasCompleted) {
+                    com.example.utils.SoundEffectManager.playSetCompleted()
+
+                    // Check if this weight is a Personal Record (PR)
+                    checkForPersonalRecord(plan.exerciseName, weight, reps)
+
+                    // 100kg Club medal check
+                    if (weight >= 100.0) {
+                        unlockMedalIfNotUnlocked("club_100kg")
+                    }
+
+                    if (autoRest) {
+                        val restTime = if (oldSet.restSeconds > 0) oldSet.restSeconds else plan.targetRestSeconds
+                        triggerRestTimer(restTime)
+                    }
                 }
             }
+        }
+    }
+
+    private fun checkForPersonalRecord(exerciseName: String, currentWeightKg: Double, reps: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val sessions = repository.allWorkoutSessions.firstOrNull() ?: return@launch
+            var maxHistoricWeight = 0.0
+            sessions.forEach { session ->
+                try {
+                    val plans = plansAdapter.fromJson(session.exercisesDoneJson) ?: emptyList()
+                    plans.filter { it.exerciseName.equals(exerciseName, ignoreCase = true) }.forEach { p ->
+                        p.sets.filter { it.isCompleted }.forEach { s ->
+                            if (s.weightKg > maxHistoricWeight) {
+                                maxHistoricWeight = s.weightKg
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            if (maxHistoricWeight > 0.0 && currentWeightKg > maxHistoricWeight) {
+                _activePRCelebration.value = com.example.data.model.PersonalRecordCelebration(
+                    exerciseName = exerciseName,
+                    previousWeightKg = maxHistoricWeight,
+                    newWeightKg = currentWeightKg,
+                    reps = reps
+                )
+                unlockMedalIfNotUnlocked("pr_breaker")
+            }
+        }
+    }
+
+    fun dismissPRCelebration() {
+        _activePRCelebration.value = null
+    }
+
+    fun selectMedalForDetail(medal: com.example.data.model.UserMedal) {
+        _selectedMedalForDetail.value = medal
+    }
+
+    fun dismissMedalDetail() {
+        _selectedMedalForDetail.value = null
+    }
+
+    fun dismissMedalUnlockedDialog() {
+        _activeMedalUnlocked.value = null
+    }
+
+    fun triggerCelebrationForMedal(medal: com.example.data.model.UserMedal) {
+        _activeMedalUnlocked.value = medal
+    }
+
+    fun unlockMedalIfNotUnlocked(medalId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val medals = repository.allMedals.firstOrNull() ?: emptyList()
+            val targetMedal = medals.find { it.id == medalId }
+            if (targetMedal != null && !targetMedal.isUnlocked) {
+                repository.unlockMedal(medalId)
+                _activeMedalUnlocked.value = targetMedal.copy(isUnlocked = true)
+            }
+        }
+    }
+
+    fun syncGamificationAndGoals() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val todayEpoch = DateUtils.todayEpochDay()
+            val now = java.time.LocalDate.now()
+            val startOfWeekEpoch = todayEpoch - now.dayOfWeek.value + 1
+            val startOfMonthEpoch = java.time.LocalDate.of(now.year, now.month, 1).toEpochDay()
+            val startOfYearEpoch = java.time.LocalDate.of(now.year, 1, 1).toEpochDay()
+
+            val sessions = repository.allWorkoutSessions.firstOrNull()?.filter { it.status == SessionStatus.COMPLETED } ?: emptyList()
+            val cardios = repository.allCardioSessions.firstOrNull() ?: emptyList()
+
+            // Weekly metrics
+            val weeklyWorkouts = sessions.count { it.dateEpochDay >= startOfWeekEpoch }
+            val weeklyVolume = sessions.filter { it.dateEpochDay >= startOfWeekEpoch }.sumOf { it.totalWeightLiftedKg }.toInt()
+            val weeklyCardioMin = cardios.filter { it.dateEpochDay >= startOfWeekEpoch }.sumOf { it.durationMinutes }
+
+            // Monthly metrics
+            val monthlyWorkouts = sessions.count { it.dateEpochDay >= startOfMonthEpoch }
+            val monthlyVolume = sessions.filter { it.dateEpochDay >= startOfMonthEpoch }.sumOf { it.totalWeightLiftedKg }.toInt()
+
+            // Annual metrics
+            val annualWorkouts = sessions.count { it.dateEpochDay >= startOfYearEpoch }
+            val annualVolume = sessions.filter { it.dateEpochDay >= startOfYearEpoch }.sumOf { it.totalWeightLiftedKg }.toInt()
+
+            // Weekly Frequency Medals (Bronze, Prata, Ouro, Master)
+            repository.updateMedalProgress("weekly_freq_bronze", weeklyWorkouts.coerceAtLeast(1), todayEpoch)
+            repository.updateMedalProgress("weekly_freq_prata", weeklyWorkouts, todayEpoch)
+            repository.updateMedalProgress("weekly_freq_ouro", weeklyWorkouts, todayEpoch)
+            repository.updateMedalProgress("weekly_master_superacao", if (weeklyWorkouts >= 6 && weeklyCardioMin >= 60) 6 else weeklyWorkouts, todayEpoch)
+
+            // Weekly Volume Medals (Bronze, Prata, Ouro, Master)
+            repository.updateMedalProgress("weekly_volume_bronze", weeklyVolume, todayEpoch)
+            repository.updateMedalProgress("weekly_volume_prata", weeklyVolume, todayEpoch)
+            repository.updateMedalProgress("weekly_volume_ouro", weeklyVolume, todayEpoch)
+            repository.updateMedalProgress("weekly_volume_master", weeklyVolume, todayEpoch)
+
+            // Monthly Frequency Medals (Bronze, Prata, Ouro, Master)
+            repository.updateMedalProgress("monthly_freq_bronze", monthlyWorkouts, todayEpoch)
+            repository.updateMedalProgress("monthly_freq_prata", monthlyWorkouts, todayEpoch)
+            repository.updateMedalProgress("monthly_freq_ouro", monthlyWorkouts, todayEpoch)
+            repository.updateMedalProgress("monthly_freq_master", monthlyWorkouts, todayEpoch)
+
+            // Annual Workouts Medals (Bronze, Prata, Ouro, Master)
+            repository.updateMedalProgress("annual_workouts_bronze", annualWorkouts, todayEpoch)
+            repository.updateMedalProgress("annual_workouts_prata", annualWorkouts, todayEpoch)
+            repository.updateMedalProgress("annual_workouts_ouro", annualWorkouts, todayEpoch)
+            repository.updateMedalProgress("annual_workouts_master", annualWorkouts, todayEpoch)
+
+            // Annual Volume Medals (Bronze, Prata, Ouro, Master)
+            repository.updateMedalProgress("annual_tonnage_bronze", annualVolume, todayEpoch)
+            repository.updateMedalProgress("annual_tonnage_prata", annualVolume, todayEpoch)
+            repository.updateMedalProgress("annual_tonnage_ouro", annualVolume, todayEpoch)
+            repository.updateMedalProgress("annual_tonnage_master", annualVolume, todayEpoch)
         }
     }
 
@@ -369,6 +656,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         workoutTimerJob?.cancel()
         restTimerJob?.cancel()
 
+        com.example.utils.SoundEffectManager.playWorkoutCompleted()
+
         // Calculate total lifted weight
         var totalWeight = 0.0
         current.exercises.forEach { plan ->
@@ -412,8 +701,61 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             _activeWorkout.value = ActiveWorkoutState() // Reset
             onSaved(savedSession)
 
+            // Unlock First Workout Medal
+            unlockMedalIfNotUnlocked("first_workout")
+
+            // Check consistency medals (10 workouts, 3-day streak, 10-ton volume)
+            val allSessions = repository.allWorkoutSessions.firstOrNull() ?: emptyList()
+            if (allSessions.size >= 10) {
+                unlockMedalIfNotUnlocked("legend_10workouts")
+            }
+            if (allSessions.size >= 3) {
+                unlockMedalIfNotUnlocked("streak_3days")
+            }
+            val totalVolume = allSessions.sumOf { it.totalWeightLiftedKg } + totalWeight
+            if (totalVolume >= 10000.0) {
+                unlockMedalIfNotUnlocked("volume_10ton")
+            }
+
             // Request AI Evaluation
             evaluateSessionWithAI(savedSession, profile)
+
+            // Auto-sync with Health Connect if enabled
+            try {
+                if (_healthPermissionsGranted.value) {
+                    healthConnectManager.writeStrengthWorkoutSession(savedSession)
+                    refreshHealthDailyMetrics()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    // --- Meals & Nutrition (Gemini AI Calorie Estimator) ---
+    fun analyzeMealWithGemini(mealText: String, mealType: String) {
+        viewModelScope.launch {
+            _isAnalyzingMeal.value = true
+            val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+            try {
+                val result = repository.analyzeMealWithGemini(mealText, mealType, profile)
+                _lastMealAnalysis.value = result
+                unlockMedalIfNotUnlocked("smart_nutrition")
+            } catch (_: Exception) {
+            } finally {
+                _isAnalyzingMeal.value = false
+            }
+        }
+    }
+
+    fun saveMealLog(meal: com.example.data.model.MealLog) {
+        viewModelScope.launch {
+            repository.saveMealLog(meal)
+            _lastMealAnalysis.value = null
+        }
+    }
+
+    fun deleteMealLog(id: Long) {
+        viewModelScope.launch {
+            repository.deleteMealLogById(id)
         }
     }
 
@@ -490,6 +832,14 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
             // AI cardio evaluation
             evaluateCardioWithAI(savedCardio, profile)
+
+            // Auto-sync with Health Connect if enabled
+            try {
+                if (_healthPermissionsGranted.value) {
+                    healthConnectManager.writeCardioSession(savedCardio)
+                    refreshHealthDailyMetrics()
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -501,8 +851,16 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun logManualCardio(cardio: CardioSession) {
         viewModelScope.launch {
             val id = repository.saveCardioSession(cardio)
+            val savedCardio = cardio.copy(id = id)
             val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
-            evaluateCardioWithAI(cardio.copy(id = id), profile)
+            evaluateCardioWithAI(savedCardio, profile)
+
+            try {
+                if (_healthPermissionsGranted.value) {
+                    healthConnectManager.writeCardioSession(savedCardio)
+                    refreshHealthDailyMetrics()
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -639,6 +997,14 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             // Also update current weight on user profile
             val currentProf = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
             repository.saveUserProfile(currentProf.copy(currentWeightKg = measurement.weightKg))
+
+            // Sync weight to Health Connect
+            try {
+                if (_healthPermissionsGranted.value) {
+                    healthConnectManager.writeWeight(measurement.weightKg, measurement.timestampMillis)
+                    refreshHealthDailyMetrics()
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -893,5 +1259,169 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     private fun formatWeightDisplay(weight: Double): String {
         return if (weight % 1.0 == 0.0) weight.toInt().toString() else String.format(java.util.Locale.US, "%.1f", weight)
+    }
+
+    // --- Daily Workout Reminders Configuration ---
+    fun updateReminderSettings(settings: WorkoutReminderSettings) {
+        val app = getApplication<Application>()
+        _reminderSettings.value = settings
+        WorkoutReminderManager.saveSettings(app, settings)
+    }
+
+    fun triggerTestReminderNotification() {
+        val app = getApplication<Application>()
+        WorkoutReminderManager.showNotification(app, _reminderSettings.value, isTest = true)
+    }
+
+    // --- AI Workout Routine Generator ---
+    fun generateAIWorkout(prompt: String) {
+        viewModelScope.launch {
+            _isGeneratingAIWorkout.value = true
+            val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+            try {
+                val result = repository.generateAIWorkoutRoutine(prompt, profile)
+                _generatedAIWorkout.value = result
+                unlockMedalIfNotUnlocked("ai_architect")
+            } catch (_: Exception) {
+            } finally {
+                _isGeneratingAIWorkout.value = false
+            }
+        }
+    }
+
+    fun clearGeneratedAIWorkout() {
+        _generatedAIWorkout.value = null
+    }
+
+    fun saveGeneratedAIWorkoutAsTemplate(workout: AIWorkoutPlanResult, isFavorite: Boolean = false) {
+        viewModelScope.launch {
+            val json = try {
+                plansAdapter.toJson(workout.exercises)
+            } catch (_: Exception) {
+                "[]"
+            }
+            val template = WorkoutTemplate(
+                title = workout.title,
+                subtitle = workout.subtitle,
+                category = workout.category,
+                defaultRestSeconds = 60,
+                executionDurationMinutes = workout.durationMinutes,
+                isPreset = false,
+                isFavorite = isFavorite,
+                exercisesJson = json,
+                description = workout.description,
+                createdAtEpochDay = DateUtils.todayEpochDay(),
+                timesCompleted = 0
+            )
+            repository.saveWorkoutTemplate(template)
+            _generatedAIWorkout.value = null
+        }
+    }
+
+    // --- AI Coach Chat Assistant ---
+    fun sendAICoachMessage(userText: String) {
+        if (userText.isBlank()) return
+        val userMsg = AICoachMessage(
+            sender = AICoachSender.USER,
+            text = userText
+        )
+        val currentHistory = _aiCoachChatHistory.value
+        _aiCoachChatHistory.value = currentHistory + userMsg
+
+        viewModelScope.launch {
+            _isAICoachThinking.value = true
+            val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+            val sessions = allWorkoutSessions.value.filter { it.status == SessionStatus.COMPLETED }
+            val cardios = allCardioSessions.value
+            val totalVolume = sessions.sumOf { it.totalWeightLiftedKg }
+
+            val contextSummary = "Atleta com ${sessions.size} treinos realizados (${totalVolume.toInt()}kg levantados), ${cardios.size} sessões de cardio e meta semanal de ${profile.weeklyGoalDays} dias."
+
+            try {
+                val coachResponse = repository.askAICoach(userText, profile, contextSummary)
+                _aiCoachChatHistory.value = _aiCoachChatHistory.value + coachResponse
+            } catch (_: Exception) {
+                _aiCoachChatHistory.value = _aiCoachChatHistory.value + AICoachMessage(
+                    sender = AICoachSender.COACH,
+                    text = "Mantenha o foco nos princípios fundamentais: sobrecarga progressiva, boa ingestão proteica e descanso adequado.",
+                    keyPoints = listOf("Treine com intensidade controlada", "Priorize a boa postura em cada repetição")
+                )
+            } finally {
+                _isAICoachThinking.value = false
+            }
+        }
+    }
+
+    fun clearAICoachChat() {
+        _aiCoachChatHistory.value = listOf(
+            AICoachMessage(
+                sender = AICoachSender.COACH,
+                text = "Conversa reiniciada! Como posso te ajudar a atingir seu próximo nível de performance?",
+                keyPoints = listOf("Tire dúvidas sobre exercícios", "Ajuste sua alimentação", "Peça sugestões de progressão"),
+                suggestedFollowUps = listOf(
+                    "Como quebrar platô no supino?",
+                    "O que comer no pré-treino para mais energia?",
+                    "Como substituir agachamento livre por dores no joelho?"
+                )
+            )
+        )
+    }
+
+    // --- Health Connect (Smartwatch Integration) Methods ---
+    fun checkHealthConnectStatus() {
+        viewModelScope.launch {
+            val avail = healthConnectManager.checkAvailability()
+            _healthAvailability.value = avail
+            if (avail == HealthConnectAvailability.AVAILABLE) {
+                val hasPerms = healthConnectManager.hasAllPermissions()
+                _healthPermissionsGranted.value = hasPerms
+                if (hasPerms) {
+                    refreshHealthDailyMetrics()
+                }
+            }
+        }
+    }
+
+    fun updateHealthPermissionsGranted(granted: Boolean) {
+        _healthPermissionsGranted.value = granted
+        if (granted) {
+            refreshHealthDailyMetrics()
+        }
+    }
+
+    fun refreshHealthDailyMetrics() {
+        viewModelScope.launch {
+            val metrics = healthConnectManager.readTodayHealthMetrics()
+            _healthDailyMetrics.value = metrics
+        }
+    }
+
+    fun syncAllWorkoutsWithHealthConnect() {
+        viewModelScope.launch {
+            _isHealthSyncing.value = true
+            try {
+                val workouts = allWorkoutSessions.value
+                val cardios = allCardioSessions.value
+                val result = healthConnectManager.syncAllHistory(workouts, cardios)
+                _healthSyncResultMessage.value = result.message
+                refreshHealthDailyMetrics()
+                unlockMedalIfNotUnlocked("health_sync")
+            } catch (e: Exception) {
+                _healthSyncResultMessage.value = "Erro ao sincronizar com Health Connect: ${e.localizedMessage}"
+            } finally {
+                _isHealthSyncing.value = false
+            }
+        }
+    }
+
+    fun dismissHealthSyncMessage() {
+        _healthSyncResultMessage.value = null
+    }
+
+    fun writeWeightToHealthConnect(weightKg: Double) {
+        viewModelScope.launch {
+            healthConnectManager.writeWeight(weightKg)
+            refreshHealthDailyMetrics()
+        }
     }
 }

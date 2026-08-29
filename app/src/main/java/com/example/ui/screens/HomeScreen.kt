@@ -14,11 +14,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,14 +33,17 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -65,16 +72,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.CardioSession
+import com.example.data.model.MedalRarity
 import com.example.data.model.SessionStatus
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
 import com.example.ui.components.AIEvaluationDialog
 import com.example.ui.components.AIInsightCard
+import com.example.ui.components.AINutritionDialog
+import com.example.ui.components.HealthConnectDialog
 import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
 import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.MetricBentoCard
 import com.example.ui.components.PrimaryButton
+import com.example.ui.components.ScalableVectorMedalBadge
 import com.example.ui.components.SecondaryButton
 import com.example.ui.components.SupersetHeaderBadge
 import com.example.ui.theme.EmeraldDark
@@ -121,6 +132,11 @@ fun HomeScreen(
 
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
+    var showNutritionDialog by remember { mutableStateOf(false) }
+    var showHealthConnectDialog by remember { mutableStateOf(false) }
+
+    val healthDailyMetrics by viewModel.healthDailyMetrics.collectAsStateWithLifecycle()
+    val permissionsGranted by viewModel.healthPermissionsGranted.collectAsStateWithLifecycle()
 
     val todayEpoch = DateUtils.todayEpochDay()
     val completedWorkouts = workoutSessions.filter { it.status == SessionStatus.COMPLETED }
@@ -134,12 +150,15 @@ fun HomeScreen(
     val todayTemplate: WorkoutTemplate? = workoutTemplates.firstOrNull { it.isFavorite }
         ?: workoutTemplates.firstOrNull()
 
+    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(PurpleDarkest)
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 20.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(top = topInset + 16.dp, bottom = bottomInset + 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ==========================================
@@ -169,6 +188,33 @@ fun HomeScreen(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Smartwatch / Health Connect Hub Button
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (permissionsGranted) EmeraldSubtle else PurpleDarkSurface
+                            )
+                            .border(
+                                1.dp,
+                                if (permissionsGranted) EmeraldSuccess else GlassBorderSubtle,
+                                CircleShape
+                            )
+                            .clickable { showHealthConnectDialog = true }
+                            .testTag("btn_header_health_connect"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Watch,
+                            contentDescription = "Smartwatch & Health Connect",
+                            tint = if (permissionsGranted) EmeraldSuccess else LilacAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     // Quick Notification / AI trigger button
                     Box(
                         modifier = Modifier
@@ -608,6 +654,212 @@ fun HomeScreen(
         }
 
         // ==========================================
+        // 4.1 🥗 NUTRIÇÃO IA & GAMIFICAÇÃO RÁPIDA
+        // ==========================================
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Nutrition & Meal Estimator Card
+                Surface(
+                    color = PurpleDeepCard,
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showNutritionDialog = true }
+                        .testTag("btn_open_nutrition_ai")
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(EmeraldSubtle)
+                                    .border(1.dp, EmeraldSuccess.copy(alpha = 0.5f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Restaurant,
+                                    contentDescription = null,
+                                    tint = EmeraldSuccess,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Text(
+                                text = "✦ IA Gemini",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LilacAccent
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Nutrição & Calorias",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Estimar refeição por IA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+
+                // Gamification / Trophies Card
+                Surface(
+                    color = PurpleDeepCard,
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNavigateToEvolution() }
+                        .testTag("btn_open_gamification_hub")
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ScalableVectorMedalBadge(
+                                rarity = MedalRarity.MASTER_SUPERAÇÃO,
+                                isUnlocked = true,
+                                size = 34.dp,
+                                iconEmoji = "👑",
+                                animated = true
+                            )
+                            Text(
+                                text = "Medalhas",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldSuccess
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Recordes & Conquistas",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Metas e PRs batidos",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 4.2 ⌚ SMARTWATCH & HEALTH CONNECT SYNC CARD
+        // ==========================================
+        item {
+            Surface(
+                color = PurpleDeepCard,
+                shape = RoundedCornerShape(20.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (permissionsGranted) EmeraldSuccess.copy(alpha = 0.5f) else LilacAccent.copy(alpha = 0.4f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showHealthConnectDialog = true }
+                    .testTag("btn_open_health_connect_card")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (permissionsGranted) EmeraldSubtle else PurpleDarkSurface
+                                )
+                                .border(
+                                    1.dp,
+                                    if (permissionsGranted) EmeraldSuccess else LilacAccent.copy(alpha = 0.5f),
+                                    RoundedCornerShape(12.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Watch,
+                                contentDescription = null,
+                                tint = if (permissionsGranted) EmeraldSuccess else LilacAccent,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Smartwatch & Health Connect",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                )
+                                if (permissionsGranted) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(EmeraldSuccess)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp))
+
+                            Text(
+                                text = if (permissionsGranted) {
+                                    "👟 ${"%,d".format(healthDailyMetrics.steps)} passos • 🔥 ${healthDailyMetrics.totalCaloriesBurned.toInt()} kcal hoje"
+                                } else {
+                                    "Sincronizar com Galaxy Watch, Garmin, Wear OS"
+                                },
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (permissionsGranted) LilacSoft else TextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = "Abrir Sincronização",
+                        tint = LilacAccent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+
+        // ==========================================
         // 5. SUPERSET HIGHLIGHTS (Estrutura do Treino)
         // ==========================================
         item {
@@ -738,6 +990,22 @@ fun HomeScreen(
             evaluationText = selectedSessionAiFeedback,
             isLoading = false,
             onDismiss = { showAiDialog = false }
+        )
+    }
+
+    // AI Nutrition & Calorie Estimator Dialog
+    if (showNutritionDialog) {
+        AINutritionDialog(
+            viewModel = viewModel,
+            onDismiss = { showNutritionDialog = false }
+        )
+    }
+
+    // Smartwatch & Health Connect Dialog
+    if (showHealthConnectDialog) {
+        HealthConnectDialog(
+            viewModel = viewModel,
+            onDismiss = { showHealthConnectDialog = false }
         )
     }
 }

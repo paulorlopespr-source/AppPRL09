@@ -68,28 +68,16 @@ import com.example.ui.theme.RedDestructive
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.utils.SoundEffectManager
 
 fun triggerVibration(context: Context) {
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-            val vibrator = vibratorManager?.defaultVibrator
-            vibrator?.vibrate(VibrationEffect.createOneShot(400, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            @Suppress("DEPRECATION")
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            @Suppress("DEPRECATION")
-            vibrator?.vibrate(400)
-        }
-    } catch (e: Exception) {
-        // Silently ignore if not supported
-    }
+    SoundEffectManager.vibrate(context, 400)
 }
 
 /**
  * Cronômetro de Descanso (Rest Timer) com visual Liquid Glass & Dark Mode Premium
  * com anel circular de contagem regressiva, presets (30s, 45s, 60s, 90s, 120s),
- * controles rápidos (+/- 15s, pausar, pular) e notificação háptica.
+ * controles rápidos (+/- 15s, pausar, pular) e alertas sonoros em 5s e finalização.
  */
 @Composable
 fun RestTimerOverlay(
@@ -105,10 +93,19 @@ fun RestTimerOverlay(
 ) {
     val context = LocalContext.current
 
-    // Trigger haptic vibration when timer hits 0
-    LaunchedEffect(remainingSeconds) {
-        if (isVisible && remainingSeconds == 0) {
-            triggerVibration(context)
+    // Trigger audio alerts and haptic vibration for 5s countdown and completion
+    LaunchedEffect(remainingSeconds, isVisible, isPaused) {
+        if (isVisible && !isPaused) {
+            when (remainingSeconds) {
+                5, 4, 3, 2, 1 -> {
+                    SoundEffectManager.playCountdownBeep(remainingSeconds)
+                    SoundEffectManager.vibrate(context, 80)
+                }
+                0 -> {
+                    SoundEffectManager.playRestTimerFinished()
+                    triggerVibration(context)
+                }
+            }
         }
     }
 

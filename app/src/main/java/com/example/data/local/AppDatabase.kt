@@ -27,9 +27,11 @@ import kotlinx.coroutines.launch
         UserProfile::class,
         BodyMeasurement::class,
         ProgressPhoto::class,
-        ExercisePerformanceTarget::class
+        ExercisePerformanceTarget::class,
+        com.example.data.model.MealLog::class,
+        com.example.data.model.UserMedal::class
     ],
-    version = 3,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -86,6 +88,14 @@ abstract class AppDatabase : RoomDatabase() {
 
             DefaultFitnessData.getDefaultWorkoutSessions().forEach {
                 dao.insertWorkoutSession(it)
+            }
+
+            DefaultFitnessData.getDefaultMedals().forEach {
+                dao.insertMedal(it)
+            }
+
+            DefaultFitnessData.getDefaultMealLogs().forEach {
+                dao.insertMealLog(it)
             }
         }
     }

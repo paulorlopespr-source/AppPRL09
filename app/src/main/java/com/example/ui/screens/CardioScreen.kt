@@ -10,11 +10,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,8 +35,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Park
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -62,6 +69,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.local.DefaultFitnessData
+import com.example.data.model.CardioRoutinePlan
 import com.example.data.model.CardioSession
 import com.example.data.model.CardioType
 import com.example.data.model.IntensityLevel
@@ -72,6 +81,7 @@ import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
 import com.example.ui.components.MetricBentoCard
 import com.example.ui.components.PrimaryButton
+import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.GlassBorder
 import com.example.ui.theme.GlassBorderSubtle
@@ -119,6 +129,9 @@ fun CardioScreen(
     val totalCardioCalories = cardioSessions.sumOf { it.caloriesBurned }
     val totalMinutes = cardioSessions.sumOf { it.durationMinutes }
 
+    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -128,7 +141,7 @@ fun CardioScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
+            contentPadding = PaddingValues(top = topInset + 16.dp, bottom = bottomInset + 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Screen Header
@@ -265,10 +278,61 @@ fun CardioScreen(
                 }
             }
 
+            // Cardio Protocols Section (HIIT & LISS ACSM)
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(PurpleDeepCard)
+                            .border(1.dp, LilacAccent.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FlashOn,
+                            contentDescription = null,
+                            tint = LilacAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Protocolos Estruturados (HIIT & LISS)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Baseados nas diretrizes do ACSM por nível",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DefaultFitnessData.getDefaultCardioRoutines().forEach { routine ->
+                        CardioRoutinePlanCard(
+                            routine = routine,
+                            onStart = {
+                                selectedCardioForLive = routine.cardioType
+                                showStartLiveDialog = true
+                            }
+                        )
+                    }
+                }
+            }
+
             // Cardio Modes Selection Section
             item {
                 Text(
-                    text = "Iniciar Sessão de Cardio",
+                    text = "Modos Livres de Cardio",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black,
                     color = TextPrimary
@@ -889,3 +953,90 @@ fun ManualCardioLogDialog(
         shape = RoundedCornerShape(24.dp)
     )
 }
+
+@Composable
+fun CardioRoutinePlanCard(
+    routine: CardioRoutinePlan,
+    onStart: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isHiit = routine.tipo.equals("HIIT", ignoreCase = true)
+    val badgeColor = if (isHiit) AmberWarning else LilacAccent
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = PurpleDarkSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = badgeColor.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "${routine.tipo} • ${routine.nivel.uppercase()}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = badgeColor,
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${routine.duracaoMinutos} min • ${routine.frequenciaSemanal}x/sem",
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(GradientAction)
+                        .clickable { onStart() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Iniciar", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = routine.estrutura,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Black,
+                color = TextPrimary
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Exercícios: ${routine.exercicios.joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "💡 ${routine.observacaoSeguranca}",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+

@@ -55,8 +55,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.local.DefaultFitnessData
 import com.example.data.model.Exercise
 import com.example.data.model.ExercisePerformanceTarget
+import com.example.data.model.PresetGoalRecommendation
 import com.example.data.model.UserProfile
 import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.EmeraldSuccess
@@ -315,6 +317,85 @@ fun GoalSettingSection(
                             onDelete = { onDeleteTarget(target.id) }
                         )
                     }
+                }
+            }
+        }
+
+        // --- 3. Recommended Goals Catalog (ACSM / Periodização) ---
+        BentoCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("card_preset_recommended_goals")
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, EmeraldSuccess.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = null,
+                        tint = EmeraldSuccess,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Sugestões de Metas Estruturadas",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Baseadas no ACSM & Periodização por nível",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DefaultFitnessData.getPresetGoalRecommendations().forEach { preset ->
+                    PresetGoalRecommendationCard(
+                        preset = preset,
+                        onActivate = {
+                            if (preset.exerciseName != null) {
+                                val newTarget = ExercisePerformanceTarget(
+                                    exerciseName = preset.exerciseName,
+                                    targetWeightKg = preset.targetWeightKg ?: 80.0,
+                                    targetReps = preset.targetReps ?: 8,
+                                    currentWeightKg = (preset.targetWeightKg ?: 80.0) * 0.7,
+                                    currentReps = preset.targetReps ?: 8,
+                                    targetDateEpochDay = LocalDate.now().toEpochDay() + (preset.prazoSemanas * 7),
+                                    notes = "${preset.objetivo}: ${preset.descricao} (Prazo: ${preset.prazoSemanas} sem - Avaliação ${preset.frequenciaAvaliacao})",
+                                    createdAtEpochDay = LocalDate.now().toEpochDay()
+                                )
+                                onSaveTarget(newTarget)
+                            } else {
+                                val newTarget = ExercisePerformanceTarget(
+                                    exerciseName = "${preset.objetivo}: ${preset.titulo}",
+                                    targetWeightKg = 1.0,
+                                    targetReps = 1,
+                                    currentWeightKg = 0.0,
+                                    currentReps = 0,
+                                    targetDateEpochDay = LocalDate.now().toEpochDay() + (preset.prazoSemanas * 7),
+                                    notes = "${preset.descricao} | Alvo: ${preset.valorAlvo} | Avaliação: ${preset.frequenciaAvaliacao}",
+                                    createdAtEpochDay = LocalDate.now().toEpochDay()
+                                )
+                                onSaveTarget(newTarget)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -669,3 +750,102 @@ fun AddEditExerciseTargetDialog(
         shape = RoundedCornerShape(24.dp)
     )
 }
+
+@Composable
+fun PresetGoalRecommendationCard(
+    preset: PresetGoalRecommendation,
+    onActivate: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tagColor = when (preset.objetivo) {
+        "Hipertrofia" -> LilacAccent
+        "Perda de Gordura" -> AmberWarning
+        "Condicionamento" -> EmeraldSuccess
+        "Força" -> PurpleVibrant
+        else -> LilacSoft
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = PurpleDarkSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = tagColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = preset.objetivo.uppercase(),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = tagColor,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                Text(
+                    text = "${preset.prazoSemanas} semanas • Avaliação ${preset.frequenciaAvaliacao}",
+                    fontSize = 10.sp,
+                    color = TextMuted,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = preset.titulo,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = preset.descricao,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Alvo: ${preset.valorAlvo}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = tagColor)
+                    Text("Métrica: ${preset.metrica}", fontSize = 10.sp, color = TextMuted)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PurpleDeepCard)
+                        .border(1.dp, tagColor.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                        .clickable { onActivate() }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = tagColor, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Ativar Meta", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = tagColor)
+                    }
+                }
+            }
+        }
+    }
+}
+

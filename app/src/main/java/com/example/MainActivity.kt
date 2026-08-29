@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.model.WorkoutTemplate
 import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.SecondaryButton
@@ -132,14 +133,11 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
         modifier = Modifier.fillMaxSize()
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Main Screen Content
+            // Main Screen Content (flows behind the floating liquid glass bar)
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = if (showBottomBar) 88.dp else 0.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
                 when (currentDestination) {
                     AppDestination.HOME -> {

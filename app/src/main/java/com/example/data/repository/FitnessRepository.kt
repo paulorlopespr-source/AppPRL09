@@ -155,4 +155,50 @@ class FitnessRepository(
     ): String {
         return geminiService.getPersonalizedAICoachAdvice(profile, workoutsCount, totalVolumeKg, cardioMinutes)
     }
+
+    suspend fun generateAIWorkoutRoutine(
+        prompt: String,
+        profile: UserProfile
+    ): com.example.data.model.AIWorkoutPlanResult {
+        return geminiService.generateAIWorkoutRoutine(prompt, profile)
+    }
+
+    suspend fun askAICoach(
+        query: String,
+        profile: UserProfile,
+        contextSummary: String
+    ): com.example.data.model.AICoachMessage {
+        return geminiService.askAICoach(query, profile, contextSummary)
+    }
+
+    // --- Meals & Nutrition (Gemini AI Calorie Estimator) ---
+    val allMealLogs: Flow<List<com.example.data.model.MealLog>> = dao.getAllMealLogs()
+
+    fun getMealLogsForDate(epochDay: Long): Flow<List<com.example.data.model.MealLog>> =
+        dao.getMealLogsForDate(epochDay)
+
+    suspend fun saveMealLog(meal: com.example.data.model.MealLog): Long = dao.insertMealLog(meal)
+
+    suspend fun deleteMealLogById(id: Long) = dao.deleteMealLogById(id)
+
+    suspend fun analyzeMealWithGemini(
+        mealText: String,
+        mealType: String,
+        userProfile: UserProfile
+    ): com.example.data.model.MealAnalysisResult {
+        return geminiService.analyzeMealDescription(mealText, mealType, userProfile)
+    }
+
+    // --- Gamification & Medals ---
+    val allMedals: Flow<List<com.example.data.model.UserMedal>> = dao.getAllMedals()
+
+    suspend fun saveMedal(medal: com.example.data.model.UserMedal) = dao.insertMedal(medal)
+
+    suspend fun insertMedals(medals: List<com.example.data.model.UserMedal>) = dao.insertMedals(medals)
+
+    suspend fun unlockMedal(medalId: String, epochDay: Long = java.time.LocalDate.now().toEpochDay()) =
+        dao.unlockMedal(medalId, epochDay)
+
+    suspend fun updateMedalProgress(medalId: String, current: Int, epochDay: Long = java.time.LocalDate.now().toEpochDay()) =
+        dao.updateMedalProgress(medalId, current, epochDay)
 }

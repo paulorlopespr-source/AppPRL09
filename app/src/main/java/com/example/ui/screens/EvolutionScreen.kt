@@ -10,11 +10,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,6 +36,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -67,10 +72,15 @@ import com.example.ui.components.AIInsightCard
 import com.example.ui.components.AddProgressPhotoDialog
 import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
+import com.example.ui.components.GamificationTrophySection
 import com.example.ui.components.GoalSettingSection
+import com.example.ui.components.HealthConnectDialog
+import com.example.ui.components.MedalDetailModalDialog
+import com.example.ui.components.MedalUnlockedDialog
 import com.example.ui.components.PhotoDetailDialog
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.ProgressPhotosSection
+import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.GlassBorder
 import com.example.ui.theme.GlassBorderSubtle
@@ -102,6 +112,10 @@ fun EvolutionScreen(
     val exerciseTargets by viewModel.allExerciseTargets.collectAsStateWithLifecycle()
     val allWorkoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
+    val allUserMedals by viewModel.allMedals.collectAsStateWithLifecycle()
+    val gamificationOverview by viewModel.gamificationOverview.collectAsStateWithLifecycle()
+    val selectedMedalForDetail by viewModel.selectedMedalForDetail.collectAsStateWithLifecycle()
+    val activeMedalUnlocked by viewModel.activeMedalUnlocked.collectAsStateWithLifecycle()
 
     val todayEpoch = DateUtils.todayEpochDay()
     val startOfWeekEpoch = todayEpoch - java.time.LocalDate.now().dayOfWeek.value + 1
@@ -114,6 +128,9 @@ fun EvolutionScreen(
     var showAddPhotoDialog by remember { mutableStateOf(false) }
     var isAddingInitialPhoto by remember { mutableStateOf(false) }
     var selectedPhotoDetail by remember { mutableStateOf<ProgressPhoto?>(null) }
+    var showHealthConnectDialog by remember { mutableStateOf(false) }
+
+    val healthPermissionsGranted by viewModel.healthPermissionsGranted.collectAsStateWithLifecycle()
 
     val currentWeight = userProfile?.currentWeightKg ?: 78.0
     val startWeight = userProfile?.startingWeightKg ?: 75.0
@@ -121,6 +138,9 @@ fun EvolutionScreen(
     val goal = userProfile?.goal ?: FitnessGoal.GANHO_PESO_HIPERTROFIA
 
     val weightDelta = currentWeight - startWeight
+
+    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Box(
         modifier = modifier
@@ -131,7 +151,7 @@ fun EvolutionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
+            contentPadding = PaddingValues(top = topInset + 16.dp, bottom = bottomInset + 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Header
@@ -155,17 +175,45 @@ fun EvolutionScreen(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(PurpleDarkSurface)
-                            .border(1.dp, GlassBorder, CircleShape)
-                            .clickable { showEditProfileDialog = true }
-                            .testTag("btn_edit_profile"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = LilacAccent, modifier = Modifier.size(18.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (healthPermissionsGranted) EmeraldSubtle else PurpleDarkSurface
+                                )
+                                .border(
+                                    1.dp,
+                                    if (healthPermissionsGranted) EmeraldSuccess else GlassBorder,
+                                    CircleShape
+                                )
+                                .clickable { showHealthConnectDialog = true }
+                                .testTag("btn_evolution_health_connect"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Watch,
+                                contentDescription = "Health Connect & Smartwatch",
+                                tint = if (healthPermissionsGranted) EmeraldSuccess else LilacAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(PurpleDarkSurface)
+                                .border(1.dp, GlassBorder, CircleShape)
+                                .clickable { showEditProfileDialog = true }
+                                .testTag("btn_edit_profile"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = LilacAccent, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }
@@ -293,6 +341,20 @@ fun EvolutionScreen(
                     },
                     onDeleteTarget = { id ->
                         viewModel.deleteExerciseTarget(id)
+                    }
+                )
+            }
+
+            // Gamification Medals & Trophies Section
+            item {
+                GamificationTrophySection(
+                    userMedals = allUserMedals,
+                    overview = gamificationOverview,
+                    onMedalClick = { medal ->
+                        viewModel.selectMedalForDetail(medal)
+                    },
+                    onCelebrateMedal = { medal ->
+                        viewModel.triggerCelebrationForMedal(medal)
                     }
                 )
             }
@@ -764,6 +826,30 @@ fun EvolutionScreen(
                 viewModel.deleteProgressPhoto(photo)
                 selectedPhotoDetail = null
             }
+        )
+    }
+
+    // Medal Detail Modal Dialog
+    selectedMedalForDetail?.let { medal ->
+        MedalDetailModalDialog(
+            medal = medal,
+            onDismiss = { viewModel.dismissMedalDetail() }
+        )
+    }
+
+    // Medal Celebration Modal Dialog
+    activeMedalUnlocked?.let { medal ->
+        MedalUnlockedDialog(
+            medal = medal,
+            onDismiss = { viewModel.dismissMedalUnlockedDialog() }
+        )
+    }
+
+    // Health Connect & Smartwatch Dialog
+    if (showHealthConnectDialog) {
+        HealthConnectDialog(
+            viewModel = viewModel,
+            onDismiss = { showHealthConnectDialog = false }
         )
     }
 }

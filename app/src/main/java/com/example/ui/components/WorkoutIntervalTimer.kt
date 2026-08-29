@@ -84,18 +84,11 @@ import kotlinx.coroutines.delay
 object WorkoutTimerFeedbackHelper {
 
     fun playBeepTone(isHighPitch: Boolean = false) {
-        try {
-            val toneType = if (isHighPitch) ToneGenerator.TONE_PROP_BEEP2 else ToneGenerator.TONE_PROP_BEEP
-            val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80)
-            toneGen.startTone(toneType, 180)
-        } catch (_: Exception) {}
+        com.example.utils.SoundEffectManager.playCountdownBeep(if (isHighPitch) 1 else 3)
     }
 
     fun playCompletionFanfare() {
-        try {
-            val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 95)
-            toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 400)
-        } catch (_: Exception) {}
+        com.example.utils.SoundEffectManager.playWorkoutCompleted()
     }
 
     fun vibrateIntervalTransition(context: Context) {

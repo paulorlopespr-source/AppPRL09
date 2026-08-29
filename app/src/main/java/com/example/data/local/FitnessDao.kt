@@ -134,4 +134,33 @@ interface FitnessDao {
 
     @Query("DELETE FROM exercise_targets WHERE id = :id")
     suspend fun deleteExerciseTargetById(id: Long)
+
+    // --- Meal Logs & Caloric Intake (Gemini AI Nutrition) ---
+    @Query("SELECT * FROM meal_logs ORDER BY dateEpochDay DESC, timestampMillis DESC")
+    fun getAllMealLogs(): Flow<List<com.example.data.model.MealLog>>
+
+    @Query("SELECT * FROM meal_logs WHERE dateEpochDay = :epochDay ORDER BY timestampMillis DESC")
+    fun getMealLogsForDate(epochDay: Long): Flow<List<com.example.data.model.MealLog>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMealLog(meal: com.example.data.model.MealLog): Long
+
+    @Query("DELETE FROM meal_logs WHERE id = :id")
+    suspend fun deleteMealLogById(id: Long)
+
+    // --- Gamification & Medals ---
+    @Query("SELECT * FROM user_medals ORDER BY isUnlocked DESC, id ASC")
+    fun getAllMedals(): Flow<List<com.example.data.model.UserMedal>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMedals(medals: List<com.example.data.model.UserMedal>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMedal(medal: com.example.data.model.UserMedal)
+
+    @Query("UPDATE user_medals SET isUnlocked = 1, unlockedDateEpochDay = :epochDay WHERE id = :medalId")
+    suspend fun unlockMedal(medalId: String, epochDay: Long)
+
+    @Query("UPDATE user_medals SET progressCurrent = :current, isUnlocked = CASE WHEN :current >= progressMax THEN 1 ELSE isUnlocked END, unlockedDateEpochDay = CASE WHEN :current >= progressMax AND isUnlocked = 0 THEN :epochDay ELSE unlockedDateEpochDay END WHERE id = :medalId")
+    suspend fun updateMedalProgress(medalId: String, current: Int, epochDay: Long)
 }

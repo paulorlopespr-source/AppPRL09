@@ -5,6 +5,9 @@ import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
 
 enum class WorkoutCategory(val label: String) {
+    INICIANTE("Iniciante (ABC)"),
+    INTERMEDIARIO("Intermediário (ABC)"),
+    AVANCADO("Avançado (ABC)"),
     HIPERTROFIA("Hipertrofia"),
     FORCA("Força"),
     DEFINICAO("Definição"),

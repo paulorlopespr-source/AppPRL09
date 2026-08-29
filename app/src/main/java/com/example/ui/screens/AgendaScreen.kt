@@ -10,11 +10,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,7 +31,10 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.DirectionsBike
+import androidx.compose.material.icons.filled.NotificationsActive
+import com.example.ui.components.WorkoutReminderDialog
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
@@ -100,10 +107,12 @@ fun AgendaScreen(
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val isAiEvaluating by viewModel.isAIEvaluating.collectAsStateWithLifecycle()
     val lastAiEvaluation by viewModel.lastAiEvaluation.collectAsStateWithLifecycle()
+    val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
 
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var showScheduleDialog by remember { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
 
@@ -116,6 +125,9 @@ fun AgendaScreen(
     val workoutDaysSet = remember(workoutSessions) { workoutSessions.map { it.dateEpochDay }.toSet() }
     val cardioDaysSet = remember(cardioSessions) { cardioSessions.map { it.dateEpochDay }.toSet() }
 
+    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -125,23 +137,120 @@ fun AgendaScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
+            contentPadding = PaddingValues(top = topInset + 16.dp, bottom = bottomInset + 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Header
             item {
-                Column {
-                    Text(
-                        text = "Agenda & Planejamento",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Black,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = "Gerencie sua frequência semanal e locais de treino programados",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Agenda & Planejamento",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Gerencie sua frequência e lembretes diários",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                    Surface(
+                        onClick = { showReminderDialog = true },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (reminderSettings.isEnabled) PurplePrimary.copy(alpha = 0.15f) else PurpleDarkSurface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (reminderSettings.isEnabled) PurplePrimary.copy(alpha = 0.4f) else GlassBorderSubtle
+                        ),
+                        modifier = Modifier.testTag("btn_open_reminders_header")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.NotificationsActive,
+                                contentDescription = "Configurar Lembretes",
+                                tint = if (reminderSettings.isEnabled) LilacAccent else TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (reminderSettings.isEnabled) reminderSettings.formattedTime else "Lembretes",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (reminderSettings.isEnabled) LilacAccent else TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Daily Reminders Bento Card
+            item {
+                BentoCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showReminderDialog = true }
+                        .testTag("card_daily_reminder_settings")
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (reminderSettings.isEnabled) PurplePrimary.copy(alpha = 0.2f)
+                                        else PurpleDarkSurface
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Alarm,
+                                    contentDescription = null,
+                                    tint = if (reminderSettings.isEnabled) LilacAccent else TextMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = if (reminderSettings.isEnabled) "Lembretes Diários: Ativos (${reminderSettings.formattedTime})"
+                                    else "Lembretes Diários Desativados",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (reminderSettings.isEnabled) TextPrimary else TextSecondary
+                                )
+                                Text(
+                                    text = if (reminderSettings.isEnabled)
+                                        "${reminderSettings.tone.emoji} ${reminderSettings.daysOfWeek.size} dias por semana programados"
+                                    else "Toque para configurar notificações de treino",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextMuted
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Configurar",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = PurplePrimary
+                        )
+                    }
                 }
             }
 
@@ -429,6 +538,20 @@ fun AgendaScreen(
                 showAiDialog = false
                 selectedSessionAiFeedback = null
             }
+        )
+    }
+
+    // Workout Reminder Configuration Dialog
+    if (showReminderDialog) {
+        WorkoutReminderDialog(
+            initialSettings = reminderSettings,
+            onSaveSettings = { newSettings ->
+                viewModel.updateReminderSettings(newSettings)
+            },
+            onTestNotification = {
+                viewModel.triggerTestReminderNotification()
+            },
+            onDismiss = { showReminderDialog = false }
         )
     }
 

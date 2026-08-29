@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -104,6 +105,7 @@ fun BentoCard(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(22.dp),
     brush: Brush = GradientCardDeep,
+    backgroundColor: Color = Color.Unspecified,
     borderColor: Color = GlassBorderSubtle,
     borderWidth: Dp = 1.dp,
     onClick: (() -> Unit)? = null,
@@ -125,6 +127,10 @@ fun BentoCard(
         )
     } else Modifier
 
+    val finalBrush = if (backgroundColor != Color.Unspecified) {
+        androidx.compose.ui.graphics.SolidColor(backgroundColor)
+    } else brush
+
     Surface(
         modifier = modifier
             .scale(scale)
@@ -136,7 +142,7 @@ fun BentoCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(brush)
+                .background(finalBrush)
                 .border(width = borderWidth, color = borderColor, shape = shape)
                 .padding(18.dp)
         ) {
@@ -187,7 +193,7 @@ fun MetricBentoCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(1.dp, GlassBorderSubtle, shape)
-                .padding(16.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.Center
         ) {
             Row(
@@ -196,12 +202,12 @@ fun MetricBentoCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (iconEmoji != null) {
-                    Text(text = iconEmoji, fontSize = 20.sp)
+                    Text(text = iconEmoji, fontSize = 18.sp)
                 } else if (iconVector != null) {
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(8.dp))
                             .background(accentColor.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
@@ -209,7 +215,7 @@ fun MetricBentoCard(
                             imageVector = iconVector,
                             contentDescription = null,
                             tint = iconTint,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -222,14 +228,16 @@ fun MetricBentoCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Black,
                 color = TextPrimary,
-                fontSize = 22.sp
+                fontSize = 20.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -239,7 +247,9 @@ fun MetricBentoCard(
                 style = MaterialTheme.typography.labelSmall,
                 color = TextSecondary,
                 fontWeight = FontWeight.Medium,
-                fontSize = 12.sp
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -363,7 +373,7 @@ fun PrimaryButton(
     icon: ImageVector? = null,
     enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(16.dp),
-    contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 13.dp),
     brush: Brush = GradientAction
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -420,8 +430,10 @@ fun PrimaryButton(
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    fontSize = 15.sp,
-                    letterSpacing = 0.5.sp
+                    fontSize = 14.sp,
+                    letterSpacing = 0.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -436,7 +448,7 @@ fun SecondaryButton(
     icon: ImageVector? = null,
     enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(16.dp),
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+    contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -481,7 +493,9 @@ fun SecondaryButton(
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = LilacAccent,
-                    fontSize = 13.sp
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

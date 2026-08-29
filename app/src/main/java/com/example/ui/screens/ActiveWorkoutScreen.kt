@@ -13,9 +13,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,8 +34,10 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
@@ -69,12 +75,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.ExerciseExecutionRecord
 import com.example.data.model.ProgressionSuggestion
 import com.example.data.model.WorkoutExercisePlan
+import com.example.ui.components.AudioPlayerBottomSheet
 import com.example.ui.components.AutomaticLastExecutionCard
 import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
+import com.example.ui.components.ExerciseVisualGuideDialog
 import com.example.ui.components.FullExerciseHistoryDialog
 import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
+import com.example.ui.components.MedalUnlockedDialog
+import com.example.ui.components.PersonalRecordCelebrationDialog
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.ProgressiveOverloadAlertBanner
 import com.example.ui.components.RestTimerOverlay
@@ -116,6 +126,8 @@ fun ActiveWorkoutScreen(
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val appliedProgressions by viewModel.appliedProgressions.collectAsStateWithLifecycle()
     val dismissedProgressions by viewModel.dismissedProgressions.collectAsStateWithLifecycle()
+    val activeMedalUnlocked by viewModel.activeMedalUnlocked.collectAsStateWithLifecycle()
+    val activePRCelebration by viewModel.activePRCelebration.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showFinishDialog by remember { mutableStateOf(false) }
@@ -123,7 +135,9 @@ fun ActiveWorkoutScreen(
     var showAddExerciseDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
     var showIntervalTimerDialog by remember { mutableStateOf(false) }
+    var showAudioSheet by remember { mutableStateOf(false) }
     var historyDialogExerciseName by remember { mutableStateOf<String?>(null) }
+    var selectedVisualGuideExercise by remember { mutableStateOf<com.example.data.model.Exercise?>(null) }
 
     if (!activeState.isActive) {
         // Fallback view when no workout is running
@@ -226,6 +240,17 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     actions = {
+                        // Quick Audio / Music streaming launcher
+                        IconButton(
+                            onClick = { showAudioSheet = true },
+                            modifier = Modifier.testTag("btn_open_music_player")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Headphones,
+                                contentDescription = "Músicas e Áudio de Treino",
+                                tint = LilacAccent
+                            )
+                        }
                         // Quick interval / HIIT Timer dialog button
                         IconButton(
                             onClick = { showIntervalTimerDialog = true },
@@ -251,12 +276,13 @@ fun ActiveWorkoutScreen(
             },
             containerColor = PurpleDarkest
         ) { paddingValues ->
+            val bottomNavPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
                     .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 190.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = bottomNavPadding + 32.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Location & Gym Switcher Banner
@@ -335,6 +361,18 @@ fun ActiveWorkoutScreen(
                         progressionSuggestion = progressionSuggestion,
                         appliedWeight = appliedProgressions[plan.exerciseName],
                         onViewFullHistory = { historyDialogExerciseName = plan.exerciseName },
+                        onViewVisualGuide = {
+                            val found = allExercises.find { it.id == plan.exerciseId || it.name.equals(plan.exerciseName, ignoreCase = true) }
+                            selectedVisualGuideExercise = found ?: com.example.data.model.Exercise(
+                                name = plan.exerciseName,
+                                muscleGroup = com.example.data.model.MuscleGroup.PEITO,
+                                equipment = com.example.data.model.Equipment.HALTERES,
+                                executionTips = plan.notes.ifBlank { "Mantenha postura firme, controle o ritmo na descida e contraia no topo." },
+                                defaultSets = 3,
+                                defaultReps = 10,
+                                defaultRestSeconds = plan.targetRestSeconds
+                            )
+                        },
                         onApplyProgression = { suggestedWeight ->
                             viewModel.applyProgressionSuggestion(exIndex, suggestedWeight)
                             triggerVibration(context)
@@ -489,6 +527,7 @@ fun ActiveWorkoutScreen(
             onDismiss = { viewModel.dismissRestTimer() },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         )
     }
@@ -712,6 +751,37 @@ fun ActiveWorkoutScreen(
             onDismiss = { historyDialogExerciseName = null }
         )
     }
+
+    // Audio & Music Streaming App Launcher Sheet
+    if (showAudioSheet) {
+        AudioPlayerBottomSheet(
+            onDismiss = { showAudioSheet = false }
+        )
+    }
+
+    // Biomechanical Visual Guide Dialog
+    if (selectedVisualGuideExercise != null) {
+        ExerciseVisualGuideDialog(
+            exercise = selectedVisualGuideExercise!!,
+            onDismiss = { selectedVisualGuideExercise = null }
+        )
+    }
+
+    // Personal Record (PR) Celebration Dialog
+    if (activePRCelebration != null) {
+        PersonalRecordCelebrationDialog(
+            celebration = activePRCelebration!!,
+            onDismiss = { viewModel.dismissPRCelebration() }
+        )
+    }
+
+    // Gamification Medal Unlocked Dialog
+    if (activeMedalUnlocked != null) {
+        MedalUnlockedDialog(
+            medal = activeMedalUnlocked!!,
+            onDismiss = { viewModel.dismissMedalUnlockedDialog() }
+        )
+    }
 }
 
 @Composable
@@ -722,6 +792,7 @@ fun ActiveExerciseCard(
     progressionSuggestion: ProgressionSuggestion?,
     appliedWeight: Double?,
     onViewFullHistory: () -> Unit,
+    onViewVisualGuide: () -> Unit,
     onApplyProgression: (Double) -> Unit,
     onDismissProgression: () -> Unit,
     onUpdateSet: (setIndex: Int, weight: Double, reps: Int, completed: Boolean) -> Unit,
@@ -770,6 +841,27 @@ fun ActiveExerciseCard(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Biomechanical Execution Visual Guide Button
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, LilacAccent.copy(alpha = 0.5f), CircleShape)
+                        .clickable { onViewVisualGuide() }
+                        .testTag("btn_visual_guide_$exerciseIndex"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = "Guia Visual e Biomecânica",
+                        tint = LilacAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
                 Box(
                     modifier = Modifier
                         .size(36.dp)

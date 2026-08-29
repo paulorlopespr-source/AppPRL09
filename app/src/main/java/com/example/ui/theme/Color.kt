@@ -28,6 +28,7 @@ val EmeraldDark = Color(0xFF059669)
 val EmeraldSubtle = Color(0xFF064E3B)
 val AmberWarning = Color(0xFFF59E0B)
 val AmberSubtle = Color(0xFF78350F)
+val YellowWarning = AmberWarning
 val RedDestructive = Color(0xFFEF4444)
 val RedSubtle = Color(0xFF7F1D1D)
 
