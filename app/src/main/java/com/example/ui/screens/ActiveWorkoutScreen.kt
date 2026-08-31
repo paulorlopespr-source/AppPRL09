@@ -31,6 +31,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -43,6 +47,8 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,7 +80,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.ExerciseExecutionRecord
 import com.example.data.model.ProgressionSuggestion
+import com.example.data.model.SetTag
 import com.example.data.model.WorkoutExercisePlan
+import com.example.data.model.WorkoutSession
 import com.example.ui.components.AudioPlayerBottomSheet
 import com.example.ui.components.AutomaticLastExecutionCard
 import com.example.ui.components.BentoCard
@@ -85,12 +93,15 @@ import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
 import com.example.ui.components.MedalUnlockedDialog
 import com.example.ui.components.PersonalRecordCelebrationDialog
+import com.example.ui.components.PlateCalculatorDialog
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.ProgressiveOverloadAlertBanner
 import com.example.ui.components.RestTimerOverlay
 import com.example.ui.components.SecondaryButton
 import com.example.ui.components.SupersetHeaderBadge
+import com.example.ui.components.WarmupGeneratorDialog
 import com.example.ui.components.WorkoutIntervalTimer
+import com.example.ui.components.WorkoutShareStoryDialog
 import com.example.ui.components.triggerVibration
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldSubtle
@@ -128,6 +139,7 @@ fun ActiveWorkoutScreen(
     val dismissedProgressions by viewModel.dismissedProgressions.collectAsStateWithLifecycle()
     val activeMedalUnlocked by viewModel.activeMedalUnlocked.collectAsStateWithLifecycle()
     val activePRCelebration by viewModel.activePRCelebration.collectAsStateWithLifecycle()
+    val isTtsVoiceEnabled by viewModel.isTtsVoiceEnabled.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showFinishDialog by remember { mutableStateOf(false) }
@@ -138,6 +150,10 @@ fun ActiveWorkoutScreen(
     var showAudioSheet by remember { mutableStateOf(false) }
     var historyDialogExerciseName by remember { mutableStateOf<String?>(null) }
     var selectedVisualGuideExercise by remember { mutableStateOf<com.example.data.model.Exercise?>(null) }
+    var plateCalculatorWeightKg by remember { mutableStateOf<Double?>(null) }
+    var plateCalculatorExerciseName by remember { mutableStateOf("") }
+    var warmupGeneratorExerciseIndex by remember { mutableStateOf<Int?>(null) }
+    var completedSessionForStory by remember { mutableStateOf<WorkoutSession?>(null) }
 
     if (!activeState.isActive) {
         // Fallback view when no workout is running
@@ -240,6 +256,17 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     actions = {
+                        // TTS Voice Coach toggle
+                        IconButton(
+                            onClick = { viewModel.toggleTtsVoice() },
+                            modifier = Modifier.testTag("btn_toggle_tts_voice")
+                        ) {
+                            Icon(
+                                imageVector = if (isTtsVoiceEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                contentDescription = if (isTtsVoiceEnabled) "Voz do Coach Ativa" else "Voz do Coach Silenciada",
+                                tint = if (isTtsVoiceEnabled) EmeraldSuccess else TextMuted
+                            )
+                        }
                         // Quick Audio / Music streaming launcher
                         IconButton(
                             onClick = { showAudioSheet = true },
@@ -373,6 +400,13 @@ fun ActiveWorkoutScreen(
                                 defaultRestSeconds = plan.targetRestSeconds
                             )
                         },
+                        onOpenPlateCalculator = { weight ->
+                            plateCalculatorWeightKg = weight
+                            plateCalculatorExerciseName = plan.exerciseName
+                        },
+                        onOpenWarmupGenerator = {
+                            warmupGeneratorExerciseIndex = exIndex
+                        },
                         onApplyProgression = { suggestedWeight ->
                             viewModel.applyProgressionSuggestion(exIndex, suggestedWeight)
                             triggerVibration(context)
@@ -385,6 +419,9 @@ fun ActiveWorkoutScreen(
                             if (completed) {
                                 triggerVibration(context)
                             }
+                        },
+                        onUpdateSetTag = { setIndex, tag ->
+                            viewModel.updateSetTag(exIndex, setIndex, tag)
                         },
                         onAddSet = { viewModel.addSetToExercise(exIndex) },
                         onRemoveSet = { setIndex -> viewModel.removeSetFromExercise(exIndex, setIndex) },
@@ -586,7 +623,7 @@ fun ActiveWorkoutScreen(
                             .padding(12.dp)
                     ) {
                         Text(
-                            text = "✦ A IA do FitTreino irá calcular seu gasto calórico metabólico e avaliar sua sobrecarga progressiva.",
+                            text = "✦ A IA do FitPr09 irá calcular seu gasto calórico metabólico e avaliar sua sobrecarga progressiva.",
                             style = MaterialTheme.typography.bodySmall,
                             color = LilacSoft,
                             lineHeight = 18.sp
@@ -598,8 +635,8 @@ fun ActiveWorkoutScreen(
                 Button(
                     onClick = {
                         showFinishDialog = false
-                        viewModel.finishActiveWorkout {
-                            onFinished()
+                        viewModel.finishActiveWorkout { savedSession ->
+                            completedSessionForStory = savedSession
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
@@ -616,6 +653,42 @@ fun ActiveWorkoutScreen(
             },
             containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
+        )
+    }
+
+    // Story Share Dialog upon workout completion
+    if (completedSessionForStory != null) {
+        val profile by viewModel.userProfile.collectAsStateWithLifecycle()
+        WorkoutShareStoryDialog(
+            session = completedSessionForStory!!,
+            userName = profile?.name ?: "Atleta FitPr09",
+            onDismiss = {
+                completedSessionForStory = null
+                onFinished()
+            }
+        )
+    }
+
+    // Plate Calculator Dialog
+    if (plateCalculatorWeightKg != null) {
+        PlateCalculatorDialog(
+            initialTargetWeightKg = plateCalculatorWeightKg!!,
+            onDismiss = { plateCalculatorWeightKg = null }
+        )
+    }
+
+    // Warmup Sets Generator Dialog
+    if (warmupGeneratorExerciseIndex != null && warmupGeneratorExerciseIndex!! in activeState.exercises.indices) {
+        val plan = activeState.exercises[warmupGeneratorExerciseIndex!!]
+        val topWeight = plan.sets.firstOrNull()?.weightKg ?: 60.0
+        WarmupGeneratorDialog(
+            exerciseName = plan.exerciseName,
+            workingWeightKg = topWeight,
+            onDismiss = { warmupGeneratorExerciseIndex = null },
+            onApplyWarmupSets = { generatedSets ->
+                viewModel.applyWarmupSets(warmupGeneratorExerciseIndex!!, generatedSets)
+                warmupGeneratorExerciseIndex = null
+            }
         )
     }
 
@@ -793,9 +866,12 @@ fun ActiveExerciseCard(
     appliedWeight: Double?,
     onViewFullHistory: () -> Unit,
     onViewVisualGuide: () -> Unit,
+    onOpenPlateCalculator: (Double) -> Unit,
+    onOpenWarmupGenerator: () -> Unit,
     onApplyProgression: (Double) -> Unit,
     onDismissProgression: () -> Unit,
     onUpdateSet: (setIndex: Int, weight: Double, reps: Int, completed: Boolean) -> Unit,
+    onUpdateSetTag: (setIndex: Int, tag: SetTag) -> Unit,
     onAddSet: () -> Unit,
     onRemoveSet: (setIndex: Int) -> Unit,
     onTriggerRest: (seconds: Int) -> Unit
@@ -901,6 +977,72 @@ fun ActiveExerciseCard(
             }
         }
 
+        // Quick Tools Toolbar: Plate Calculator & Warm-up Generator
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val topWeight = plan.sets.firstOrNull()?.weightKg ?: 60.0
+            // Warm-up sets generator
+            Surface(
+                onClick = onOpenWarmupGenerator,
+                shape = RoundedCornerShape(10.dp),
+                color = PurpleDarkSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = Color(0xFFFFB74D),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Aquecimento",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFB74D)
+                    )
+                }
+            }
+
+            // Plate Calculator
+            Surface(
+                onClick = { onOpenPlateCalculator(topWeight) },
+                shape = RoundedCornerShape(10.dp),
+                color = PurpleDarkSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Calculate,
+                        contentDescription = null,
+                        tint = LilacAccent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Anilhas",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LilacAccent
+                    )
+                }
+            }
+        }
+
         if (showTips && plan.notes.isNotBlank()) {
             Spacer(modifier = Modifier.height(10.dp))
             Box(
@@ -974,32 +1116,32 @@ fun ActiveExerciseCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "SÉRIE",
+                text = "TIPO",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextMuted,
-                modifier = Modifier.width(42.dp)
+                modifier = Modifier.width(36.dp)
             )
             Text(
-                text = "CARGA (KG)",
+                text = "CARGA",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextMuted,
-                modifier = Modifier.width(90.dp)
+                modifier = Modifier.width(82.dp)
             )
             Text(
                 text = "REPETIÇÕES",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextMuted,
-                modifier = Modifier.width(90.dp)
+                modifier = Modifier.width(82.dp)
             )
             Text(
                 text = "CHECK",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextMuted,
-                modifier = Modifier.width(48.dp)
+                modifier = Modifier.width(42.dp)
             )
         }
 
@@ -1012,9 +1154,12 @@ fun ActiveExerciseCard(
                 setNumber = setEntry.setNumber,
                 weightKg = setEntry.weightKg,
                 reps = setEntry.reps,
+                tag = setEntry.setTag,
                 isCompleted = setEntry.isCompleted,
                 isNextActive = isNextActive,
                 canDelete = plan.sets.size > 1,
+                onTagChanged = { newTag -> onUpdateSetTag(setIdx, newTag) },
+                onOpenPlateCalculator = { onOpenPlateCalculator(setEntry.weightKg) },
                 onWeightChanged = { newW -> onUpdateSet(setIdx, newW, setEntry.reps, setEntry.isCompleted) },
                 onRepsChanged = { newR -> onUpdateSet(setIdx, setEntry.weightKg, newR, setEntry.isCompleted) },
                 onToggleComplete = { onUpdateSet(setIdx, setEntry.weightKg, setEntry.reps, !setEntry.isCompleted) },
@@ -1042,14 +1187,19 @@ fun SetItemRow(
     setNumber: Int,
     weightKg: Double,
     reps: Int,
+    tag: SetTag = SetTag.NORMAL,
     isCompleted: Boolean,
     isNextActive: Boolean = false,
     canDelete: Boolean,
+    onTagChanged: (SetTag) -> Unit,
+    onOpenPlateCalculator: () -> Unit,
     onWeightChanged: (Double) -> Unit,
     onRepsChanged: (Int) -> Unit,
     onToggleComplete: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showTagMenu by remember { mutableStateOf(false) }
+
     val scale by animateFloatAsState(
         targetValue = if (isCompleted) 0.98f else 1f,
         animationSpec = spring(dampingRatio = 0.7f),
@@ -1074,6 +1224,14 @@ fun SetItemRow(
         label = "set_border_color"
     )
 
+    val (tagColor, tagBg) = when (tag) {
+        SetTag.WARMUP -> Color(0xFFFFB74D) to Color(0x33FFB74D)
+        SetTag.FEEDER -> Color(0xFF4DD0E1) to Color(0x334DD0E1)
+        SetTag.DROPSET -> Color(0xFFFF4081) to Color(0x33FF4081)
+        SetTag.FAILURE -> Color(0xFFFF5252) to Color(0x33FF5252)
+        SetTag.NORMAL -> LilacAccent to PurpleDeepCard
+    }
+
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = rowBgColor,
@@ -1085,92 +1243,123 @@ fun SetItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Set Number Circle with NEXT indicator
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Set Tag Selector Box (W, P, 1, 2, D, F)
+            Box {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(
-                            when {
-                                isCompleted -> EmeraldSuccess
-                                isNextActive -> LilacAccent
-                                else -> PurpleDeepCard
-                            }
+                        .background(if (isCompleted) EmeraldSuccess else tagBg)
+                        .border(
+                            1.dp,
+                            if (isCompleted) EmeraldSuccess else tagColor.copy(alpha = 0.6f),
+                            CircleShape
                         )
+                        .clickable { showTagMenu = true }
                 ) {
                     Text(
-                        text = "$setNumber",
+                        text = if (tag == SetTag.NORMAL) "$setNumber" else tag.shortLabel,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Black,
-                        color = if (isCompleted || isNextActive) Color.White else LilacAccent
+                        color = if (isCompleted) Color.White else tagColor
                     )
+                }
+
+                DropdownMenu(
+                    expanded = showTagMenu,
+                    onDismissRequest = { showTagMenu = false }
+                ) {
+                    SetTag.values().forEach { t ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = t.shortLabel,
+                                        fontWeight = FontWeight.Black,
+                                        color = when (t) {
+                                            SetTag.WARMUP -> Color(0xFFFFB74D)
+                                            SetTag.FEEDER -> Color(0xFF4DD0E1)
+                                            SetTag.DROPSET -> Color(0xFFFF4081)
+                                            SetTag.FAILURE -> Color(0xFFFF5252)
+                                            SetTag.NORMAL -> LilacAccent
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(t.label, style = MaterialTheme.typography.bodySmall)
+                                }
+                            },
+                            onClick = {
+                                onTagChanged(t)
+                                showTagMenu = false
+                            }
+                        )
+                    }
                 }
             }
 
-            // Weight Increment/Decrement Control
+            // Weight Increment/Decrement Control + Click to Open Plate Calculator
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.width(95.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 IconButton(
                     onClick = { onWeightChanged((weightKg - 2.5).coerceAtLeast(0.0)) },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 ) {
-                    Icon(Icons.Default.Remove, contentDescription = "-2.5kg", tint = TextSecondary, modifier = Modifier.size(13.dp))
+                    Icon(Icons.Default.Remove, contentDescription = "-2.5kg", tint = TextSecondary, modifier = Modifier.size(12.dp))
                 }
                 Text(
                     text = "${weightKg.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }}kg",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
-                    modifier = Modifier.padding(horizontal = 2.dp)
+                    modifier = Modifier
+                        .clickable { onOpenPlateCalculator() }
+                        .padding(horizontal = 2.dp)
                 )
                 IconButton(
                     onClick = { onWeightChanged(weightKg + 2.5) },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "+2.5kg", tint = TextSecondary, modifier = Modifier.size(13.dp))
+                    Icon(Icons.Default.Add, contentDescription = "+2.5kg", tint = TextSecondary, modifier = Modifier.size(12.dp))
                 }
             }
 
             // Reps Increment/Decrement Control
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.width(95.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 IconButton(
                     onClick = { onRepsChanged((reps - 1).coerceAtLeast(1)) },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 ) {
-                    Icon(Icons.Default.Remove, contentDescription = "-1 rep", tint = TextSecondary, modifier = Modifier.size(13.dp))
+                    Icon(Icons.Default.Remove, contentDescription = "-1 rep", tint = TextSecondary, modifier = Modifier.size(12.dp))
                 }
                 Text(
                     text = "$reps",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                    modifier = Modifier.padding(horizontal = 2.dp)
                 )
                 IconButton(
                     onClick = { onRepsChanged(reps + 1) },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "+1 rep", tint = TextSecondary, modifier = Modifier.size(13.dp))
+                    Icon(Icons.Default.Add, contentDescription = "+1 rep", tint = TextSecondary, modifier = Modifier.size(12.dp))
                 }
             }
 
             // Complete check button with smooth microinteraction
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(34.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(if (isCompleted) EmeraldSuccess else PurpleDeepCard)
                     .border(
@@ -1186,7 +1375,7 @@ fun SetItemRow(
                     imageVector = Icons.Default.Check,
                     contentDescription = if (isCompleted) "Concluído" else "Marcar",
                     tint = if (isCompleted) Color.White else TextMuted,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }

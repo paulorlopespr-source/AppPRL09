@@ -165,7 +165,7 @@ object WorkoutReminderManager {
         val contentPendingIntent = PendingIntent.getActivity(context, 2001, openAppIntent, pendingIntentFlags)
 
         val title = if (isTest) {
-            "⚡ Teste de Lembrete: FitTreino"
+            "⚡ Teste de Lembrete: FitPr09"
         } else {
             "${settings.tone.emoji} Hora do Treino!"
         }

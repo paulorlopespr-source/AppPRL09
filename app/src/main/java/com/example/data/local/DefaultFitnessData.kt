@@ -1751,7 +1751,7 @@ object DefaultFitnessData {
             com.example.data.model.UserMedal(
                 id = "first_workout",
                 title = "Primeiro Passo 🚀",
-                description = "Completou seu 1º treino de musculação no FitTreino.",
+                description = "Completou seu 1º treino de musculação no FitPr09.",
                 category = "CONSISTENCIA",
                 period = "ESPECIAL",
                 iconEmoji = "🥇",

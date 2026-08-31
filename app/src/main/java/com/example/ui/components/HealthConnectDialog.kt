@@ -563,7 +563,7 @@ fun HealthConnectDialog(
 
                                         WatchBrandGuideItem(
                                             brand = "🎯 Pixel Watch / Wear OS / Fitbit",
-                                            steps = "1. Abra o app Fitbit ou Google Fit\n2. Vá em Perfil > Conectar ao Health Connect\n3. Os dados de batimentos cardíacos em tempo real e passos serão lidos diretamente pelo FitTreino."
+                                            steps = "1. Abra o app Fitbit ou Google Fit\n2. Vá em Perfil > Conectar ao Health Connect\n3. Os dados de batimentos cardíacos em tempo real e passos serão lidos diretamente pelo FitPr09."
                                         )
 
                                         WatchBrandGuideItem(
@@ -577,7 +577,7 @@ fun HealthConnectDialog(
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Text(
-                                                text = "🔄 Fluxo Bidirecional: Quando você finaliza um treino no FitTreino, os dados de volume, séries e gasto calórico são gravados automaticamente no Health Connect e refletem no seu relógio!",
+                                                text = "🔄 Fluxo Bidirecional: Quando você finaliza um treino no FitPr09, os dados de volume, séries e gasto calórico são gravados automaticamente no Health Connect e refletem no seu relógio!",
                                                 style = MaterialTheme.typography.bodySmall.copy(
                                                     color = LilacSoft,
                                                     lineHeight = 18.sp

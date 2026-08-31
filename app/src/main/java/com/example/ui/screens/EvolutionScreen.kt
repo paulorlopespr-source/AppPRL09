@@ -71,15 +71,21 @@ import com.example.data.model.ProgressPhoto
 import com.example.ui.components.AIInsightCard
 import com.example.ui.components.AddProgressPhotoDialog
 import com.example.ui.components.BentoCard
+import com.example.ui.components.DataExportDialog
 import com.example.ui.components.DateUtils
 import com.example.ui.components.GamificationTrophySection
 import com.example.ui.components.GoalSettingSection
 import com.example.ui.components.HealthConnectDialog
 import com.example.ui.components.MedalDetailModalDialog
 import com.example.ui.components.MedalUnlockedDialog
+import com.example.ui.components.MuscleVolumeHeatmapSection
 import com.example.ui.components.PhotoDetailDialog
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.ProgressPhotosSection
+import com.example.ui.components.UserAvatarView
+import com.example.ui.components.UserProfileDialog
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.TableChart
 import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.GlassBorder
@@ -123,12 +129,16 @@ fun EvolutionScreen(
         it.dateEpochDay >= startOfWeekEpoch && it.status == com.example.data.model.SessionStatus.COMPLETED
     }
 
+    val weeklyMuscleVolumes by viewModel.weeklyMuscleVolumes.collectAsStateWithLifecycle()
+    val allCardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
+
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showAddMeasurementDialog by remember { mutableStateOf(false) }
     var showAddPhotoDialog by remember { mutableStateOf(false) }
     var isAddingInitialPhoto by remember { mutableStateOf(false) }
     var selectedPhotoDetail by remember { mutableStateOf<ProgressPhoto?>(null) }
     var showHealthConnectDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
 
     val healthPermissionsGranted by viewModel.healthPermissionsGranted.collectAsStateWithLifecycle()
 
@@ -176,6 +186,27 @@ fun EvolutionScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Data Export & Backup Button
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(PurpleDarkSurface)
+                                .border(1.dp, LilacAccent.copy(alpha = 0.5f), CircleShape)
+                                .clickable { showExportDialog = true }
+                                .testTag("btn_export_data"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = "Exportar Dados CSV/JSON",
+                                tint = LilacAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
@@ -202,18 +233,14 @@ fun EvolutionScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(PurpleDarkSurface)
-                                .border(1.dp, GlassBorder, CircleShape)
-                                .clickable { showEditProfileDialog = true }
-                                .testTag("btn_edit_profile"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = LilacAccent, modifier = Modifier.size(18.dp))
-                        }
+                        UserAvatarView(
+                            photoUri = userProfile?.photoUri,
+                            userName = userProfile?.name ?: "Atleta",
+                            size = 38.dp,
+                            showEditBadge = true,
+                            onClick = { showEditProfileDialog = true },
+                            modifier = Modifier.testTag("btn_edit_profile")
+                        )
                     }
                 }
             }
@@ -321,6 +348,13 @@ fun EvolutionScreen(
                         modifier = Modifier.align(Alignment.End)
                     )
                 }
+            }
+
+            // Muscle Volume Heatmap (Science & Hypertrophy Tracking)
+            item {
+                MuscleVolumeHeatmapSection(
+                    weeklyVolumes = weeklyMuscleVolumes
+                )
             }
 
             // Goal Setting & Specific Exercise Targets
@@ -455,172 +489,21 @@ fun EvolutionScreen(
         }
     }
 
-    // Edit Profile & Goals Dialog
+    // Edit Profile & Goals Dialog with User Photo management
     if (showEditProfileDialog && userProfile != null) {
-        var name by remember { mutableStateOf(userProfile!!.name) }
-        var currentW by remember { mutableStateOf(userProfile!!.currentWeightKg.toString()) }
-        var targetW by remember { mutableStateOf(userProfile!!.targetWeightKg.toString()) }
-        var heightStr by remember { mutableStateOf(userProfile!!.heightCm.toString()) }
-        var ageStr by remember { mutableStateOf(userProfile!!.age.toString()) }
-        var selectedGoal by remember { mutableStateOf(userProfile!!.goal) }
-        var weeklyDays by remember { mutableStateOf(userProfile!!.weeklyGoalDays.toString()) }
-        var defaultGym by remember { mutableStateOf(userProfile!!.defaultGymLocation) }
-
-        AlertDialog(
-            onDismissRequest = { showEditProfileDialog = false },
-            title = { Text("Configurar Metas & Perfil", fontWeight = FontWeight.Black, color = TextPrimary) },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Nome do Atleta") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = LilacAccent,
-                            unfocusedBorderColor = GlassBorder
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Text("Objetivo Principal:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FitnessGoal.values().forEach { fg ->
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (selectedGoal == fg) PurpleDeepCard else PurpleDarkSurface,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedGoal == fg) LilacAccent else GlassBorderSubtle),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedGoal = fg }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(fg.label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                        Text(fg.description, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                                    }
-                                    if (selectedGoal == fg) {
-                                        Icon(Icons.Default.Check, contentDescription = null, tint = LilacAccent)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = currentW,
-                            onValueChange = { currentW = it },
-                            label = { Text("Peso Atual (kg)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                focusedBorderColor = LilacAccent,
-                                unfocusedBorderColor = GlassBorder
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = targetW,
-                            onValueChange = { targetW = it },
-                            label = { Text("Peso Alvo (kg)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                focusedBorderColor = LilacAccent,
-                                unfocusedBorderColor = GlassBorder
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = heightStr,
-                            onValueChange = { heightStr = it },
-                            label = { Text("Altura (cm)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                focusedBorderColor = LilacAccent,
-                                unfocusedBorderColor = GlassBorder
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = ageStr,
-                            onValueChange = { ageStr = it },
-                            label = { Text("Idade") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                focusedBorderColor = LilacAccent,
-                                unfocusedBorderColor = GlassBorder
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = weeklyDays,
-                        onValueChange = { weeklyDays = it },
-                        label = { Text("Meta Semanal (dias de treino)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = LilacAccent,
-                            unfocusedBorderColor = GlassBorder
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+        UserProfileDialog(
+            userProfile = userProfile!!,
+            onDismiss = { showEditProfileDialog = false },
+            onSaveProfile = { updated ->
+                viewModel.updateUserProfile(updated)
+                showEditProfileDialog = false
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val updated = userProfile!!.copy(
-                            name = name.ifBlank { "Atleta" },
-                            currentWeightKg = currentW.toDoubleOrNull() ?: userProfile!!.currentWeightKg,
-                            targetWeightKg = targetW.toDoubleOrNull() ?: userProfile!!.targetWeightKg,
-                            heightCm = heightStr.toDoubleOrNull() ?: userProfile!!.heightCm,
-                            age = ageStr.toIntOrNull() ?: userProfile!!.age,
-                            goal = selectedGoal,
-                            weeklyGoalDays = weeklyDays.toIntOrNull() ?: userProfile!!.weeklyGoalDays,
-                            defaultGymLocation = defaultGym
-                        )
-                        viewModel.updateUserProfile(updated)
-                        showEditProfileDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.testTag("btn_save_profile")
-                ) {
-                    Text("Salvar", fontWeight = FontWeight.Bold, color = Color.White)
-                }
+            onPhotoSelected = { uri ->
+                viewModel.updateUserPhoto(uri)
             },
-            dismissButton = {
-                TextButton(onClick = { showEditProfileDialog = false }) {
-                    Text("Cancelar", color = TextMuted)
-                }
-            },
-            containerColor = PurpleDarkSurface,
-            shape = RoundedCornerShape(24.dp)
+            onPhotoRemoved = {
+                viewModel.removeUserPhoto()
+            }
         )
     }
 
@@ -850,6 +733,17 @@ fun EvolutionScreen(
         HealthConnectDialog(
             viewModel = viewModel,
             onDismiss = { showHealthConnectDialog = false }
+        )
+    }
+
+    // Data Export & Backup Dialog (CSV & JSON)
+    if (showExportDialog) {
+        DataExportDialog(
+            userProfile = userProfile,
+            workoutSessions = allWorkoutSessions,
+            cardioSessions = allCardioSessions,
+            measurements = measurements,
+            onDismiss = { showExportDialog = false }
         )
     }
 }

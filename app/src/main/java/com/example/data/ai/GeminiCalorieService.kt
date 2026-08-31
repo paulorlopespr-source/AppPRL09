@@ -392,7 +392,7 @@ class GeminiCalorieService {
     ): String = withContext(Dispatchers.IO) {
         val apiKey = BuildConfig.GEMINI_API_KEY
         val prompt = """
-            Você é o Coach de IA do aplicativo FitTreino.
+            Você é o Coach de IA do aplicativo FitPr09.
             O atleta possui as seguintes métricas:
             - Nome: ${userProfile.name}, Peso Atual: ${userProfile.currentWeightKg}kg, Meta: ${userProfile.targetWeightKg}kg (${userProfile.goal.label})
             - Histórico: $completedWorkoutsCount treinos concluídos, ${totalVolumeKg.toInt()} kg totais levantados, $totalCardioMinutes min de cardio acumulados.
@@ -675,7 +675,7 @@ class GeminiCalorieService {
         val goalStr = userProfile.goal.label
 
         val prompt = """
-            Você é o Coach IA do FitTreino, um especialista de elite em musculação, biomecânica, nutrição esportiva e hipertrofia.
+            Você é o Coach IA do FitPr09, um especialista de elite em musculação, biomecânica, nutrição esportiva e hipertrofia.
             Responda de forma altamente prática, precisa e motivadora à dúvida do atleta:
 
             Perfil do Atleta:

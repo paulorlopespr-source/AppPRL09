@@ -71,7 +71,7 @@ import com.example.ui.screens.CardioScreen
 import com.example.ui.screens.EvolutionScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.WorkoutTemplatesScreen
-import com.example.ui.theme.FitTreinoTheme
+import com.example.ui.theme.FitPr09Theme
 import com.example.ui.theme.GlassBorder
 import com.example.ui.theme.GlassBorderSubtle
 import com.example.ui.theme.GlassSurfaceDark
@@ -108,7 +108,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            FitTreinoTheme {
+            FitPr09Theme {
                 val viewModel: FitnessViewModel = viewModel()
                 MainAppScreen(viewModel = viewModel)
             }

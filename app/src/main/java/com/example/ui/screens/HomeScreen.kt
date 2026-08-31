@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -79,6 +80,7 @@ import com.example.data.model.WorkoutTemplate
 import com.example.ui.components.AIEvaluationDialog
 import com.example.ui.components.AIInsightCard
 import com.example.ui.components.AINutritionDialog
+import com.example.ui.components.CentralMenuSheet
 import com.example.ui.components.HealthConnectDialog
 import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
@@ -88,6 +90,10 @@ import com.example.ui.components.PrimaryButton
 import com.example.ui.components.ScalableVectorMedalBadge
 import com.example.ui.components.SecondaryButton
 import com.example.ui.components.SupersetHeaderBadge
+import com.example.ui.components.UserAvatarView
+import com.example.ui.components.UserProfileDialog
+import com.example.ui.components.AIWorkoutGeneratorDialog
+import com.example.ui.components.WorkoutReminderDialog
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
@@ -101,6 +107,7 @@ import com.example.ui.theme.GradientCardDeep
 import com.example.ui.theme.GradientHeroPrimary
 import com.example.ui.theme.GradientVibrant
 import com.example.ui.theme.LilacAccent
+import androidx.compose.material3.ExperimentalMaterial3Api
 import com.example.ui.theme.LilacSoft
 import com.example.ui.theme.PurpleDarkSurface
 import com.example.ui.theme.PurpleDarkest
@@ -113,6 +120,7 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: FitnessViewModel,
@@ -134,9 +142,17 @@ fun HomeScreen(
     var showAiDialog by remember { mutableStateOf(false) }
     var showNutritionDialog by remember { mutableStateOf(false) }
     var showHealthConnectDialog by remember { mutableStateOf(false) }
+    var showCentralMenu by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var showWorkoutGeneratorDialog by remember { mutableStateOf(false) }
+    var showWorkoutReminderDialog by remember { mutableStateOf(false) }
 
     val healthDailyMetrics by viewModel.healthDailyMetrics.collectAsStateWithLifecycle()
     val permissionsGranted by viewModel.healthPermissionsGranted.collectAsStateWithLifecycle()
+    val isGeneratingAIWorkout by viewModel.isGeneratingAIWorkout.collectAsStateWithLifecycle()
+    val generatedAIWorkout by viewModel.generatedAIWorkout.collectAsStateWithLifecycle()
+    val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
+    val gamificationOverview by viewModel.gamificationOverview.collectAsStateWithLifecycle()
 
     val todayEpoch = DateUtils.todayEpochDay()
     val completedWorkouts = workoutSessions.filter { it.status == SessionStatus.COMPLETED }
@@ -162,7 +178,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ==========================================
-        // 1. TOP HEADER (Bom dia, [Nome] / Seu treino está pronto)
+        // 1. TOP HEADER (Foto do Usuário, Saudação & Menu Central de Informações)
         // ==========================================
         item {
             Row(
@@ -170,28 +186,45 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "Bom dia, ${userProfile?.name ?: "Atleta"}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Black,
-                        color = TextPrimary,
-                        fontSize = 22.sp
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // User Avatar with photo preview and edit trigger
+                    UserAvatarView(
+                        photoUri = userProfile?.photoUri,
+                        userName = userProfile?.name ?: "Atleta",
+                        size = 46.dp,
+                        showEditBadge = true,
+                        onClick = { showProfileDialog = true },
+                        modifier = Modifier.testTag("btn_header_profile")
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Seu treino está pronto.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = LilacSoft
-                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = "Olá, ${userProfile?.name ?: "Atleta"}",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary,
+                            fontSize = 20.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (activeWorkout.isActive) "Treino em andamento" else "Seu treino está pronto.",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (activeWorkout.isActive) EmeraldSuccess else LilacSoft
+                        )
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // Smartwatch / Health Connect Hub Button
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(
                                 if (permissionsGranted) EmeraldSubtle else PurpleDarkSurface
@@ -209,52 +242,28 @@ fun HomeScreen(
                             imageVector = Icons.Default.Watch,
                             contentDescription = "Smartwatch & Health Connect",
                             tint = if (permissionsGranted) EmeraldSuccess else LilacAccent,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Quick Notification / AI trigger button
+                    // Central Menu Trigger Button (Menu com todas as informações)
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
-                            .background(PurpleDarkSurface)
-                            .border(1.dp, GlassBorderSubtle, CircleShape)
-                            .clickable {
-                                selectedSessionAiFeedback = "Seu último treino de peito foi há 3 dias. Você completou todas as séries com ótima postura. Considere aumentar 2 kg no Supino Reto hoje!"
-                                showAiDialog = true
-                            },
+                            .background(PurpleDeepCard)
+                            .border(1.2.dp, LilacAccent, CircleShape)
+                            .clickable { showCentralMenu = true }
+                            .testTag("btn_header_menu"),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificações",
+                            imageVector = Icons.Default.Widgets,
+                            contentDescription = "Menu Principal",
                             tint = LilacAccent,
                             modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    // User Avatar with luminous lilac ring
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(PurpleDeepCard)
-                            .border(1.5.dp, LilacAccent, CircleShape)
-                            .clickable { onNavigateToEvolution() }
-                            .testTag("btn_header_profile")
-                    ) {
-                        val initial = userProfile?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "A"
-                        Text(
-                            text = initial,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Black,
-                            color = TextPrimary
                         )
                     }
                 }
@@ -1006,6 +1015,78 @@ fun HomeScreen(
         HealthConnectDialog(
             viewModel = viewModel,
             onDismiss = { showHealthConnectDialog = false }
+        )
+    }
+
+    // Central Menu Modal Sheet (All features organized cleanly)
+    if (showCentralMenu) {
+        CentralMenuSheet(
+            userProfile = userProfile,
+            gamificationOverview = gamificationOverview,
+            isSmartwatchConnected = permissionsGranted,
+            onDismiss = { showCentralMenu = false },
+            onOpenEditProfile = { showProfileDialog = true },
+            onNavigateToWorkouts = onNavigateToWorkouts,
+            onNavigateToActiveWorkout = onNavigateToActiveWorkout,
+            onNavigateToCardio = onNavigateToCardio,
+            onNavigateToAgenda = onNavigateToAgenda,
+            onNavigateToEvolution = onNavigateToEvolution,
+            onOpenAiWorkoutGenerator = { showWorkoutGeneratorDialog = true },
+            onOpenNutritionAi = { showNutritionDialog = true },
+            onOpenHealthConnect = { showHealthConnectDialog = true },
+            onOpenReminders = { showWorkoutReminderDialog = true }
+        )
+    }
+
+    // User Profile & Photo Manager Dialog
+    if (showProfileDialog && userProfile != null) {
+        UserProfileDialog(
+            userProfile = userProfile!!,
+            onDismiss = { showProfileDialog = false },
+            onSaveProfile = { updated ->
+                viewModel.updateUserProfile(updated)
+                showProfileDialog = false
+            },
+            onPhotoSelected = { uri ->
+                viewModel.updateUserPhoto(uri)
+            },
+            onPhotoRemoved = {
+                viewModel.removeUserPhoto()
+            }
+        )
+    }
+
+    // AI Workout Generator Dialog
+    if (showWorkoutGeneratorDialog) {
+        AIWorkoutGeneratorDialog(
+            isGenerating = isGeneratingAIWorkout,
+            generatedWorkout = generatedAIWorkout,
+            onGenerate = { prompt -> viewModel.generateAIWorkout(prompt) },
+            onSaveTemplate = { plan ->
+                viewModel.saveGeneratedAIWorkoutAsTemplate(plan)
+                showWorkoutGeneratorDialog = false
+            },
+            onStartWorkoutNow = { plan ->
+                viewModel.startWorkoutFromAIPlan(plan)
+                showWorkoutGeneratorDialog = false
+                onNavigateToActiveWorkout()
+            },
+            onDismiss = { showWorkoutGeneratorDialog = false }
+        )
+    }
+
+    // Workout Reminders Dialog
+    if (showWorkoutReminderDialog) {
+        WorkoutReminderDialog(
+            initialSettings = reminderSettings,
+            onSaveSettings = { updated ->
+                viewModel.updateReminderSettings(updated)
+                showWorkoutReminderDialog = false
+            },
+            onTestNotification = {
+                viewModel.triggerTestReminderNotification()
+            },
+            onDismiss = { showWorkoutReminderDialog = false }
         )
     }
 }

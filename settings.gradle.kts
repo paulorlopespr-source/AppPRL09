@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "FitTreino"
+rootProject.name = "FitPr09"
 
 include(":app")

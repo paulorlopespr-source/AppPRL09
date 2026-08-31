@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
         com.example.data.model.MealLog::class,
         com.example.data.model.UserMedal::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

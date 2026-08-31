@@ -28,6 +28,7 @@ enum class FitnessGoal(val label: String, val description: String) {
 data class UserProfile(
     @PrimaryKey val id: Int = 1,
     val name: String = "Atleta",
+    val photoUri: String? = null,
     val age: Int = 26,
     val heightCm: Double = 175.0,
     val startingWeightKg: Double = 78.0,

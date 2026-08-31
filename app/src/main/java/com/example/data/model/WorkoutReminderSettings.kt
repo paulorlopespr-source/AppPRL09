@@ -26,7 +26,7 @@ enum class ReminderTone(val label: String, val emoji: String, val sampleText: St
     DIRETO(
         label = "Curto & Objetivo",
         emoji = "⚡",
-        sampleText = "Hora do seu treino agendado no FitTreino."
+        sampleText = "Hora do seu treino agendado no FitPr09."
     )
 }
 

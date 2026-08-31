@@ -37,7 +37,7 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = DarkColorScheme // Default to dark mode premium
 
 @Composable
-fun FitTreinoTheme(
+fun FitPr09Theme(
     darkTheme: Boolean = true, // Dark mode premium by default
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
@@ -50,4 +50,12 @@ fun FitTreinoTheme(
         content = content
     )
 }
+
+@Composable
+fun FitTreinoTheme(
+    darkTheme: Boolean = true,
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit
+) = FitPr09Theme(darkTheme, dynamicColor, content)
+
 

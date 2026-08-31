@@ -1,0 +1,521 @@
+package com.example.ui.components
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.data.model.FitnessGoal
+import com.example.data.model.UserProfile
+import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.GlassBorder
+import com.example.ui.theme.GlassBorderSubtle
+import com.example.ui.theme.GlowPurple
+import com.example.ui.theme.GradientAction
+import com.example.ui.theme.LilacAccent
+import com.example.ui.theme.LilacSoft
+import com.example.ui.theme.PurpleDarkSurface
+import com.example.ui.theme.PurpleDarkest
+import com.example.ui.theme.PurpleDeepCard
+import com.example.ui.theme.PurplePrimary
+import com.example.ui.theme.RedDestructive
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import java.io.File
+
+@Composable
+fun UserAvatarView(
+    photoUri: String?,
+    userName: String,
+    size: Dp = 44.dp,
+    onClick: (() -> Unit)? = null,
+    showEditBadge: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val imageModel = remember(photoUri) {
+        if (!photoUri.isNullOrBlank()) {
+            if (photoUri.startsWith("/")) File(photoUri) else Uri.parse(photoUri)
+        } else null
+    }
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable { onClick() }
+                } else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(PurpleDeepCard)
+                .border(1.5.dp, LilacAccent, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (imageModel != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(imageModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Foto de perfil de $userName",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(size)
+                        .clip(CircleShape)
+                )
+            } else {
+                val initial = userName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "A"
+                Text(
+                    text = initial,
+                    fontSize = (size.value * 0.42f).sp,
+                    fontWeight = FontWeight.Black,
+                    color = TextPrimary
+                )
+            }
+        }
+
+        if (showEditBadge) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size((size.value * 0.35f).coerceAtLeast(18f).dp)
+                    .clip(CircleShape)
+                    .background(GradientAction)
+                    .border(1.dp, Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = "Alterar foto",
+                    tint = Color.White,
+                    modifier = Modifier.size((size.value * 0.22f).coerceAtLeast(11f).dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun UserProfileDialog(
+    userProfile: UserProfile,
+    onDismiss: () -> Unit,
+    onSaveProfile: (UserProfile) -> Unit,
+    onPhotoSelected: (Uri) -> Unit,
+    onPhotoRemoved: () -> Unit
+) {
+    var name by remember { mutableStateOf(userProfile.name) }
+    var currentW by remember { mutableStateOf(userProfile.currentWeightKg.toString()) }
+    var startingW by remember { mutableStateOf(userProfile.startingWeightKg.toString()) }
+    var targetW by remember { mutableStateOf(userProfile.targetWeightKg.toString()) }
+    var heightStr by remember { mutableStateOf(userProfile.heightCm.toString()) }
+    var ageStr by remember { mutableStateOf(userProfile.age.toString()) }
+    var selectedGoal by remember { mutableStateOf(userProfile.goal) }
+    var weeklyDays by remember { mutableStateOf(userProfile.weeklyGoalDays.toString()) }
+    var defaultGym by remember { mutableStateOf(userProfile.defaultGymLocation) }
+    var currentPhotoPath by remember { mutableStateOf(userProfile.photoUri) }
+
+    // Media picker launcher
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            currentPhotoPath = uri.toString()
+            onPhotoSelected(uri)
+        }
+    }
+
+    // Fallback document/content picker
+    val contentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            currentPhotoPath = uri.toString()
+            onPhotoSelected(uri)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = LilacAccent
+                )
+                Text(
+                    text = "Perfil do Atleta & Foto",
+                    fontWeight = FontWeight.Black,
+                    color = TextPrimary,
+                    fontSize = 19.sp
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Photo Picker Section
+                Box(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        UserAvatarView(
+                            photoUri = currentPhotoPath,
+                            userName = name.ifBlank { "Atleta" },
+                            size = 88.dp,
+                            showEditBadge = true,
+                            onClick = {
+                                try {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                } catch (_: Exception) {
+                                    contentPickerLauncher.launch("image/*")
+                                }
+                            }
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        photoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    } catch (_: Exception) {
+                                        contentPickerLauncher.launch("image/*")
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.5f)),
+                                modifier = Modifier.testTag("btn_select_user_photo")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoLibrary,
+                                    contentDescription = null,
+                                    tint = LilacAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (currentPhotoPath != null) "Trocar Foto" else "Enviar Foto",
+                                    color = LilacAccent,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            if (currentPhotoPath != null) {
+                                IconButton(
+                                    onClick = {
+                                        currentPhotoPath = null
+                                        onPhotoRemoved()
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Remover Foto",
+                                        tint = RedDestructive,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Name
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nome do Atleta") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent,
+                        unfocusedBorderColor = GlassBorder
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("input_profile_name")
+                )
+
+                // Goal Selector
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Objetivo Principal:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    FitnessGoal.values().forEach { fg ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (selectedGoal == fg) PurpleDeepCard else PurpleDarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (selectedGoal == fg) LilacAccent else GlassBorderSubtle
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedGoal = fg }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = fg.label,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        text = fg.description,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = TextSecondary,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                                if (selectedGoal == fg) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = LilacAccent
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Weights row (Atual / Inicial / Alvo)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = startingW,
+                        onValueChange = { startingW = it },
+                        label = { Text("P. Inicial (kg)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = currentW,
+                        onValueChange = { currentW = it },
+                        label = { Text("P. Atual (kg)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = targetW,
+                        onValueChange = { targetW = it },
+                        label = { Text("P. Alvo (kg)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // Height and Age
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = heightStr,
+                        onValueChange = { heightStr = it },
+                        label = { Text("Altura (cm)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = ageStr,
+                        onValueChange = { ageStr = it },
+                        label = { Text("Idade") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = LilacAccent,
+                            unfocusedBorderColor = GlassBorder
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // Weekly days and Default gym
+                OutlinedTextField(
+                    value = weeklyDays,
+                    onValueChange = { weeklyDays = it },
+                    label = { Text("Meta Semanal (dias de treino: 1-7)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent,
+                        unfocusedBorderColor = GlassBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = defaultGym,
+                    onValueChange = { defaultGym = it },
+                    label = { Text("Academia / Local Padrão") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent,
+                        unfocusedBorderColor = GlassBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val updated = userProfile.copy(
+                        name = name.ifBlank { "Atleta" },
+                        photoUri = currentPhotoPath,
+                        startingWeightKg = startingW.toDoubleOrNull() ?: userProfile.startingWeightKg,
+                        currentWeightKg = currentW.toDoubleOrNull() ?: userProfile.currentWeightKg,
+                        targetWeightKg = targetW.toDoubleOrNull() ?: userProfile.targetWeightKg,
+                        heightCm = heightStr.toDoubleOrNull() ?: userProfile.heightCm,
+                        age = ageStr.toIntOrNull() ?: userProfile.age,
+                        goal = selectedGoal,
+                        weeklyGoalDays = (weeklyDays.toIntOrNull() ?: userProfile.weeklyGoalDays).coerceIn(1, 7),
+                        defaultGymLocation = defaultGym.ifBlank { "Academia Smart Fit" }
+                    )
+                    onSaveProfile(updated)
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.testTag("btn_save_user_profile")
+            ) {
+                Text("Salvar Perfil", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = TextMuted)
+            }
+        },
+        containerColor = PurpleDarkSurface,
+        shape = RoundedCornerShape(24.dp)
+    )
+}

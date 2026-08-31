@@ -55,6 +55,22 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+import com.example.data.model.MuscleGroup
+import com.example.data.model.SetTag
+import com.example.ui.components.MuscleWeeklyVolume
+import com.example.utils.TTSVoiceManager
+
+data class ProgressiveOverloadSuggestion(
+    val exerciseName: String,
+    val previousWeightKg: Double,
+    val previousReps: Int,
+    val suggestedWeightKg: Double,
+    val suggestedReps: Int,
+    val strategy: String,
+    val tip: String,
+    val estimated1RM: Double
+)
+
 data class ActiveWorkoutState(
     val isActive: Boolean = false,
     val templateId: Long? = null,
@@ -218,6 +234,54 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val _activePRCelebration = MutableStateFlow<com.example.data.model.PersonalRecordCelebration?>(null)
     val activePRCelebration: StateFlow<com.example.data.model.PersonalRecordCelebration?> = _activePRCelebration.asStateFlow()
 
+    // --- Voice & Audio TTS Coach ---
+    private val ttsVoiceManager = TTSVoiceManager(application)
+    private val _isTtsVoiceEnabled = MutableStateFlow(true)
+    val isTtsVoiceEnabled: StateFlow<Boolean> = _isTtsVoiceEnabled.asStateFlow()
+
+    fun toggleTtsVoice() {
+        _isTtsVoiceEnabled.value = !_isTtsVoiceEnabled.value
+        ttsVoiceManager.isEnabled = _isTtsVoiceEnabled.value
+        if (_isTtsVoiceEnabled.value) {
+            ttsVoiceManager.speak("Voz do treinador ativada! Vamos com tudo!")
+        }
+    }
+
+    fun testCoachVoice() {
+        ttsVoiceManager.speakMotivation()
+    }
+
+    // --- Weekly Muscle Volume Heatmap Flow ---
+    val weeklyMuscleVolumes: StateFlow<List<MuscleWeeklyVolume>> = repository.allWorkoutSessions.map { sessions ->
+        val todayEpoch = DateUtils.todayEpochDay()
+        val startOfWeekEpoch = todayEpoch - java.time.LocalDate.now().dayOfWeek.value + 1
+        val weekSessions = sessions.filter { it.dateEpochDay >= startOfWeekEpoch && it.status == SessionStatus.COMPLETED }
+
+        val setCountsByMuscle = mutableMapOf<MuscleGroup, Int>()
+        MuscleGroup.entries.forEach { setCountsByMuscle[it] = 0 }
+
+        weekSessions.forEach { session ->
+            try {
+                val plans = plansAdapter.fromJson(session.exercisesDoneJson) ?: emptyList()
+                plans.forEach { plan ->
+                    val matchedGroup = MuscleGroup.entries.find { it.displayName.equals(plan.muscleGroup, ignoreCase = true) }
+                        ?: MuscleGroup.PEITO
+                    val completedSets = plan.sets.count { it.isCompleted && it.setTag != SetTag.WARMUP }
+                    setCountsByMuscle[matchedGroup] = (setCountsByMuscle[matchedGroup] ?: 0) + completedSets
+                }
+            } catch (_: Exception) {}
+        }
+
+        MuscleGroup.entries.map { group ->
+            MuscleWeeklyVolume(
+                muscleGroup = group,
+                completedSetsThisWeek = setCountsByMuscle[group] ?: 0,
+                targetMinSets = 10,
+                targetMaxSets = 20
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // --- Active Workout State ---
     private val _activeWorkout = MutableStateFlow(ActiveWorkoutState())
     val activeWorkout: StateFlow<ActiveWorkoutState> = _activeWorkout.asStateFlow()
@@ -255,7 +319,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         listOf(
             AICoachMessage(
                 sender = AICoachSender.COACH,
-                text = "Olá, Atleta! Sou seu Coach IA do FitTreino. Como posso otimizar seus treinos, periodização, cargas ou nutrição hoje?",
+                text = "Olá, Atleta! Sou seu Coach IA do FitPr09. Como posso otimizar seus treinos, periodização, cargas ou nutrição hoje?",
                 keyPoints = listOf(
                     "Tire dúvidas sobre execução e biomecânica de qualquer exercício",
                     "Peça ajustes de dieta e timing de macros para seu objetivo",
@@ -322,6 +386,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         )
 
         startWorkoutDurationTimer()
+        ttsVoiceManager.speakStartWorkout(template.title)
     }
 
     fun startEmptyWorkout(title: String = "Treino Personalizado", location: String = "Academia Smart Fit") {
@@ -362,6 +427,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         )
 
         startWorkoutDurationTimer()
+        ttsVoiceManager.speakStartWorkout(_activeWorkout.value.title)
     }
 
     private fun startWorkoutDurationTimer() {
@@ -376,7 +442,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, completed: Boolean, autoRest: Boolean = true) {
+    fun updateSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, completed: Boolean, tag: SetTag? = null, autoRest: Boolean = true) {
         val current = _activeWorkout.value
         val updatedExercises = current.exercises.toMutableList()
         if (exerciseIndex in updatedExercises.indices) {
@@ -388,7 +454,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 updatedSets[setIndex] = oldSet.copy(
                     weightKg = weight,
                     reps = reps,
-                    isCompleted = completed
+                    isCompleted = completed,
+                    setTag = tag ?: oldSet.setTag
                 )
                 updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
                 _activeWorkout.value = current.copy(exercises = updatedExercises)
@@ -407,11 +474,110 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
                     if (autoRest) {
                         val restTime = if (oldSet.restSeconds > 0) oldSet.restSeconds else plan.targetRestSeconds
-                        triggerRestTimer(restTime)
+                        // Find next upcoming set details for TTS prompt
+                        val nextSetInExercise = updatedSets.getOrNull(setIndex + 1)
+                        val nextExercise = if (nextSetInExercise == null) updatedExercises.getOrNull(exerciseIndex + 1) else null
+                        val nextExName = nextSetInExercise?.let { plan.exerciseName } ?: nextExercise?.exerciseName ?: plan.exerciseName
+                        val nextWeight = nextSetInExercise?.weightKg ?: nextExercise?.sets?.firstOrNull()?.weightKg ?: weight
+                        val nextReps = nextSetInExercise?.reps ?: nextExercise?.sets?.firstOrNull()?.reps ?: reps
+
+                        triggerRestTimer(
+                            seconds = restTime,
+                            nextExerciseName = nextExName,
+                            nextWeightKg = nextWeight,
+                            nextReps = nextReps
+                        )
                     }
                 }
             }
         }
+    }
+
+    fun updateSetTag(exerciseIndex: Int, setIndex: Int, tag: SetTag) {
+        val current = _activeWorkout.value
+        val updatedExercises = current.exercises.toMutableList()
+        if (exerciseIndex in updatedExercises.indices) {
+            val plan = updatedExercises[exerciseIndex]
+            val updatedSets = plan.sets.toMutableList()
+            if (setIndex in updatedSets.indices) {
+                updatedSets[setIndex] = updatedSets[setIndex].copy(setTag = tag)
+                updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
+                _activeWorkout.value = current.copy(exercises = updatedExercises)
+            }
+        }
+    }
+
+    fun applyWarmupSets(exerciseIndex: Int, generatedSets: List<ExerciseSetEntry>) {
+        val current = _activeWorkout.value
+        val updatedExercises = current.exercises.toMutableList()
+        if (exerciseIndex in updatedExercises.indices) {
+            val plan = updatedExercises[exerciseIndex]
+            updatedExercises[exerciseIndex] = plan.copy(sets = generatedSets)
+            _activeWorkout.value = current.copy(exercises = updatedExercises)
+        }
+    }
+
+    fun applyWeightToAllRemainingSets(exerciseIndex: Int, startingFromSetIndex: Int, newWeightKg: Double) {
+        val current = _activeWorkout.value
+        val updatedExercises = current.exercises.toMutableList()
+        if (exerciseIndex in updatedExercises.indices) {
+            val plan = updatedExercises[exerciseIndex]
+            val updatedSets = plan.sets.mapIndexed { idx, set ->
+                if (idx >= startingFromSetIndex && !set.isCompleted) {
+                    set.copy(weightKg = newWeightKg)
+                } else {
+                    set
+                }
+            }
+            updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
+            _activeWorkout.value = current.copy(exercises = updatedExercises)
+        }
+    }
+
+    fun getProgressiveOverloadSuggestion(exerciseName: String): ProgressiveOverloadSuggestion? {
+        val sessions = allWorkoutSessions.value
+        var lastWeight = 0.0
+        var lastReps = 0
+        var found = false
+
+        // Search in reverse chronological order
+        for (session in sessions.sortedByDescending { it.dateEpochDay }) {
+            try {
+                val plans = plansAdapter.fromJson(session.exercisesDoneJson) ?: emptyList()
+                val targetPlan = plans.find { it.exerciseName.equals(exerciseName, ignoreCase = true) }
+                if (targetPlan != null) {
+                    val completedWorkingSets = targetPlan.sets.filter { it.isCompleted && it.setTag != SetTag.WARMUP }
+                    if (completedWorkingSets.isNotEmpty()) {
+                        val topSet = completedWorkingSets.maxByOrNull { it.weightKg } ?: completedWorkingSets.first()
+                        lastWeight = topSet.weightKg
+                        lastReps = topSet.reps
+                        found = true
+                        break
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (!found || lastWeight <= 0.0) return null
+
+        val isHighReps = lastReps >= 12
+        val suggestedWeight = if (isHighReps) lastWeight + 2.5 else lastWeight
+        val suggestedReps = if (isHighReps) 8 else lastReps + 1
+        val strategy = if (isHighReps) "Micro-Sobrecarga de Peso (+2.5 kg)" else "Aumento de Densidade (+1 repetição)"
+        val tip = if (isHighReps) "Você atingiu o teto da faixa de repetições na última sessão! Suba a carga e execute 8-10 reps sólidas com RPE 8."
+                  else "Mantenha a carga de ${lastWeight.toInt()}kg e busque 1 repetição extra com cadência controlada na fase excêntrica."
+        val e1RM = lastWeight * (1.0 + (lastReps / 30.0))
+
+        return ProgressiveOverloadSuggestion(
+            exerciseName = exerciseName,
+            previousWeightKg = lastWeight,
+            previousReps = lastReps,
+            suggestedWeightKg = suggestedWeight,
+            suggestedReps = suggestedReps,
+            strategy = strategy,
+            tip = tip,
+            estimated1RM = e1RM
+        )
     }
 
     private fun checkForPersonalRecord(exerciseName: String, currentWeightKg: Double, reps: Int) {
@@ -439,6 +605,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                     reps = reps
                 )
                 unlockMedalIfNotUnlocked("pr_breaker")
+                ttsVoiceManager.speakPersonalRecord(exerciseName, currentWeightKg)
             }
         }
     }
@@ -600,7 +767,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- Rest Timer Functions ---
-    fun triggerRestTimer(seconds: Int) {
+    fun triggerRestTimer(
+        seconds: Int,
+        nextExerciseName: String? = null,
+        nextWeightKg: Double? = null,
+        nextReps: Int? = null
+    ) {
         restTimerJob?.cancel()
         val total = if (seconds > 0) seconds else 60
         _activeWorkout.value = _activeWorkout.value.copy(
@@ -618,9 +790,14 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                     _activeWorkout.value = _activeWorkout.value.copy(
                         restTimerRemainingSeconds = remaining
                     )
+                    // Voice audio countdown at 5s, 3s, 2s, 1s
+                    if (remaining in listOf(5, 3, 2, 1)) {
+                        ttsVoiceManager.speakCountdown(remaining)
+                    }
                 }
             }
-            // Finished
+            // Finished - Voice cue
+            ttsVoiceManager.speakRestFinished(nextExerciseName, nextWeightKg, nextReps)
             delay(500)
             _activeWorkout.value = _activeWorkout.value.copy(restTimerVisible = false)
         }
@@ -700,6 +877,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
             _activeWorkout.value = ActiveWorkoutState() // Reset
             onSaved(savedSession)
+
+            // Voice announcement
+            ttsVoiceManager.speakWorkoutCompleted(durationMin, totalWeight)
 
             // Unlock First Workout Medal
             unlockMedalIfNotUnlocked("first_workout")
@@ -988,6 +1168,38 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun updateUserProfile(profile: UserProfile) {
         viewModelScope.launch {
             repository.saveUserProfile(profile)
+        }
+    }
+
+    fun updateUserPhoto(photoUri: Uri) {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val permanentPath = withContext(Dispatchers.IO) {
+                try {
+                    val profileDir = File(app.filesDir, "profile_avatar")
+                    if (!profileDir.exists()) {
+                        profileDir.mkdirs()
+                    }
+                    val destFile = File(profileDir, "user_avatar_${System.currentTimeMillis()}.jpg")
+                    app.contentResolver.openInputStream(photoUri)?.use { input ->
+                        FileOutputStream(destFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    destFile.absolutePath
+                } catch (e: Exception) {
+                    photoUri.toString()
+                }
+            }
+            val current = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+            repository.saveUserProfile(current.copy(photoUri = permanentPath))
+        }
+    }
+
+    fun removeUserPhoto() {
+        val current = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+        viewModelScope.launch {
+            repository.saveUserProfile(current.copy(photoUri = null))
         }
     }
 
@@ -1316,6 +1528,28 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             repository.saveWorkoutTemplate(template)
             _generatedAIWorkout.value = null
         }
+    }
+
+    fun startWorkoutFromAIPlan(workout: AIWorkoutPlanResult, location: String = "Academia Smart Fit") {
+        val freshPlans = workout.exercises.map { plan ->
+            plan.copy(
+                sets = plan.sets.map { set ->
+                    set.copy(isCompleted = false)
+                }
+            )
+        }
+        _activeWorkout.value = ActiveWorkoutState(
+            isActive = true,
+            templateId = null,
+            title = workout.title,
+            location = location,
+            durationSeconds = 0,
+            exercises = freshPlans,
+            perceivedExertion = 7,
+            notes = "Criado por IA: ${workout.subtitle}",
+            restTimerVisible = false
+        )
+        _generatedAIWorkout.value = null
     }
 
     // --- AI Coach Chat Assistant ---
