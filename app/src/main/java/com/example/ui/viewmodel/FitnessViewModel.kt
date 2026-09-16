@@ -44,6 +44,8 @@ import com.example.util.HealthSyncResult
 import com.example.data.repository.FitnessRepository
 import com.example.ui.components.DateUtils
 import com.example.util.GpsLocationTracker
+import com.example.util.PhotoStorageHelper
+import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -157,10 +159,62 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 repository.unlockMedal(medalId, todayEpoch)
             }
 
+            // Ensure User Profile is present and restored from backup if needed
+            val currentProfile = db.fitnessDao().getUserProfile().firstOrNull()
+            if (currentProfile == null) {
+                val backupJson = prefs.getString("backup_user_profile_json", null)
+                val restoredProfile = if (!backupJson.isNullOrBlank()) {
+                    try {
+                        moshi.adapter(UserProfile::class.java).fromJson(backupJson)
+                    } catch (_: Exception) { null }
+                } else null
+
+                val profileToSave = restoredProfile ?: DefaultFitnessData.getDefaultUserProfile()
+                repository.saveUserProfile(profileToSave)
+                persistUserProfileBackup(profileToSave)
+            } else {
+                persistUserProfileBackup(currentProfile)
+            }
+
+            // Ensure Workout Sessions are restored if database was newly created
+            val sessionsInDb = db.fitnessDao().getAllWorkoutSessions().firstOrNull()
+            if (sessionsInDb.isNullOrEmpty()) {
+                val backupSessionsJson = prefs.getString("backup_workout_sessions_json", null)
+                if (!backupSessionsJson.isNullOrBlank()) {
+                    try {
+                        val listType = Types.newParameterizedType(List::class.java, WorkoutSession::class.java)
+                        val adapter: JsonAdapter<List<WorkoutSession>> = moshi.adapter(listType)
+                        val restoredSessions = adapter.fromJson(backupSessionsJson)
+                        restoredSessions?.forEach { repository.saveWorkoutSession(it) }
+                    } catch (_: Exception) {}
+                }
+            } else {
+                backupWorkoutSessions()
+            }
+
+            // Ensure Body Measurements are restored if database was newly created
+            val measurementsInDb = db.fitnessDao().getAllBodyMeasurements().firstOrNull()
+            if (measurementsInDb.isNullOrEmpty()) {
+                val backupMeasurementsJson = prefs.getString("backup_body_measurements_json", null)
+                if (!backupMeasurementsJson.isNullOrBlank()) {
+                    try {
+                        val listType = Types.newParameterizedType(List::class.java, BodyMeasurement::class.java)
+                        val adapter: JsonAdapter<List<BodyMeasurement>> = moshi.adapter(listType)
+                        val restoredMeasurements = adapter.fromJson(backupMeasurementsJson)
+                        restoredMeasurements?.forEach { repository.saveBodyMeasurement(it) }
+                    } catch (_: Exception) {}
+                }
+            } else {
+                backupBodyMeasurements()
+            }
+
             syncGamificationAndGoals()
             checkHealthConnectStatus()
         }
     }
+
+    // --- Backup & Data Migration ---
+    val backupManager by lazy { com.example.data.backup.DataBackupManager(getApplication(), AppDatabase.getDatabase(getApplication(), viewModelScope)) }
 
     val workoutTemplates: StateFlow<List<WorkoutTemplate>> = repository.allWorkoutTemplates
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -180,8 +234,28 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     val allCardioSessions: StateFlow<List<CardioSession>> = repository.allCardioSessions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private fun loadCachedProfile(): UserProfile {
+        val backupJson = prefs.getString("backup_user_profile_json", null)
+        if (!backupJson.isNullOrBlank()) {
+            try {
+                moshi.adapter(UserProfile::class.java).fromJson(backupJson)?.let { return it }
+            } catch (_: Exception) {}
+        }
+        val cachedName = prefs.getString("cached_athlete_name", null)
+        if (!cachedName.isNullOrBlank()) {
+            return DefaultFitnessData.getDefaultUserProfile().copy(
+                name = cachedName,
+                photoUri = prefs.getString("cached_athlete_photo", null),
+                currentWeightKg = prefs.getFloat("cached_athlete_weight", 78.5f).toDouble(),
+                heightCm = prefs.getFloat("cached_athlete_height", 178f).toDouble()
+            )
+        }
+        return DefaultFitnessData.getDefaultUserProfile()
+    }
+
     val userProfile: StateFlow<UserProfile?> = repository.userProfile
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DefaultFitnessData.getDefaultUserProfile())
+        .map { it ?: loadCachedProfile() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), loadCachedProfile())
 
     // --- Daily Workout Suggestion (Intelligent muscle recovery rotation) ---
     private val _manualSuggestedTemplate = MutableStateFlow<WorkoutTemplate?>(null)
@@ -651,7 +725,19 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, completed: Boolean, tag: SetTag? = null, autoRest: Boolean = true) {
+    fun updateSet(
+        exerciseIndex: Int,
+        setIndex: Int,
+        weight: Double,
+        reps: Int,
+        completed: Boolean,
+        tag: SetTag? = null,
+        autoRest: Boolean = true,
+        rir: Int? = null,
+        rpe: Double? = null,
+        notes: String? = null,
+        restSeconds: Int? = null
+    ) {
         val current = _activeWorkout.value
         val updatedExercises = current.exercises.toMutableList()
         if (exerciseIndex in updatedExercises.indices) {
@@ -660,11 +746,18 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             if (setIndex in updatedSets.indices) {
                 val oldSet = updatedSets[setIndex]
                 val wasCompleted = oldSet.isCompleted
+                val e1RM = if (reps <= 1) weight else Math.round(weight * (1.0 + reps / 30.0) * 10.0) / 10.0
+
                 updatedSets[setIndex] = oldSet.copy(
                     weightKg = weight,
                     reps = reps,
                     isCompleted = completed,
-                    setTag = tag ?: oldSet.setTag
+                    setTag = tag ?: oldSet.setTag,
+                    rir = rir ?: oldSet.rir,
+                    rpe = rpe ?: oldSet.rpe,
+                    notes = notes ?: oldSet.notes,
+                    restSeconds = restSeconds ?: oldSet.restSeconds,
+                    estimated1RM = e1RM
                 )
                 updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
                 _activeWorkout.value = current.copy(exercises = updatedExercises)
@@ -673,8 +766,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 if (completed && !wasCompleted) {
                     com.example.utils.SoundEffectManager.playSetCompleted()
 
-                    // Check if this weight is a Personal Record (PR)
-                    checkForPersonalRecord(plan.exerciseName, weight, reps)
+                    // Check if this performance is a Personal Record (PR)
+                    checkForPersonalRecord(exerciseIndex, setIndex, plan.exerciseName, weight, reps)
 
                     // 100kg Club medal check
                     if (weight >= 100.0) {
@@ -789,30 +882,44 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    private fun checkForPersonalRecord(exerciseName: String, currentWeightKg: Double, reps: Int) {
+    private fun checkForPersonalRecord(exerciseIndex: Int, setIndex: Int, exerciseName: String, currentWeightKg: Double, reps: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            val sessions = repository.allWorkoutSessions.firstOrNull() ?: return@launch
-            var maxHistoricWeight = 0.0
-            sessions.forEach { session ->
-                try {
-                    val plans = plansAdapter.fromJson(session.exercisesDoneJson) ?: emptyList()
-                    plans.filter { it.exerciseName.equals(exerciseName, ignoreCase = true) }.forEach { p ->
-                        p.sets.filter { it.isCompleted }.forEach { s ->
-                            if (s.weightKg > maxHistoricWeight) {
-                                maxHistoricWeight = s.weightKg
-                            }
+            val sessions = repository.allWorkoutSessions.firstOrNull() ?: emptyList()
+            val prResult = com.example.data.engine.PersonalRecordEngine.evaluateSetForPR(
+                exerciseName = exerciseName,
+                weightKg = currentWeightKg,
+                reps = reps,
+                sessions = sessions
+            )
+
+            if (prResult != null && prResult.isPR) {
+                // Update active workout set with PR tag
+                withContext(Dispatchers.Main) {
+                    val current = _activeWorkout.value
+                    if (exerciseIndex in current.exercises.indices) {
+                        val plan = current.exercises[exerciseIndex]
+                        if (setIndex in plan.sets.indices) {
+                            val updatedSets = plan.sets.toMutableList()
+                            updatedSets[setIndex] = updatedSets[setIndex].copy(
+                                isPR = true,
+                                prType = prResult.prType
+                            )
+                            val updatedExercises = current.exercises.toMutableList()
+                            updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
+                            _activeWorkout.value = current.copy(exercises = updatedExercises)
                         }
                     }
-                } catch (_: Exception) {}
-            }
 
-            if (maxHistoricWeight > 0.0 && currentWeightKg > maxHistoricWeight) {
-                _activePRCelebration.value = com.example.data.model.PersonalRecordCelebration(
-                    exerciseName = exerciseName,
-                    previousWeightKg = maxHistoricWeight,
-                    newWeightKg = currentWeightKg,
-                    reps = reps
-                )
+                    _activePRCelebration.value = com.example.data.model.PersonalRecordCelebration(
+                        exerciseName = exerciseName,
+                        previousWeightKg = prResult.previousRecordValue,
+                        newWeightKg = prResult.newRecordValue,
+                        reps = reps,
+                        title = "Novo Recorde: ${prResult.badgeLabel}! 🏆",
+                        description = prResult.celebrationDescription
+                    )
+                }
+
                 unlockMedalIfNotUnlocked("pr_breaker")
                 ttsVoiceManager.speakPersonalRecord(exerciseName, currentWeightKg)
             }
@@ -1140,6 +1247,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val insertedId = repository.saveWorkoutSession(session)
             val savedSession = session.copy(id = if (session.id != 0L) session.id else insertedId)
+            backupWorkoutSessions()
 
             _activeWorkout.value = ActiveWorkoutState() // Reset
             onSaved(savedSession)
@@ -1544,6 +1652,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
             val savedId = repository.saveWorkoutSession(session)
             val savedSession = session.copy(id = savedId)
+            backupWorkoutSessions()
 
             // Sync gamification and achievements
             syncGamificationAndGoals()
@@ -1599,6 +1708,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun deleteWorkoutSession(id: Long) {
         viewModelScope.launch {
             repository.deleteWorkoutSessionById(id)
+            backupWorkoutSessions()
         }
     }
 
@@ -1654,6 +1764,44 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun updateUserProfile(profile: UserProfile) {
         viewModelScope.launch {
             repository.saveUserProfile(profile)
+            persistUserProfileBackup(profile)
+        }
+    }
+
+    fun persistUserProfileBackup(profile: UserProfile) {
+        try {
+            val json = moshi.adapter(UserProfile::class.java).toJson(profile)
+            prefs.edit()
+                .putString("backup_user_profile_json", json)
+                .putString("cached_athlete_name", profile.name)
+                .putString("cached_athlete_photo", profile.photoUri)
+                .putFloat("cached_athlete_weight", profile.currentWeightKg.toFloat())
+                .putFloat("cached_athlete_height", profile.heightCm.toFloat())
+                .apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun backupWorkoutSessions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sessions = repository.allWorkoutSessions.firstOrNull() ?: return@launch
+                val listType = Types.newParameterizedType(List::class.java, WorkoutSession::class.java)
+                val adapter: JsonAdapter<List<WorkoutSession>> = moshi.adapter(listType)
+                val json = adapter.toJson(sessions)
+                prefs.edit().putString("backup_workout_sessions_json", json).apply()
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun backupBodyMeasurements() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val measurements = repository.allBodyMeasurements.firstOrNull() ?: return@launch
+                val listType = Types.newParameterizedType(List::class.java, BodyMeasurement::class.java)
+                val adapter: JsonAdapter<List<BodyMeasurement>> = moshi.adapter(listType)
+                val json = adapter.toJson(measurements)
+                prefs.edit().putString("backup_body_measurements_json", json).apply()
+            } catch (_: Exception) {}
         }
     }
 
@@ -1661,40 +1809,33 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val app = getApplication<Application>()
             val permanentPath = withContext(Dispatchers.IO) {
-                try {
-                    val profileDir = File(app.filesDir, "profile_avatar")
-                    if (!profileDir.exists()) {
-                        profileDir.mkdirs()
-                    }
-                    val destFile = File(profileDir, "user_avatar_${System.currentTimeMillis()}.jpg")
-                    app.contentResolver.openInputStream(photoUri)?.use { input ->
-                        FileOutputStream(destFile).use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                    destFile.absolutePath
-                } catch (e: Exception) {
-                    photoUri.toString()
-                }
+                PhotoStorageHelper.saveImageToInternalStorage(app, photoUri)
             }
             val current = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
-            repository.saveUserProfile(current.copy(photoUri = permanentPath))
+            val updated = current.copy(photoUri = permanentPath)
+            repository.saveUserProfile(updated)
+            persistUserProfileBackup(updated)
         }
     }
 
     fun removeUserPhoto() {
         val current = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+        val updated = current.copy(photoUri = null)
         viewModelScope.launch {
-            repository.saveUserProfile(current.copy(photoUri = null))
+            repository.saveUserProfile(updated)
+            persistUserProfileBackup(updated)
         }
     }
 
     fun addBodyMeasurement(measurement: BodyMeasurement) {
         viewModelScope.launch {
             repository.saveBodyMeasurement(measurement)
+            backupBodyMeasurements()
             // Also update current weight on user profile
             val currentProf = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
-            repository.saveUserProfile(currentProf.copy(currentWeightKg = measurement.weightKg))
+            val updatedProf = currentProf.copy(currentWeightKg = measurement.weightKg)
+            repository.saveUserProfile(updatedProf)
+            persistUserProfileBackup(updatedProf)
 
             // Sync weight to Health Connect
             try {
@@ -1709,6 +1850,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun deleteBodyMeasurement(id: Long) {
         viewModelScope.launch {
             repository.deleteBodyMeasurementById(id)
+            backupBodyMeasurements()
         }
     }
 

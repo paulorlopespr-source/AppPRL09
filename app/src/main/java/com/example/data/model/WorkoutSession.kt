@@ -1,6 +1,7 @@
 package com.example.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
 
@@ -12,7 +13,12 @@ enum class SessionStatus(val label: String) {
 }
 
 @JsonClass(generateAdapter = true)
-@Entity(tableName = "workout_sessions")
+@Entity(
+    tableName = "workout_sessions",
+    indices = [
+        Index(value = ["dateEpochDay"])
+    ]
+)
 data class WorkoutSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val templateId: Long? = null,

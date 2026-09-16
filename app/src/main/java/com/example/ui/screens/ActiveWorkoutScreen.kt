@@ -465,6 +465,21 @@ fun ActiveWorkoutScreen(
                                 triggerVibration(context)
                             }
                         },
+                        onUpdateSetDetails = { setIndex, weight, reps, completed, tag, rir, rpe, notes, restSec ->
+                            viewModel.updateSet(
+                                exerciseIndex = exIndex,
+                                setIndex = setIndex,
+                                weight = weight,
+                                reps = reps,
+                                completed = completed,
+                                tag = tag,
+                                autoRest = false,
+                                rir = rir,
+                                rpe = rpe,
+                                notes = notes,
+                                restSeconds = restSec
+                            )
+                        },
                         onUpdateSetTag = { setIndex, tag ->
                             viewModel.updateSetTag(exIndex, setIndex, tag)
                         },
@@ -960,6 +975,7 @@ fun ActiveExerciseCard(
     onDismissProgression: () -> Unit,
     onSubstituteExercise: () -> Unit = {},
     onUpdateSet: (setIndex: Int, weight: Double, reps: Int, completed: Boolean) -> Unit,
+    onUpdateSetDetails: (setIndex: Int, weight: Double, reps: Int, completed: Boolean, tag: SetTag?, rir: Int?, rpe: Double?, notes: String?, restSeconds: Int?) -> Unit = { _, _, _, _, _, _, _, _, _ -> },
     onUpdateSetTag: (setIndex: Int, tag: SetTag) -> Unit,
     onAddSet: () -> Unit,
     onRemoveSet: (setIndex: Int) -> Unit,
@@ -1305,22 +1321,26 @@ fun ActiveExerciseCard(
                 text = "CARGA",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextMuted,
-                modifier = Modifier.width(82.dp)
+                color = TextMuted
             )
             Text(
-                text = "REPETIÇÕES",
+                text = "REPS",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextMuted,
-                modifier = Modifier.width(82.dp)
+                color = TextMuted
+            )
+            Text(
+                text = "RIR / ESF.",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextMuted
             )
             Text(
                 text = "CHECK",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextMuted,
-                modifier = Modifier.width(42.dp)
+                modifier = Modifier.width(38.dp)
             )
         }
 
@@ -1334,10 +1354,62 @@ fun ActiveExerciseCard(
                 weightKg = setEntry.weightKg,
                 reps = setEntry.reps,
                 tag = setEntry.setTag,
+                rir = setEntry.rir,
+                rpe = setEntry.rpe,
+                notes = setEntry.notes,
+                restSeconds = setEntry.restSeconds,
+                isPR = setEntry.isPR,
+                prType = setEntry.prType,
                 isCompleted = setEntry.isCompleted,
                 isNextActive = isNextActive,
                 canDelete = plan.sets.size > 1,
                 onTagChanged = { newTag -> onUpdateSetTag(setIdx, newTag) },
+                onRirChanged = { newRir ->
+                    val calcRpe = when (newRir) {
+                        0 -> 10.0
+                        1 -> 9.0
+                        2 -> 8.0
+                        3 -> 7.0
+                        else -> 6.0
+                    }
+                    onUpdateSetDetails(
+                        setIdx,
+                        setEntry.weightKg,
+                        setEntry.reps,
+                        setEntry.isCompleted,
+                        setEntry.setTag,
+                        newRir,
+                        calcRpe,
+                        setEntry.notes,
+                        setEntry.restSeconds
+                    )
+                },
+                onNotesChanged = { newNotes ->
+                    onUpdateSetDetails(
+                        setIdx,
+                        setEntry.weightKg,
+                        setEntry.reps,
+                        setEntry.isCompleted,
+                        setEntry.setTag,
+                        setEntry.rir,
+                        setEntry.rpe,
+                        newNotes,
+                        setEntry.restSeconds
+                    )
+                },
+                onRestSecondsChanged = { newRest ->
+                    onUpdateSetDetails(
+                        setIdx,
+                        setEntry.weightKg,
+                        setEntry.reps,
+                        setEntry.isCompleted,
+                        setEntry.setTag,
+                        setEntry.rir,
+                        setEntry.rpe,
+                        setEntry.notes,
+                        newRest
+                    )
+                },
                 onOpenPlateCalculator = { onOpenPlateCalculator(setEntry.weightKg) },
                 onWeightChanged = { newW -> onUpdateSet(setIdx, newW, setEntry.reps, setEntry.isCompleted) },
                 onRepsChanged = { newR -> onUpdateSet(setIdx, setEntry.weightKg, newR, setEntry.isCompleted) },
@@ -1367,10 +1439,19 @@ fun SetItemRow(
     weightKg: Double,
     reps: Int,
     tag: SetTag = SetTag.NORMAL,
+    rir: Int? = null,
+    rpe: Double? = null,
+    notes: String = "",
+    restSeconds: Int = 60,
+    isPR: Boolean = false,
+    prType: String = "",
     isCompleted: Boolean,
     isNextActive: Boolean = false,
     canDelete: Boolean,
     onTagChanged: (SetTag) -> Unit,
+    onRirChanged: (Int?) -> Unit = {},
+    onNotesChanged: (String) -> Unit = {},
+    onRestSecondsChanged: (Int) -> Unit = {},
     onOpenPlateCalculator: () -> Unit,
     onWeightChanged: (Double) -> Unit,
     onRepsChanged: (Int) -> Unit,
@@ -1378,6 +1459,7 @@ fun SetItemRow(
     onDelete: () -> Unit
 ) {
     var showTagMenu by remember { mutableStateOf(false) }
+    var showDetails by remember { mutableStateOf(false) }
 
     val scale by animateFloatAsState(
         targetValue = if (isCompleted) 0.98f else 1f,
@@ -1419,143 +1501,276 @@ fun SetItemRow(
             .fillMaxWidth()
             .scale(scale)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 6.dp, vertical = 6.dp)
         ) {
-            // Set Tag Selector Box (W, P, 1, 2, D, F)
-            Box {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Set Tag Selector Box (W, P, 1, 2, D, F) with optional PR badge
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (isCompleted) EmeraldSuccess else tagBg)
+                                .border(
+                                    1.dp,
+                                    if (isCompleted) EmeraldSuccess else tagColor.copy(alpha = 0.6f),
+                                    CircleShape
+                                )
+                                .clickable { showTagMenu = true }
+                        ) {
+                            Text(
+                                text = if (tag == SetTag.NORMAL) "$setNumber" else tag.shortLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Black,
+                                color = if (isCompleted) Color.White else tagColor
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showTagMenu,
+                            onDismissRequest = { showTagMenu = false }
+                        ) {
+                            SetTag.values().forEach { t ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = t.shortLabel,
+                                                fontWeight = FontWeight.Black,
+                                                color = when (t) {
+                                                    SetTag.WARMUP -> Color(0xFFFFB74D)
+                                                    SetTag.FEEDER -> Color(0xFF4DD0E1)
+                                                    SetTag.DROPSET -> Color(0xFFFF4081)
+                                                    SetTag.FAILURE -> Color(0xFFFF5252)
+                                                    SetTag.NORMAL -> LilacAccent
+                                                }
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(t.label, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    },
+                                    onClick = {
+                                        onTagChanged(t)
+                                        showTagMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (isPR) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFFFD700))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "🏆 PR",
+                                color = Color.Black,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                }
+
+                // Weight Increment/Decrement Control + Click to Open Plate Calculator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    IconButton(
+                        onClick = { onWeightChanged((weightKg - 2.5).coerceAtLeast(0.0)) },
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "-2.5kg", tint = TextSecondary, modifier = Modifier.size(12.dp))
+                    }
+                    Text(
+                        text = "${weightKg.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }}kg",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        modifier = Modifier
+                            .clickable { onOpenPlateCalculator() }
+                            .padding(horizontal = 2.dp)
+                    )
+                    IconButton(
+                        onClick = { onWeightChanged(weightKg + 2.5) },
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "+2.5kg", tint = TextSecondary, modifier = Modifier.size(12.dp))
+                    }
+                }
+
+                // Reps Increment/Decrement Control
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    IconButton(
+                        onClick = { onRepsChanged((reps - 1).coerceAtLeast(1)) },
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "-1 rep", tint = TextSecondary, modifier = Modifier.size(12.dp))
+                    }
+                    Text(
+                        text = "$reps",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        modifier = Modifier.padding(horizontal = 2.dp)
+                    )
+                    IconButton(
+                        onClick = { onRepsChanged(reps + 1) },
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "+1 rep", tint = TextSecondary, modifier = Modifier.size(12.dp))
+                    }
+                }
+
+                // RIR / Effort Pill with quick toggle
                 Box(
-                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(if (isCompleted) EmeraldSuccess else tagBg)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (rir != null) LilacAccent.copy(alpha = 0.18f) else PurpleDeepCard)
                         .border(
                             1.dp,
-                            if (isCompleted) EmeraldSuccess else tagColor.copy(alpha = 0.6f),
-                            CircleShape
+                            if (rir != null) LilacAccent else GlassBorderSubtle,
+                            RoundedCornerShape(8.dp)
                         )
-                        .clickable { showTagMenu = true }
+                        .clickable { showDetails = !showDetails }
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (tag == SetTag.NORMAL) "$setNumber" else tag.shortLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Black,
-                        color = if (isCompleted) Color.White else tagColor
+                        text = if (rir != null) "RIR $rir" else "RIR",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (rir != null) LilacAccent else TextMuted
                     )
                 }
 
-                DropdownMenu(
-                    expanded = showTagMenu,
-                    onDismissRequest = { showTagMenu = false }
+                // Complete check button with smooth microinteraction
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isCompleted) EmeraldSuccess else PurpleDeepCard)
+                        .border(
+                            1.dp,
+                            if (isCompleted) EmeraldSuccess else GlassBorder,
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable { onToggleComplete() }
+                        .testTag("btn_check_set_$setNumber"),
+                    contentAlignment = Alignment.Center
                 ) {
-                    SetTag.values().forEach { t ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = t.shortLabel,
-                                        fontWeight = FontWeight.Black,
-                                        color = when (t) {
-                                            SetTag.WARMUP -> Color(0xFFFFB74D)
-                                            SetTag.FEEDER -> Color(0xFF4DD0E1)
-                                            SetTag.DROPSET -> Color(0xFFFF4081)
-                                            SetTag.FAILURE -> Color(0xFFFF5252)
-                                            SetTag.NORMAL -> LilacAccent
-                                        }
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(t.label, style = MaterialTheme.typography.bodySmall)
-                                }
-                            },
-                            onClick = {
-                                onTagChanged(t)
-                                showTagMenu = false
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = if (isCompleted) "Concluído" else "Marcar",
+                        tint = if (isCompleted) Color.White else TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Expanded Inline Details (RIR selector, Rest time, Notes & 1RM)
+            if (showDetails) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(GlassBorderSubtle))
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // RIR Selector Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("RIR:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                    listOf(0 to "Falha", 1 to "1", 2 to "2", 3 to "3+").forEach { (rVal, label) ->
+                        val isSelected = rir == rVal
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isSelected) LilacAccent else PurpleDeepCard)
+                                .clickable { onRirChanged(if (isSelected) null else rVal) }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.Black else TextPrimary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // 1RM estimate
+                    val est1RM = if (reps <= 1) weightKg else Math.round(weightKg * (1.0 + reps / 30.0) * 10.0) / 10.0
+                    Text(
+                        text = "1RM: ${est1RM}kg",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldSuccess
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Rest Time & Action Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Descanso:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                        listOf(30, 60, 90, 120).forEach { secs ->
+                            val isSelected = restSeconds == secs
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) PurpleDeepCard else Color.Transparent)
+                                    .border(1.dp, if (isSelected) LilacAccent else GlassBorderSubtle, RoundedCornerShape(6.dp))
+                                    .clickable { onRestSecondsChanged(secs) }
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "${secs}s",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) LilacAccent else TextSecondary
+                                )
                             }
+                        }
+                    }
+
+                    if (canDelete) {
+                        Text(
+                            text = "Excluir série",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RedDestructive,
+                            modifier = Modifier.clickable { onDelete() }
                         )
                     }
                 }
-            }
-
-            // Weight Increment/Decrement Control + Click to Open Plate Calculator
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                IconButton(
-                    onClick = { onWeightChanged((weightKg - 2.5).coerceAtLeast(0.0)) },
-                    modifier = Modifier.size(22.dp)
-                ) {
-                    Icon(Icons.Default.Remove, contentDescription = "-2.5kg", tint = TextSecondary, modifier = Modifier.size(12.dp))
-                }
-                Text(
-                    text = "${weightKg.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }}kg",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    modifier = Modifier
-                        .clickable { onOpenPlateCalculator() }
-                        .padding(horizontal = 2.dp)
-                )
-                IconButton(
-                    onClick = { onWeightChanged(weightKg + 2.5) },
-                    modifier = Modifier.size(22.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "+2.5kg", tint = TextSecondary, modifier = Modifier.size(12.dp))
-                }
-            }
-
-            // Reps Increment/Decrement Control
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                IconButton(
-                    onClick = { onRepsChanged((reps - 1).coerceAtLeast(1)) },
-                    modifier = Modifier.size(22.dp)
-                ) {
-                    Icon(Icons.Default.Remove, contentDescription = "-1 rep", tint = TextSecondary, modifier = Modifier.size(12.dp))
-                }
-                Text(
-                    text = "$reps",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    modifier = Modifier.padding(horizontal = 2.dp)
-                )
-                IconButton(
-                    onClick = { onRepsChanged(reps + 1) },
-                    modifier = Modifier.size(22.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "+1 rep", tint = TextSecondary, modifier = Modifier.size(12.dp))
-                }
-            }
-
-            // Complete check button with smooth microinteraction
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isCompleted) EmeraldSuccess else PurpleDeepCard)
-                    .border(
-                        1.dp,
-                        if (isCompleted) EmeraldSuccess else GlassBorder,
-                        RoundedCornerShape(10.dp)
-                    )
-                    .clickable { onToggleComplete() }
-                    .testTag("btn_check_set_$setNumber"),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = if (isCompleted) "Concluído" else "Marcar",
-                    tint = if (isCompleted) Color.White else TextMuted,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
     }

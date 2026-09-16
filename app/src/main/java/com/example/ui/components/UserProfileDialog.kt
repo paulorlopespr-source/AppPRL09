@@ -87,6 +87,7 @@ import coil.request.ImageRequest
 import com.example.data.model.FitnessGoal
 import com.example.data.model.GamificationOverview
 import com.example.data.model.UserProfile
+import com.example.util.PhotoStorageHelper
 import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.EmeraldSuccess
@@ -654,23 +655,36 @@ fun UserProfileDialog(
     var weeklyDays by remember { mutableStateOf(userProfile.weeklyGoalDays.toString()) }
     var defaultGym by remember { mutableStateOf(userProfile.defaultGymLocation) }
     var currentPhotoPath by remember { mutableStateOf(userProfile.photoUri) }
+    val context = LocalContext.current
 
-    // Media picker launcher
+    // Media picker launcher with permanent local storage
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
-            currentPhotoPath = uri.toString()
+            val permanentPath = PhotoStorageHelper.saveImageToInternalStorage(
+                context = context,
+                sourceUri = uri,
+                directoryName = "profile_avatar",
+                prefix = "user_avatar"
+            )
+            currentPhotoPath = permanentPath
             onPhotoSelected(uri)
         }
     }
 
-    // Fallback document/content picker
+    // Fallback document/content picker with permanent local storage
     val contentPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            currentPhotoPath = uri.toString()
+            val permanentPath = PhotoStorageHelper.saveImageToInternalStorage(
+                context = context,
+                sourceUri = uri,
+                directoryName = "profile_avatar",
+                prefix = "user_avatar"
+            )
+            currentPhotoPath = permanentPath
             onPhotoSelected(uri)
         }
     }

@@ -1,6 +1,7 @@
 package com.example.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
 
@@ -61,7 +62,12 @@ enum class IntensityLevel(val label: String) {
 }
 
 @JsonClass(generateAdapter = true)
-@Entity(tableName = "cardio_sessions")
+@Entity(
+    tableName = "cardio_sessions",
+    indices = [
+        Index(value = ["dateEpochDay"])
+    ]
+)
 data class CardioSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val type: CardioType,

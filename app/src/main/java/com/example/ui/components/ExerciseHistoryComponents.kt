@@ -157,7 +157,7 @@ fun AutomaticLastExecutionCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // Sets detail pill row
                 Row(
@@ -165,6 +165,7 @@ fun AutomaticLastExecutionCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     lastExecution.completedSets.take(4).forEach { set ->
+                        val rirLabel = if (set.rir != null) " (RIR ${set.rir})" else ""
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
@@ -173,7 +174,7 @@ fun AutomaticLastExecutionCard(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "Série ${set.setNumber} — ${set.reps} reps",
+                                text = "S${set.setNumber}: ${set.weightKg.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }}kg x ${set.reps}$rirLabel",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = LilacSoft
@@ -181,6 +182,80 @@ fun AutomaticLastExecutionCard(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Metrics summary: Volume + 1RM Estimado
+                val totalVolume = lastExecution.completedSets.sumOf { it.weightKg * it.reps }
+                val topSet = lastExecution.completedSets.maxByOrNull { it.weightKg } ?: lastExecution.completedSets.first()
+                val e1RM = com.example.data.engine.ProgressiveOverloadEngine.calculate1RM(topSet.weightKg, topSet.reps)
+                val target = com.example.data.engine.ProgressiveOverloadEngine.calculateOverloadTarget(
+                    exerciseName = lastExecution.exerciseName,
+                    lastRecord = lastExecution
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PurpleDeepCard.copy(alpha = 0.6f))
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Volume: ",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextMuted
+                        )
+                        Text(
+                            text = "${totalVolume.toInt()} kg",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = LilacAccent
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "1RM Est: ",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextMuted
+                        )
+                        Text(
+                            text = "${e1RM} kg",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = EmeraldSuccess
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Meta: ",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextMuted
+                        )
+                        Text(
+                            text = "${target.targetWeightKg.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }}kg x ${target.targetReps}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = target.guidanceMessage,
+                    fontSize = 10.sp,
+                    color = EmeraldSuccess.copy(alpha = 0.9f),
+                    lineHeight = 13.sp
+                )
             } else {
                 Text(
                     text = "Primeiro registro deste exercício. Suas cargas e repetições serão lembradas automaticamente!",

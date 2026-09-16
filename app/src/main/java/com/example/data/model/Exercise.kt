@@ -54,8 +54,27 @@ data class ExerciseSetEntry(
     var reps: Int,
     var isCompleted: Boolean = false,
     var restSeconds: Int = 60,
-    var setTag: SetTag = SetTag.NORMAL
-)
+    var setTag: SetTag = SetTag.NORMAL,
+    var rir: Int? = null, // Reps In Reserve: 0 (falha total), 1, 2, 3, 4, 5+
+    var rpe: Double? = null, // RPE: 6.0 a 10.0
+    var notes: String = "", // Observações por série (ex: "Sem ajuda", "Cadência lenta")
+    var isPR: Boolean = false, // Se esta série bateu recorde pessoal
+    var prType: String = "", // "Carga", "Repetições", "Volume", "1RM"
+    var estimated1RM: Double = 0.0
+) {
+    /**
+     * Volume de carga da série (peso x repetições)
+     */
+    val volumeKg: Double
+        get() = weightKg * reps
+
+    /**
+     * 1RM estimado usando a fórmula consagrada de Epley:
+     * 1RM = Carga * (1 + Reps / 30)
+     */
+    val calculated1RM: Double
+        get() = if (reps <= 1) weightKg else Math.round(weightKg * (1.0 + reps / 30.0) * 10.0) / 10.0
+}
 
 @JsonClass(generateAdapter = true)
 data class WorkoutExercisePlan(
