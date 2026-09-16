@@ -38,7 +38,7 @@ fun CoachPRL09Screen(vm: CoachPRL09ViewModel = viewModel()) {
 
         OutlinedTextField(question, { question = it }, label = { Text("Pergunte sobre treino, progresso ou planejamento") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
         Button(onClick = { vm.ask(question) }, enabled = question.isNotBlank() && !state.isLoading, modifier = Modifier.fillMaxWidth()) { Text("PERGUNTAR AO COACH") }
-        state.answer?.let { Text(it.content) }
+        state.answer?.let { answer -> Text(answer.text) }
 
         HorizontalDivider()
         Text("Treino adaptado", style = MaterialTheme.typography.titleLarge)
