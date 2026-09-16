@@ -186,7 +186,6 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Ensure index on dateEpochDay and foreign lookups
                 database.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_sessions_dateEpochDay` ON `workout_sessions` (`dateEpochDay`)")
                 database.execSQL("CREATE INDEX IF NOT EXISTS `index_cardio_sessions_dateEpochDay` ON `cardio_sessions` (`dateEpochDay`)")
             }
@@ -208,7 +207,6 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_6_7,
                         MIGRATION_7_8
                     )
-                    .fallbackToDestructiveMigrationOnDowngrade(true)
                     .addCallback(DatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
