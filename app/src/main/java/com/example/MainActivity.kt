@@ -1,6 +1,8 @@
 package com.example
 
+import android.app.Activity
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -45,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +59,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -128,6 +132,21 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
     val activeWorkoutState by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val activeCardioState by viewModel.activeCardio.collectAsStateWithLifecycle()
     val workoutTemplates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
+    val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val shouldKeepScreenOn = keepScreenOn || activeWorkoutState.isActive || activeCardioState.isActive
+    DisposableEffect(shouldKeepScreenOn) {
+        val window = (context as? Activity)?.window
+        if (shouldKeepScreenOn) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     var showQuickStartSheet by remember { mutableStateOf(false) }
     var showActiveCardioModal by remember { mutableStateOf(false) }
@@ -169,8 +188,8 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     AppDestination.AGENDA -> {
                         AgendaScreen(
                             viewModel = viewModel,
-                            onStartScheduledWorkout = { template, location ->
-                                viewModel.startWorkoutFromTemplate(template, location)
+                            onStartScheduledWorkout = { template, location, scheduledId, dateEpoch ->
+                                viewModel.startWorkoutFromTemplate(template, location, scheduledId, dateEpoch)
                                 currentDestination = AppDestination.ACTIVE_WORKOUT
                             }
                         )

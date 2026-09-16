@@ -13,6 +13,8 @@ import com.example.data.model.FitnessGoal
 import com.example.data.model.MealAnalysisResult
 import com.example.data.model.MealLog
 import com.example.data.model.UserProfile
+import com.example.data.model.VolumeNutritionEvaluationResult
+import com.example.data.model.ExerciseExecutionGuideResult
 import com.example.data.model.WorkoutSession
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
@@ -956,6 +958,385 @@ class GeminiCalorieService {
                 )
             }
         }
+    }
+
+    /**
+     * Evaluates the athlete's nutrition and recommends dietary adjustments
+     * based on the exact training volume history (sets, reps, kg lifted, cardio sessions).
+     */
+    suspend fun evaluateNutritionFromVolumeHistory(
+        userProfile: UserProfile,
+        workoutSessions: List<WorkoutSession>,
+        cardioSessions: List<CardioSession>
+    ): VolumeNutritionEvaluationResult = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        val completedSessions = workoutSessions.filter { it.status == com.example.data.model.SessionStatus.COMPLETED }
+        val totalVolumeKg = completedSessions.sumOf { it.totalVolumeKg }
+        val totalWorkoutMinutes = completedSessions.sumOf { it.durationMinutes }
+        val totalWorkoutsCount = completedSessions.size
+        val avgVolumePerSession = if (totalWorkoutsCount > 0) totalVolumeKg / totalWorkoutsCount else 0.0
+        val totalCardioMinutes = cardioSessions.sumOf { it.durationMinutes }
+        val totalCardioCalories = cardioSessions.sumOf { it.caloriesBurned }
+
+        val weight = userProfile.currentWeightKg
+        val height = userProfile.heightCm
+        val goalStr = userProfile.goal.label
+
+        val prompt = """
+            Você é um nutricionista esportivo de elite e fisiologista do exercício.
+            Avalie o histórico de volume de treino do atleta e gere uma prescrição nutricional e ajustes dietéticos precisos:
+
+            DADOS BIOMÉTRICOS DO ATLETA:
+            - Peso Atual: ${weight} kg | Altura: ${height} cm
+            - Objetivo Principal: $goalStr
+            - Frequência Planejada: ${userProfile.weeklyGoalDays} dias/semana
+
+            HISTÓRICO REAL DE TREINO REGISTRADO:
+            - Sessões Concluídas no Histórico: $totalWorkoutsCount treinos de musculação
+            - Tonelagem / Volume Total Acumulado: ${String.format(java.util.Locale.US, "%.0f", totalVolumeKg)} kg
+            - Média de Volume por Treino: ${String.format(java.util.Locale.US, "%.0f", avgVolumePerSession)} kg/treino
+            - Tempo Total de Musculação: $totalWorkoutMinutes minutos
+            - Cardio Registrado: $totalCardioMinutes minutos ($totalCardioCalories kcal gastas)
+
+            Retorne EXCLUSIVAMENTE um objeto JSON válido (sem crases ```json, sem markdown) com a seguinte estrutura:
+            {
+                "trainingVolumeSummary": "Resumo do volume (ex: 48.500 kg acumulados em 6 treinos)",
+                "recommendedDailyCalories": 2750,
+                "calorieAdjustmentReason": "Explicação detalhada do superávit ou déficit adequado a este volume de treino",
+                "proteinGrams": 165.0,
+                "proteinPerKg": 2.1,
+                "carbsGrams": 340.0,
+                "carbsPerKg": 4.3,
+                "fatsGrams": 72.0,
+                "fatsPerKg": 0.9,
+                "preWorkoutNutrition": "O que comer 60-90min antes do treino para sustentar esse volume",
+                "postWorkoutNutrition": "O que consumir logo após o treino para máxima síntese proteica e reposição de glicogênio",
+                "hydrationLitres": 3.6,
+                "dietAdjustments": [
+                    "Ajuste específico 1 baseado no volume de carga",
+                    "Ajuste específico 2 para dias pesados vs dias de descanso",
+                    "Ajuste específico 3 sobre ingestão de eletrólitos/micronutrientes",
+                    "Ajuste específico 4 de suplementação recomendada (creatina, etc.)"
+                ],
+                "volumeInsight": "Análise fisiológica conectando o volume acumulado de carga à necessidade energética e hipertrofia."
+            }
+        """.trimIndent()
+
+        if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY") {
+            try {
+                val geminiReq = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(parts = listOf(GeminiPart(text = prompt)))
+                    )
+                )
+                val jsonBody = requestAdapter.toJson(geminiReq)
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
+                    .post(jsonBody.toRequestBody(mediaType))
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val responseBodyStr = response.body?.string() ?: ""
+                    val geminiRes = responseAdapter.fromJson(responseBodyStr)
+                    val rawText = geminiRes?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (!rawText.isNullOrBlank()) {
+                        val cleanJson = rawText.substringAfter("{").substringBeforeLast("}")
+                        val parsed = JSONObject("{$cleanJson}")
+                        val adjustments = mutableListOf<String>()
+                        val adjArray = parsed.optJSONArray("dietAdjustments")
+                        if (adjArray != null) {
+                            for (i in 0 until adjArray.length()) {
+                                adjustments.add(adjArray.getString(i))
+                            }
+                        }
+                        return@withContext VolumeNutritionEvaluationResult(
+                            title = "Avaliação Nutricional Baseada no Volume",
+                            trainingVolumeSummary = parsed.optString(
+                                "trainingVolumeSummary",
+                                "${String.format(java.util.Locale.US, "%.0f", totalVolumeKg)} kg acumulados"
+                            ),
+                            recommendedDailyCalories = parsed.optInt("recommendedDailyCalories", 2700),
+                            calorieAdjustmentReason = parsed.optString(
+                                "calorieAdjustmentReason",
+                                "Ajuste calórico calculado para suportar a demanda energética do seu volume de treino."
+                            ),
+                            proteinGrams = parsed.optDouble("proteinGrams", weight * 2.0),
+                            proteinPerKg = parsed.optDouble("proteinPerKg", 2.0),
+                            carbsGrams = parsed.optDouble("carbsGrams", weight * 4.0),
+                            carbsPerKg = parsed.optDouble("carbsPerKg", 4.0),
+                            fatsGrams = parsed.optDouble("fatsGrams", weight * 0.9),
+                            fatsPerKg = parsed.optDouble("fatsPerKg", 0.9),
+                            preWorkoutNutrition = parsed.optString("preWorkoutNutrition", "Carboidratos complexos e proteína magra 1h antes."),
+                            postWorkoutNutrition = parsed.optString("postWorkoutNutrition", "Whey protein e carboidrato de rápida absorção."),
+                            hydrationLitres = parsed.optDouble("hydrationLitres", (weight * 0.045).coerceAtLeast(3.0)),
+                            dietAdjustments = if (adjustments.isNotEmpty()) adjustments else defaultDietAdjustments(userProfile, totalVolumeKg),
+                            volumeInsight = parsed.optString(
+                                "volumeInsight",
+                                "O volume de carga exige reposição consistente de glicogênio para manter o ganho de força progressivo."
+                            ),
+                            isFromGeminiAI = true
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // Fallback to scientific formula
+            }
+        }
+        fallbackVolumeNutritionCalculation(userProfile, totalVolumeKg, totalWorkoutsCount, totalCardioMinutes)
+    }
+
+    private fun fallbackVolumeNutritionCalculation(
+        userProfile: UserProfile,
+        totalVolumeKg: Double,
+        workoutsCount: Int,
+        cardioMinutes: Int
+    ): VolumeNutritionEvaluationResult {
+        val weight = userProfile.currentWeightKg
+        val height = userProfile.heightCm
+        val isHypertrophy = userProfile.goal == FitnessGoal.GANHO_PESO_HIPERTROFIA
+        val isFatLoss = userProfile.goal == FitnessGoal.PERDA_PESO_EMAGRECIMENTO
+
+        // Mifflin-St Jeor TDEE formula
+        val bmr = 10 * weight + 6.25 * height - 5 * 28 + 5
+        val activityMultiplier = when {
+            userProfile.weeklyGoalDays >= 5 -> 1.55
+            userProfile.weeklyGoalDays >= 3 -> 1.4
+            else -> 1.25
+        }
+        val tdee = bmr * activityMultiplier
+        val volumeExtraKcal = ((totalVolumeKg / 1000.0) * 15.0).coerceIn(100.0, 500.0)
+
+        val targetCalories = when {
+            isHypertrophy -> (tdee + volumeExtraKcal + 250).toInt()
+            isFatLoss -> (tdee + (volumeExtraKcal * 0.5) - 350).toInt().coerceAtLeast(1600)
+            else -> (tdee + volumeExtraKcal).toInt()
+        }
+
+        val proteinPerKg = if (isFatLoss) 2.2 else 2.0
+        val proteinGrams = (weight * proteinPerKg).coerceAtLeast(100.0)
+        val fatPerKg = 0.9
+        val fatsGrams = (weight * fatPerKg).coerceAtLeast(50.0)
+        val remainingKcal = targetCalories - (proteinGrams * 4 + fatsGrams * 9)
+        val carbsGrams = (remainingKcal / 4.0).coerceAtLeast(150.0)
+        val carbsPerKg = carbsGrams / weight
+
+        val volumeFormatted = if (totalVolumeKg > 0) {
+            "${String.format(java.util.Locale.US, "%,.0f", totalVolumeKg)} kg acumulados em $workoutsCount treinos"
+        } else {
+            "Volume inicial registrado"
+        }
+
+        return VolumeNutritionEvaluationResult(
+            title = "Avaliação Nutricional Baseada no Volume",
+            trainingVolumeSummary = volumeFormatted,
+            recommendedDailyCalories = targetCalories,
+            calorieAdjustmentReason = if (isHypertrophy) {
+                "Superávit calórico de ~250-300 kcal/dia alinhado ao seu volume de ${String.format(java.util.Locale.US, "%.0f", totalVolumeKg)}kg para suportar hipertrofia miofibrilar."
+            } else if (isFatLoss) {
+                "Déficit moderado preservando proteína alta para oxidação de gordura sem perda de massa magra sob volume constante."
+            } else {
+                "Calorias de manutenção ajustadas ao gasto energético da sua sobrecarga de treino."
+            },
+            proteinGrams = String.format(java.util.Locale.US, "%.1f", proteinGrams).toDouble(),
+            proteinPerKg = String.format(java.util.Locale.US, "%.1f", proteinPerKg).toDouble(),
+            carbsGrams = String.format(java.util.Locale.US, "%.1f", carbsGrams).toDouble(),
+            carbsPerKg = String.format(java.util.Locale.US, "%.1f", carbsPerKg).toDouble(),
+            fatsGrams = String.format(java.util.Locale.US, "%.1f", fatsGrams).toDouble(),
+            fatsPerKg = String.format(java.util.Locale.US, "%.1f", fatPerKg).toDouble(),
+            preWorkoutNutrition = "Refeição 1h30 antes com ${String.format(java.util.Locale.US, "%.0f", weight * 0.8)}g de carboidratos complexos (aveia, arroz ou batata) e 25-30g de proteína magra.",
+            postWorkoutNutrition = "Até 45min após: 30g de Whey Protein + 40-50g de carboidratos rápidos para reposição imediata do glicogênio muscular.",
+            hydrationLitres = String.format(java.util.Locale.US, "%.1f", (weight * 0.045).coerceAtLeast(3.0)).toDouble(),
+            dietAdjustments = defaultDietAdjustments(userProfile, totalVolumeKg),
+            volumeInsight = "Com a progressão de volume de treino registrada, a demanda por substrato energético (carboidratos) aumenta proporcionalmente para evitar catabolismo e manter a intensidade das séries.",
+            isFromGeminiAI = false
+        )
+    }
+
+    private fun defaultDietAdjustments(userProfile: UserProfile, volumeKg: Double): List<String> {
+        val list = mutableListOf<String>()
+        list.add("Aumente 30g a 50g de carboidratos nos dias de treino de grandes grupos musculares (Pernas e Costas).")
+        list.add("Distribua sua ingestão de proteínas em 4 a 5 refeições com pelo menos 25-30g cada para manter a síntese proteica ativa.")
+        list.add("Mantenha suplementação diária de 5g de Creatina Monohidratada para otimizar a ressíntese de ATP e sustentar cargas altas.")
+        list.add("Beba 500ml de água com eletrólitos durante treinos com duração superior a 50 minutos.")
+        return list
+    }
+
+    /**
+     * Generates a detailed biomechanical execution guide for an exercise with Gemini AI.
+     */
+    suspend fun generateExerciseExecutionGuide(
+        exerciseName: String,
+        muscleGroup: String,
+        equipment: String
+    ): ExerciseExecutionGuideResult = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        val prompt = """
+            Você é um cinesiologista e treinador de musculação de elite.
+            Gere uma descrição minuciosa, científica e didática da execução correta do seguinte exercício:
+
+            - Exercício: $exerciseName
+            - Grupo Muscular Alvo: $muscleGroup
+            - Equipamento: $equipment
+
+            Retorne EXCLUSIVAMENTE um objeto JSON válido (sem crases ```json, sem markdown) com a seguinte estrutura:
+            {
+                "exerciseName": "$exerciseName",
+                "targetMuscle": "Músculo primário e sinergistas",
+                "equipment": "$equipment",
+                "setupInstructions": [
+                    "Passo 1 do posicionamento inicial e pegada",
+                    "Passo 2 do alinhamento do tronco e estabilidade dos pés",
+                    "Passo 3 da ativação de escápulas e abdômen"
+                ],
+                "executionSteps": [
+                    "Fase Excêntrica (descida/alongamento): velocidade, trajeto e controle",
+                    "Ponto de Inversão / Alongamento: ângulo articular seguro",
+                    "Fase Concêntrica (subida/contração): aceleração intencional sem trancos",
+                    "Pico de Contração: squeeze do músculo alvo no topo"
+                ],
+                "biomechanicsAndBreathing": "Explicação clara da respiração (inspire na descida, expire no esforço) e dos ângulos articulares.",
+                "commonMistakes": [
+                    "Erro comum 1 (e risco de lesão)",
+                    "Erro comum 2 (perda de tensão no músculo alvo)",
+                    "Erro comum 3 (uso excessivo de impulso/inércia)"
+                ],
+                "mindMuscleConnectionTip": "Dica de ouro de conexão mente-músculo para sentir o músculo queimar ao máximo."
+            }
+        """.trimIndent()
+
+        if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY") {
+            try {
+                val geminiReq = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(parts = listOf(GeminiPart(text = prompt)))
+                    )
+                )
+                val jsonBody = requestAdapter.toJson(geminiReq)
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
+                    .post(jsonBody.toRequestBody(mediaType))
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val responseBodyStr = response.body?.string() ?: ""
+                    val geminiRes = responseAdapter.fromJson(responseBodyStr)
+                    val rawText = geminiRes?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (!rawText.isNullOrBlank()) {
+                        val cleanJson = rawText.substringAfter("{").substringBeforeLast("}")
+                        val parsed = JSONObject("{$cleanJson}")
+
+                        val setupList = mutableListOf<String>()
+                        val setupArr = parsed.optJSONArray("setupInstructions")
+                        if (setupArr != null) {
+                            for (i in 0 until setupArr.length()) setupList.add(setupArr.getString(i))
+                        }
+
+                        val execList = mutableListOf<String>()
+                        val execArr = parsed.optJSONArray("executionSteps")
+                        if (execArr != null) {
+                            for (i in 0 until execArr.length()) execList.add(execArr.getString(i))
+                        }
+
+                        val mistakesList = mutableListOf<String>()
+                        val mistakesArr = parsed.optJSONArray("commonMistakes")
+                        if (mistakesArr != null) {
+                            for (i in 0 until mistakesArr.length()) mistakesList.add(mistakesArr.getString(i))
+                        }
+
+                        return@withContext ExerciseExecutionGuideResult(
+                            exerciseName = parsed.optString("exerciseName", exerciseName),
+                            targetMuscle = parsed.optString("targetMuscle", muscleGroup),
+                            equipment = parsed.optString("equipment", equipment),
+                            setupInstructions = if (setupList.isNotEmpty()) setupList else fallbackSetup(exerciseName),
+                            executionSteps = if (execList.isNotEmpty()) execList else fallbackExecution(exerciseName),
+                            biomechanicsAndBreathing = parsed.optString(
+                                "biomechanicsAndBreathing",
+                                "Inspire na fase excêntrica (descida) controlada em 2-3 segundos; expire na fase concêntrica (subida) mantendo as escápulas estáveis."
+                            ),
+                            commonMistakes = if (mistakesList.isNotEmpty()) mistakesList else fallbackMistakes(exerciseName),
+                            mindMuscleConnectionTip = parsed.optString(
+                                "mindMuscleConnectionTip",
+                                "Concentre-se em puxar ou empurrar a partir do cotovelo, eliminando a tensão desnecessária nos punhos e trapézio."
+                            ),
+                            isFromGeminiAI = true
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // Fallback to local biomechanical database
+            }
+        }
+        fallbackExerciseGuide(exerciseName, muscleGroup, equipment)
+    }
+
+    private fun fallbackExerciseGuide(
+        exerciseName: String,
+        muscleGroup: String,
+        equipment: String
+    ): ExerciseExecutionGuideResult {
+        return ExerciseExecutionGuideResult(
+            exerciseName = exerciseName,
+            targetMuscle = muscleGroup.ifBlank { "Músculo Primário & Estabilizadores" },
+            equipment = equipment.ifBlank { "Livre / Máquina" },
+            setupInstructions = fallbackSetup(exerciseName),
+            executionSteps = fallbackExecution(exerciseName),
+            biomechanicsAndBreathing = "Mantenha o core ativado, coluna em posição neutra e respire ritmicamente: inspire no alongamento (fase excêntrica) e expire na força (fase concêntrica).",
+            commonMistakes = fallbackMistakes(exerciseName),
+            mindMuscleConnectionTip = "Não pense em apenas mover o peso do ponto A ao B. Sinta o músculo alongar com controle máximo e aperte com força no topo do movimento.",
+            isFromGeminiAI = false
+        )
+    }
+
+    private fun fallbackSetup(exerciseName: String): List<String> {
+        val lower = exerciseName.lowercase()
+        return when {
+            lower.contains("supino") -> listOf(
+                "Deite-se no banco com os olhos diretamente sob a barra ou alinhado aos halteres.",
+                "Retraia e deprima as escápulas ('guarde as escápulas nos bolsos de trás').",
+                "Apoie os pés firmemente no chão mantendo leve arco lombar fisiológico."
+            )
+            lower.contains("agachamento") -> listOf(
+                "Pés na largura dos ombros com as pontas levemente apontadas para fora (15° a 30°).",
+                "Apoie a barra firme no trapézio ou deltoide posterior com pegada firme.",
+                "Encha o abdômen de ar (manobra de Valsalva) criando pressão intra-abdominal protetora."
+            )
+            lower.contains("terra") -> listOf(
+                "Barra a 2cm das canelas, pés na largura do quadril.",
+                "Segure a barra logo por fora das pernas, empurrando o quadril para trás.",
+                "Peito aberto, coluna neutra e dorsal contraída travando a barra contra o corpo."
+            )
+            lower.contains("puxada") || lower.contains("remada") -> listOf(
+                "Ajuste os apoios das pernas firmemente para evitar elevação do corpo.",
+                "Segure com pegada firme e posicione o tronco levemente inclinado para trás (10° a 15°).",
+                "Inicie deprimindo as escápulas antes de flexionar os cotovelos."
+            )
+            else -> listOf(
+                "Ajuste o equipamento ou banco na altura compatível com sua estatura.",
+                "Mantenha o abdômen contraído e postura ereta sem hiperextensão articular.",
+                "Segure o peso com pegada firme e alinhamento neutro dos punhos."
+            )
+        }
+    }
+
+    private fun fallbackExecution(exerciseName: String): List<String> {
+        return listOf(
+            "Fase Excêntrica: Desça o peso de forma cadenciada (2 a 3 segundos), resistindo à gravidade.",
+            "Ponto de Alongamento: Pause por uma fração de segundo no ponto de máximo alongamento sob tensão.",
+            "Fase Concêntrica: Empurre ou puxe com aceleração controlada e sem trancos articulares.",
+            "Pico de Contração: Contraia o músculo alvo com firmeza por 1 segundo no topo da repetição."
+        )
+    }
+
+    private fun fallbackMistakes(exerciseName: String): List<String> {
+        return listOf(
+            "Usar inércia ou balanço do corpo para mover a carga em vez da contração muscular.",
+            "Encurtar a amplitude de movimento (amplitude parcial) para usar cargas excessivas.",
+            "Perder a estabilização articular no final da série (ex: ombros projetados para frente)."
+        )
     }
 }
 

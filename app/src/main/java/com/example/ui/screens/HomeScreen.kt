@@ -38,16 +38,22 @@ import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MobileOff
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material.icons.filled.Widgets
+import com.example.ui.components.FullWorkoutHistorySheet
+import com.example.ui.components.WorkoutSubstitutionDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -162,6 +168,8 @@ fun HomeScreen(
     var showWorkoutReminderDialog by remember { mutableStateOf(false) }
     var showQuickWorkoutSheet by remember { mutableStateOf(false) }
     var showActiveCardioModal by remember { mutableStateOf(false) }
+    var showWorkoutSubstitutionDialog by remember { mutableStateOf(false) }
+    var showFullWorkoutHistorySheet by remember { mutableStateOf(false) }
 
     val healthDailyMetrics by viewModel.healthDailyMetrics.collectAsStateWithLifecycle()
     val permissionsGranted by viewModel.healthPermissionsGranted.collectAsStateWithLifecycle()
@@ -169,6 +177,8 @@ fun HomeScreen(
     val generatedAIWorkout by viewModel.generatedAIWorkout.collectAsStateWithLifecycle()
     val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
     val gamificationOverview by viewModel.gamificationOverview.collectAsStateWithLifecycle()
+    val dailySuggestion by viewModel.dailyWorkoutSuggestion.collectAsStateWithLifecycle()
+    val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
 
     val todayEpoch = DateUtils.todayEpochDay()
     val completedWorkouts = workoutSessions.filter { it.status == SessionStatus.COMPLETED }
@@ -451,9 +461,10 @@ fun HomeScreen(
                     }
                 }
             } else {
-                // Today's Scheduled / Suggested Workout Card
-                val templateTitle = todayTemplate?.title ?: "Full Body A"
-                val templateDuration = todayTemplate?.executionDurationMinutes ?: 42
+                // Today's Intelligent Suggested Workout Card
+                val currentTemplate = dailySuggestion.template ?: todayTemplate
+                val templateTitle = dailySuggestion.title
+                val templateDuration = dailySuggestion.estimatedDurationMinutes
                 val templateCalories = (templateDuration * 5.9).toInt().coerceAtLeast(248)
 
                 Surface(
@@ -474,7 +485,7 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .background(GradientHeroPrimary)
                             .border(1.2.dp, LilacSoft.copy(alpha = 0.5f), RoundedCornerShape(26.dp))
-                            .padding(22.dp)
+                            .padding(20.dp)
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Row(
@@ -489,47 +500,94 @@ fun HomeScreen(
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        text = "TREINO DE HOJE",
-                                        fontSize = 11.sp,
+                                        text = "SUGESTÃO DO DIA • ${dailySuggestion.dayOfWeekName.uppercase()}",
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Black,
                                         color = Color.White,
                                         letterSpacing = 1.sp
                                     )
                                 }
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(PurpleDarkest.copy(alpha = 0.35f))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                Surface(
+                                    onClick = { showWorkoutSubstitutionDialog = true },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = PurpleDarkest.copy(alpha = 0.45f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.5f)),
+                                    modifier = Modifier.testTag("btn_substitute_daily_workout")
                                 ) {
-                                    Text(
-                                        text = "⚡ Alta Intensidade",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LilacSoft
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SwapHoriz,
+                                            contentDescription = "Substituir Treino",
+                                            tint = LilacAccent,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Substituir",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = LilacAccent
+                                        )
+                                    }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
                                 text = templateTitle,
-                                fontSize = 24.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White
                             )
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                            // Supersets list preview
                             Text(
-                                text = "Supino + Remada • Terra Romeno + Desenvolvimento • Rosca + Tríceps",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = LilacSoft.copy(alpha = 0.95f),
-                                lineHeight = 18.sp
+                                text = dailySuggestion.subtitle,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = LilacSoft
                             )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // AI Explanation
+                            Text(
+                                text = dailySuggestion.explanationReason,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.9f),
+                                lineHeight = 17.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Muscle group badges
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                dailySuggestion.muscleGroups.take(4).forEach { group ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(PurpleDarkest.copy(alpha = 0.35f))
+                                            .border(0.8.dp, LilacSoft.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = group.displayName,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = LilacSoft
+                                        )
+                                    }
+                                }
+                            }
 
                             Spacer(modifier = Modifier.height(14.dp))
 
@@ -563,7 +621,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "${todayTemplate?.exerciseCount ?: 6} exercícios",
+                                        text = "${currentTemplate?.exerciseCount ?: 6} exercícios",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
@@ -587,16 +645,16 @@ fun HomeScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             // Main Call-To-Action Button: INICIAR TREINO
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        if (todayTemplate != null) {
+                                        if (currentTemplate != null) {
                                             viewModel.startWorkoutFromTemplate(
-                                                template = todayTemplate,
+                                                template = currentTemplate,
                                                 location = userProfile?.defaultGymLocation ?: "Academia"
                                             )
                                             onNavigateToActiveWorkout()
@@ -623,7 +681,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "INICIAR TREINO",
+                                        text = "INICIAR TREINO DO DIA",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Black,
                                         color = PurplePrimaryDark,
@@ -631,6 +689,109 @@ fun HomeScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Quick Access: Training History & Screen On Quick Toggle
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Ver Histórico Completo
+                Surface(
+                    onClick = { showFullWorkoutHistorySheet = true },
+                    shape = RoundedCornerShape(16.dp),
+                    color = PurpleDeepCard,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("btn_home_history")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(PurpleDarkSurface)
+                                .border(1.dp, LilacAccent.copy(alpha = 0.4f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = LilacAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Histórico",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "${completedWorkouts.size} realizados",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+
+                // Toggle Tela Ativa
+                Surface(
+                    onClick = { viewModel.toggleKeepScreenOn() },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (keepScreenOn) EmeraldSubtle else PurpleDeepCard,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (keepScreenOn) EmeraldSuccess.copy(alpha = 0.5f) else GlassBorderSubtle
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("btn_home_keep_screen_on")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (keepScreenOn) EmeraldSuccess.copy(alpha = 0.2f) else PurpleDarkSurface)
+                                .border(1.dp, if (keepScreenOn) EmeraldSuccess else GlassBorderSubtle, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (keepScreenOn) Icons.Default.PhoneAndroid else Icons.Default.MobileOff,
+                                contentDescription = null,
+                                tint = if (keepScreenOn) EmeraldSuccess else TextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Tela Ativa",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (keepScreenOn) EmeraldSuccess else TextPrimary
+                            )
+                            Text(
+                                text = if (keepScreenOn) "Ligada" else "Padrão",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (keepScreenOn) EmeraldSuccess else TextSecondary
+                            )
                         }
                     }
                 }
@@ -1474,6 +1635,34 @@ fun HomeScreen(
                 showActiveCardioModal = true
             },
             defaultLocation = userProfile?.defaultGymLocation ?: "Academia Smart Fit"
+        )
+    }
+
+    // Workout Substitution Dialog (for today's workout)
+    if (showWorkoutSubstitutionDialog) {
+        WorkoutSubstitutionDialog(
+            currentTemplate = dailySuggestion.template ?: todayTemplate,
+            availableTemplates = workoutTemplates,
+            onDismiss = { showWorkoutSubstitutionDialog = false },
+            onSelectTemplate = { selectedTemplate ->
+                viewModel.overrideDailyWorkoutSuggestion(selectedTemplate)
+                showWorkoutSubstitutionDialog = false
+            }
+        )
+    }
+
+    // Full Training History BottomSheet
+    if (showFullWorkoutHistorySheet) {
+        FullWorkoutHistorySheet(
+            workoutSessions = workoutSessions,
+            cardioSessions = cardioSessions,
+            onDismiss = { showFullWorkoutHistorySheet = false },
+            onDeleteWorkoutSession = { sessionId -> viewModel.deleteWorkoutSession(sessionId) },
+            onDeleteCardioSession = { cardioId -> viewModel.deleteCardioSession(cardioId) },
+            onViewAiFeedback = { aiFeedback ->
+                selectedSessionAiFeedback = aiFeedback
+                showAiDialog = true
+            }
         )
     }
 }

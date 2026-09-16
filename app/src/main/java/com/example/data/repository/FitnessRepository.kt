@@ -189,8 +189,26 @@ class FitnessRepository(
         return geminiService.analyzeMealDescription(mealText, mealType, userProfile)
     }
 
+    suspend fun evaluateNutritionFromVolumeHistory(
+        userProfile: UserProfile,
+        workoutSessions: List<WorkoutSession>,
+        cardioSessions: List<CardioSession>
+    ): com.example.data.model.VolumeNutritionEvaluationResult {
+        return geminiService.evaluateNutritionFromVolumeHistory(userProfile, workoutSessions, cardioSessions)
+    }
+
+    suspend fun generateExerciseExecutionGuide(
+        exerciseName: String,
+        muscleGroup: String,
+        equipment: String
+    ): com.example.data.model.ExerciseExecutionGuideResult {
+        return geminiService.generateExerciseExecutionGuide(exerciseName, muscleGroup, equipment)
+    }
+
     // --- Gamification & Medals ---
     val allMedals: Flow<List<com.example.data.model.UserMedal>> = dao.getAllMedals()
+
+    suspend fun getMedalById(medalId: String): com.example.data.model.UserMedal? = dao.getMedalById(medalId)
 
     suspend fun saveMedal(medal: com.example.data.model.UserMedal) = dao.insertMedal(medal)
 

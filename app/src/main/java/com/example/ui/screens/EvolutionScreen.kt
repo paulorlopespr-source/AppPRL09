@@ -84,6 +84,9 @@ import com.example.ui.components.PrimaryButton
 import com.example.ui.components.ProgressPhotosSection
 import com.example.ui.components.UserAvatarView
 import com.example.ui.components.UserProfileDialog
+import com.example.ui.components.VolumeLineChartSection
+import com.example.ui.components.StrengthLineChartSection
+import com.example.ui.components.VolumeNutritionSection
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.TableChart
 import com.example.ui.theme.EmeraldSubtle
@@ -131,6 +134,8 @@ fun EvolutionScreen(
 
     val weeklyMuscleVolumes by viewModel.weeklyMuscleVolumes.collectAsStateWithLifecycle()
     val allCardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
+    val volumeNutritionEvaluation by viewModel.volumeNutritionEvaluation.collectAsStateWithLifecycle()
+    val isEvaluatingVolumeNutrition by viewModel.isEvaluatingVolumeNutrition.collectAsStateWithLifecycle()
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showAddMeasurementDialog by remember { mutableStateOf(false) }
@@ -348,6 +353,36 @@ fun EvolutionScreen(
                         modifier = Modifier.align(Alignment.End)
                     )
                 }
+            }
+
+            // --- Gráficos de Evolução: Volume e Ganho de Força ---
+            item {
+                VolumeLineChartSection(
+                    workoutSessions = allWorkoutSessions
+                )
+            }
+
+            item {
+                StrengthLineChartSection(
+                    workoutSessions = allWorkoutSessions
+                )
+            }
+
+            // --- Módulo de Avaliação Nutricional com Gemini AI ---
+            item {
+                VolumeNutritionSection(
+                    userProfile = userProfile,
+                    workoutSessions = allWorkoutSessions,
+                    cardioSessions = allCardioSessions,
+                    evaluationResult = volumeNutritionEvaluation,
+                    isLoading = isEvaluatingVolumeNutrition,
+                    onEvaluateClick = {
+                        viewModel.requestVolumeNutritionEvaluation()
+                    },
+                    onApplyToProfile = { summary ->
+                        viewModel.applyNutritionTargetsToProfile(summary)
+                    }
+                )
             }
 
             // Muscle Volume Heatmap (Science & Hypertrophy Tracking)

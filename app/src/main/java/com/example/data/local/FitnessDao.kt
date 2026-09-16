@@ -152,10 +152,13 @@ interface FitnessDao {
     @Query("SELECT * FROM user_medals ORDER BY isUnlocked DESC, id ASC")
     fun getAllMedals(): Flow<List<com.example.data.model.UserMedal>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Query("SELECT * FROM user_medals WHERE id = :medalId LIMIT 1")
+    suspend fun getMedalById(medalId: String): com.example.data.model.UserMedal?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMedals(medals: List<com.example.data.model.UserMedal>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMedal(medal: com.example.data.model.UserMedal)
 
     @Query("UPDATE user_medals SET isUnlocked = 1, unlockedDateEpochDay = :epochDay WHERE id = :medalId")

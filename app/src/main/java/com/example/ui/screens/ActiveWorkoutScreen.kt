@@ -33,8 +33,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MobileOff
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
+import com.example.ui.components.ExerciseSubstitutionDialog
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -83,6 +87,7 @@ import com.example.data.model.ProgressionSuggestion
 import com.example.data.model.SetTag
 import com.example.data.model.WorkoutExercisePlan
 import com.example.data.model.WorkoutSession
+import com.example.ui.components.AIExerciseExecutionModal
 import com.example.ui.components.AudioPlayerBottomSheet
 import com.example.ui.components.AutomaticLastExecutionCard
 import com.example.ui.components.BentoCard
@@ -140,6 +145,7 @@ fun ActiveWorkoutScreen(
     val activeMedalUnlocked by viewModel.activeMedalUnlocked.collectAsStateWithLifecycle()
     val activePRCelebration by viewModel.activePRCelebration.collectAsStateWithLifecycle()
     val isTtsVoiceEnabled by viewModel.isTtsVoiceEnabled.collectAsStateWithLifecycle()
+    val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showFinishDialog by remember { mutableStateOf(false) }
@@ -148,6 +154,8 @@ fun ActiveWorkoutScreen(
     var showLocationDialog by remember { mutableStateOf(false) }
     var showIntervalTimerDialog by remember { mutableStateOf(false) }
     var showAudioSheet by remember { mutableStateOf(false) }
+    var showExerciseSubstitutionDialog by remember { mutableStateOf(false) }
+    var exerciseToSubstitute by remember { mutableStateOf<WorkoutExercisePlan?>(null) }
     var historyDialogExerciseName by remember { mutableStateOf<String?>(null) }
     var selectedVisualGuideExercise by remember { mutableStateOf<com.example.data.model.Exercise?>(null) }
     var plateCalculatorWeightKg by remember { mutableStateOf<Double?>(null) }
@@ -256,6 +264,17 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     actions = {
+                        // Screen On / WakeLock toggle
+                        IconButton(
+                            onClick = { viewModel.toggleKeepScreenOn() },
+                            modifier = Modifier.testTag("btn_toggle_screen_on_active")
+                        ) {
+                            Icon(
+                                imageVector = if (keepScreenOn) Icons.Default.PhoneAndroid else Icons.Default.MobileOff,
+                                contentDescription = if (keepScreenOn) "Tela Ativa (Ligada)" else "Tela Bloqueio Automático",
+                                tint = if (keepScreenOn) EmeraldSuccess else TextMuted
+                            )
+                        }
                         // TTS Voice Coach toggle
                         IconButton(
                             onClick = { viewModel.toggleTtsVoice() },
@@ -413,6 +432,10 @@ fun ActiveWorkoutScreen(
                         },
                         onDismissProgression = {
                             viewModel.dismissProgressionSuggestion(plan.exerciseName)
+                        },
+                        onSubstituteExercise = {
+                            exerciseToSubstitute = plan
+                            showExerciseSubstitutionDialog = true
                         },
                         onUpdateSet = { setIndex, weight, reps, completed ->
                             viewModel.updateSet(exIndex, setIndex, weight, reps, completed)
@@ -855,6 +878,30 @@ fun ActiveWorkoutScreen(
             onDismiss = { viewModel.dismissMedalUnlockedDialog() }
         )
     }
+
+    // Exercise Substitution Dialog (Same Muscle Group)
+    if (showExerciseSubstitutionDialog && exerciseToSubstitute != null) {
+        val currentPlan = exerciseToSubstitute!!
+        val candidateExercises = remember(currentPlan.muscleGroup) {
+            viewModel.getExercisesForMuscleGroup(currentPlan.muscleGroup)
+        }
+        ExerciseSubstitutionDialog(
+            currentPlan = currentPlan,
+            availableExercises = candidateExercises,
+            onDismiss = {
+                showExerciseSubstitutionDialog = false
+                exerciseToSubstitute = null
+            },
+            onSelectExercise = { newExercise ->
+                viewModel.substituteExerciseInActiveWorkout(
+                    oldExerciseId = currentPlan.exerciseId,
+                    newExercise = newExercise
+                )
+                showExerciseSubstitutionDialog = false
+                exerciseToSubstitute = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -870,6 +917,7 @@ fun ActiveExerciseCard(
     onOpenWarmupGenerator: () -> Unit,
     onApplyProgression: (Double) -> Unit,
     onDismissProgression: () -> Unit,
+    onSubstituteExercise: () -> Unit = {},
     onUpdateSet: (setIndex: Int, weight: Double, reps: Int, completed: Boolean) -> Unit,
     onUpdateSetTag: (setIndex: Int, tag: SetTag) -> Unit,
     onAddSet: () -> Unit,
@@ -977,7 +1025,7 @@ fun ActiveExerciseCard(
             }
         }
 
-        // Quick Tools Toolbar: Plate Calculator & Warm-up Generator
+        // Quick Tools Toolbar: Plate Calculator, Warm-up Generator & Exercise Substitution
         Spacer(modifier = Modifier.height(10.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -993,7 +1041,7 @@ fun ActiveExerciseCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
-                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 8.dp),
+                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -1001,12 +1049,12 @@ fun ActiveExerciseCard(
                         imageVector = Icons.Default.LocalFireDepartment,
                         contentDescription = null,
                         tint = Color(0xFFFFB74D),
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Aquecimento",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFFFB74D)
                     )
@@ -1022,7 +1070,7 @@ fun ActiveExerciseCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
-                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 8.dp),
+                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -1030,14 +1078,43 @@ fun ActiveExerciseCard(
                         imageVector = Icons.Default.Calculate,
                         contentDescription = null,
                         tint = LilacAccent,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Anilhas",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = LilacAccent
+                    )
+                }
+            }
+
+            // Exercise Substitution (Mesmo Grupo Muscular)
+            Surface(
+                onClick = onSubstituteExercise,
+                shape = RoundedCornerShape(10.dp),
+                color = PurpleDarkSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        contentDescription = null,
+                        tint = EmeraldSuccess,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Substituir",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldSuccess
                     )
                 }
             }

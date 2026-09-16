@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +10,7 @@ import com.example.data.local.DefaultFitnessData
 import com.example.data.model.BodyMeasurement
 import com.example.data.model.CardioSession
 import com.example.data.model.CardioType
+import com.example.data.model.DailyWorkoutSuggestion
 import com.example.data.model.Exercise
 import com.example.data.model.ExerciseEvolutionSummary
 import com.example.data.model.ExerciseExecutionRecord
@@ -26,9 +28,12 @@ import com.example.data.model.WorkoutTemplate
 import com.example.data.model.AICoachMessage
 import com.example.data.model.AICoachSender
 import com.example.data.model.AIWorkoutPlanResult
+import com.example.data.model.VolumeNutritionEvaluationResult
+import com.example.data.model.ExerciseExecutionGuideResult
 import com.example.data.model.GamificationOverview
 import com.example.data.model.MedalRarity
 import com.example.data.model.GoalPeriod
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import com.example.data.model.WorkoutReminderSettings
 import com.example.util.WorkoutReminderManager
@@ -75,6 +80,8 @@ data class ProgressiveOverloadSuggestion(
 data class ActiveWorkoutState(
     val isActive: Boolean = false,
     val templateId: Long? = null,
+    val scheduledSessionId: Long? = null,
+    val scheduledDateEpochDay: Long? = null,
     val title: String = "",
     val location: String = "Academia Smart Fit",
     val durationSeconds: Int = 0,
@@ -114,6 +121,22 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val planListType = Types.newParameterizedType(List::class.java, WorkoutExercisePlan::class.java)
     private val plansAdapter = moshi.adapter<List<WorkoutExercisePlan>>(planListType)
 
+    // Persistent Preferences: Keep Screen On & Backup Unlocked Medals
+    private val prefs = application.getSharedPreferences("fitpr09_prefs", Context.MODE_PRIVATE)
+    private val _keepScreenOn = MutableStateFlow(prefs.getBoolean("pref_keep_screen_on", true))
+    val keepScreenOn: StateFlow<Boolean> = _keepScreenOn.asStateFlow()
+
+    fun toggleKeepScreenOn() {
+        val newVal = !_keepScreenOn.value
+        _keepScreenOn.value = newVal
+        prefs.edit().putBoolean("pref_keep_screen_on", newVal).apply()
+    }
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        _keepScreenOn.value = enabled
+        prefs.edit().putBoolean("pref_keep_screen_on", enabled).apply()
+    }
+
     init {
         val db = AppDatabase.getDatabase(application, viewModelScope)
         repository = FitnessRepository(db.fitnessDao())
@@ -123,12 +146,17 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             val templates = DefaultFitnessData.getDefaultWorkoutTemplates(exercises)
             templates.forEach { db.fitnessDao().insertWorkoutTemplate(it) }
 
-            // Ensure all predefined medals are populated
+            // Ensure predefined medals are populated without overwriting unlocked ones
             val defaultMedals = DefaultFitnessData.getDefaultMedals()
-            val currentMedals = repository.allMedals.firstOrNull() ?: emptyList()
-            if (currentMedals.size < defaultMedals.size) {
-                repository.insertMedals(defaultMedals)
+            repository.insertMedals(defaultMedals)
+
+            // Restore any backed-up unlocked medals so achievements never disappear
+            val backedUpUnlocked = prefs.getStringSet("unlocked_medals_backup", emptySet()) ?: emptySet()
+            val todayEpoch = DateUtils.todayEpochDay()
+            backedUpUnlocked.forEach { medalId ->
+                repository.unlockMedal(medalId, todayEpoch)
             }
+
             syncGamificationAndGoals()
             checkHealthConnectStatus()
         }
@@ -154,6 +182,138 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     val userProfile: StateFlow<UserProfile?> = repository.userProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DefaultFitnessData.getDefaultUserProfile())
+
+    // --- Daily Workout Suggestion (Intelligent muscle recovery rotation) ---
+    private val _manualSuggestedTemplate = MutableStateFlow<WorkoutTemplate?>(null)
+
+    val dailyWorkoutSuggestion: StateFlow<DailyWorkoutSuggestion> = combine(
+        repository.allWorkoutTemplates,
+        repository.allWorkoutSessions,
+        repository.userProfile,
+        _manualSuggestedTemplate
+    ) { templates, sessions, profile, manualOverride ->
+        buildDailyWorkoutSuggestion(templates, sessions, profile, manualOverride)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        DailyWorkoutSuggestion(
+            template = null,
+            title = "Treino do Dia",
+            subtitle = "Sugestão inteligente com recuperação muscular",
+            muscleGroups = listOf(MuscleGroup.PEITO, MuscleGroup.TRICEPS),
+            explanationReason = "Calculando a melhor divisão para o seu dia.",
+            estimatedDurationMinutes = 45,
+            intensity = IntensityLevel.MODERADA,
+            dayOfWeekName = "Hoje"
+        )
+    )
+
+    fun overrideDailyWorkoutSuggestion(template: WorkoutTemplate) {
+        _manualSuggestedTemplate.value = template
+    }
+
+    fun resetDailyWorkoutSuggestion() {
+        _manualSuggestedTemplate.value = null
+    }
+
+    private fun buildDailyWorkoutSuggestion(
+        templates: List<WorkoutTemplate>,
+        sessions: List<WorkoutSession>,
+        profile: UserProfile?,
+        manualOverride: WorkoutTemplate?
+    ): DailyWorkoutSuggestion {
+        if (manualOverride != null) {
+            val alternatives = templates.filter { it.id != manualOverride.id }
+            return DailyWorkoutSuggestion(
+                template = manualOverride,
+                title = manualOverride.title,
+                subtitle = "Substituição selecionada por você",
+                muscleGroups = listOf(MuscleGroup.PEITO, MuscleGroup.TRICEPS),
+                explanationReason = "💡 Treino personalizado selecionado para a sua sessão de hoje.",
+                estimatedDurationMinutes = manualOverride.executionDurationMinutes,
+                intensity = IntensityLevel.INTENSA,
+                dayOfWeekName = "Hoje",
+                alternativeTemplates = alternatives
+            )
+        }
+
+        val today = java.time.LocalDate.now()
+        val dayOfWeek = today.dayOfWeek.value // 1 (Mon) .. 7 (Sun)
+        val dayName = when (dayOfWeek) {
+            1 -> "Segunda-feira"
+            2 -> "Terça-feira"
+            3 -> "Quarta-feira"
+            4 -> "Quinta-feira"
+            5 -> "Sexta-feira"
+            6 -> "Sábado"
+            else -> "Domingo"
+        }
+
+        val (focusName, targetGroups, keywords, explanation) = when (dayOfWeek) {
+            1 -> Quadruple(
+                "Push: Peito, Ombros & Tríceps",
+                listOf(MuscleGroup.PEITO, MuscleGroup.OMBROS, MuscleGroup.TRICEPS),
+                listOf("Peito", "Push", "A", "Iniciante - Treino A"),
+                "💡 Segunda-feira com alta intensidade mecânica. Foco em empurrar com Peito, Ombros e Tríceps com descanso completo no fim de semana."
+            )
+            2 -> Quadruple(
+                "Pull: Costas & Bíceps",
+                listOf(MuscleGroup.COSTAS, MuscleGroup.BICEPS),
+                listOf("Costas", "Pull", "B", "Iniciante - Treino B"),
+                "💡 Puxadas completas para dorsais e bíceps. Grande ativação de cadeia posterior superior para postura e força."
+            )
+            3 -> Quadruple(
+                "Legs: Quadríceps, Posterior & Panturrilhas",
+                listOf(MuscleGroup.QUADRICEPS, MuscleGroup.POSTERIOR_GLUTEOS, MuscleGroup.PANTURRILHA),
+                listOf("Pernas", "Legs", "C", "Inferiores"),
+                "💡 Membros inferiores: estímulo anabólico com agachamentos, leg press e flexoras para força e gasto calórico."
+            )
+            4 -> Quadruple(
+                "Ombros & Abdômen",
+                listOf(MuscleGroup.OMBROS, MuscleGroup.ABDOMEN),
+                listOf("Ombros", "Deltoides", "D", "Push"),
+                "💡 Foco em largura escapular e estabilidade do core, enquanto braços e pernas se recuperam."
+            )
+            5 -> Quadruple(
+                "Superiores: Peito & Costas",
+                listOf(MuscleGroup.PEITO, MuscleGroup.COSTAS),
+                listOf("Peito", "Superiores", "Upper", "A"),
+                "💡 Membros superiores com alta densidade e volume para fechar a semana com aceleração metabólica."
+            )
+            6 -> Quadruple(
+                "Braços Completos: Bíceps & Tríceps",
+                listOf(MuscleGroup.BICEPS, MuscleGroup.TRICEPS),
+                listOf("Braços", "Bíceps", "Tríceps", "B"),
+                "💡 Treino focado em bíceps, tríceps e pegada com repetições controladas e pump muscular."
+            )
+            else -> Quadruple(
+                "Recuperação Ativa & Pernas Leve",
+                listOf(MuscleGroup.QUADRICEPS, MuscleGroup.POSTERIOR_GLUTEOS),
+                listOf("Funcional", "Cardio", "Alongamento", "A"),
+                "💡 Domingo para mobilidade, corrida/caminhada leve de 30-40 min ou restauração metabólica."
+            )
+        }
+
+        val matchedTemplate = templates.find { t ->
+            keywords.any { k -> t.title.contains(k, ignoreCase = true) }
+        } ?: templates.firstOrNull { it.isFavorite } ?: templates.firstOrNull()
+
+        val alternatives = templates.filter { it.id != matchedTemplate?.id }
+
+        return DailyWorkoutSuggestion(
+            template = matchedTemplate,
+            title = matchedTemplate?.title ?: focusName,
+            subtitle = focusName,
+            muscleGroups = targetGroups,
+            explanationReason = explanation,
+            estimatedDurationMinutes = matchedTemplate?.executionDurationMinutes ?: 45,
+            intensity = IntensityLevel.INTENSA,
+            dayOfWeekName = dayName,
+            alternativeTemplates = alternatives
+        )
+    }
+
+    private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
     val allBodyMeasurements: StateFlow<List<BodyMeasurement>> = repository.allBodyMeasurements
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -322,6 +482,20 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val _generatedAIWorkout = MutableStateFlow<AIWorkoutPlanResult?>(null)
     val generatedAIWorkout: StateFlow<AIWorkoutPlanResult?> = _generatedAIWorkout.asStateFlow()
 
+    // --- Volume-Based AI Nutrition Evaluation ---
+    private val _volumeNutritionEvaluation = MutableStateFlow<VolumeNutritionEvaluationResult?>(null)
+    val volumeNutritionEvaluation: StateFlow<VolumeNutritionEvaluationResult?> = _volumeNutritionEvaluation.asStateFlow()
+
+    private val _isEvaluatingVolumeNutrition = MutableStateFlow(false)
+    val isEvaluatingVolumeNutrition: StateFlow<Boolean> = _isEvaluatingVolumeNutrition.asStateFlow()
+
+    // --- Gemini AI Exercise Execution Guide ---
+    private val _activeExerciseExecutionGuide = MutableStateFlow<ExerciseExecutionGuideResult?>(null)
+    val activeExerciseExecutionGuide: StateFlow<ExerciseExecutionGuideResult?> = _activeExerciseExecutionGuide.asStateFlow()
+
+    private val _isLoadingExerciseExecutionGuide = MutableStateFlow(false)
+    val isLoadingExerciseExecutionGuide: StateFlow<Boolean> = _isLoadingExerciseExecutionGuide.asStateFlow()
+
     // --- AI Coach Chat Assistant State ---
     private val _isAICoachThinking = MutableStateFlow(false)
     val isAICoachThinking: StateFlow<Boolean> = _isAICoachThinking.asStateFlow()
@@ -368,7 +542,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     val healthSyncResultMessage: StateFlow<String?> = _healthSyncResultMessage.asStateFlow()
 
     // --- Active Workout Functions ---
-    fun startWorkoutFromTemplate(template: WorkoutTemplate, location: String = "Academia Smart Fit") {
+    fun startWorkoutFromTemplate(
+        template: WorkoutTemplate,
+        location: String = "Academia Smart Fit",
+        scheduledSessionId: Long? = null,
+        scheduledDateEpochDay: Long? = null
+    ) {
         val parsedPlans = try {
             plansAdapter.fromJson(template.exercisesJson) ?: emptyList()
         } catch (e: Exception) {
@@ -387,6 +566,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         _activeWorkout.value = ActiveWorkoutState(
             isActive = true,
             templateId = template.id,
+            scheduledSessionId = scheduledSessionId,
+            scheduledDateEpochDay = scheduledDateEpochDay,
             title = template.title,
             location = location,
             durationSeconds = 0,
@@ -660,6 +841,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun unlockMedalIfNotUnlocked(medalId: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Persist to backup SharedPreferences so achievements never reset
+            val currentBackup = prefs.getStringSet("unlocked_medals_backup", emptySet())?.toMutableSet() ?: mutableSetOf()
+            if (!currentBackup.contains(medalId)) {
+                currentBackup.add(medalId)
+                prefs.edit().putStringSet("unlocked_medals_backup", currentBackup).apply()
+            }
+
             val medals = repository.allMedals.firstOrNull() ?: emptyList()
             val targetMedal = medals.find { it.id == medalId }
             if (targetMedal != null && !targetMedal.isUnlocked) {
@@ -782,6 +970,55 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         _activeWorkout.value = current.copy(exercises = current.exercises + newPlan)
     }
 
+    // Substitution of an exercise in the active workout for another in the same muscle group
+    fun substituteExerciseInActiveWorkout(exerciseIndex: Int, newExercise: Exercise) {
+        val current = _activeWorkout.value
+        val updatedExercises = current.exercises.toMutableList()
+        if (exerciseIndex in updatedExercises.indices) {
+            val oldPlan = updatedExercises[exerciseIndex]
+            val setList = oldPlan.sets.map {
+                it.copy(restSeconds = newExercise.defaultRestSeconds)
+            }.ifEmpty {
+                (1..newExercise.defaultSets).map {
+                    ExerciseSetEntry(
+                        setNumber = it,
+                        weightKg = 20.0,
+                        reps = newExercise.defaultReps,
+                        isCompleted = false,
+                        restSeconds = newExercise.defaultRestSeconds
+                    )
+                }
+            }
+            val newPlan = oldPlan.copy(
+                exerciseId = newExercise.id,
+                exerciseName = newExercise.name,
+                muscleGroup = newExercise.muscleGroup.displayName,
+                sets = setList,
+                targetRestSeconds = newExercise.defaultRestSeconds,
+                notes = newExercise.executionTips
+            )
+            updatedExercises[exerciseIndex] = newPlan
+            _activeWorkout.value = current.copy(exercises = updatedExercises)
+        }
+    }
+
+    fun substituteExerciseInActiveWorkout(oldExerciseId: Long, newExercise: Exercise) {
+        val idx = _activeWorkout.value.exercises.indexOfFirst { it.exerciseId == oldExerciseId }
+        if (idx != -1) {
+            substituteExerciseInActiveWorkout(idx, newExercise)
+        }
+    }
+
+    fun getExercisesForMuscleGroup(muscleGroupDisplayName: String): List<Exercise> {
+        val all = allExercises.value
+        val matches = all.filter {
+            it.muscleGroup.displayName.equals(muscleGroupDisplayName, ignoreCase = true) ||
+                    muscleGroupDisplayName.contains(it.muscleGroup.displayName, ignoreCase = true) ||
+                    it.muscleGroup.displayName.contains(muscleGroupDisplayName, ignoreCase = true)
+        }
+        return if (matches.isNotEmpty()) matches else all
+    }
+
     fun updateActiveLocation(location: String) {
         _activeWorkout.value = _activeWorkout.value.copy(location = location)
     }
@@ -884,9 +1121,10 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         val estimatedCal = ((6.0 * 3.5 * profile.currentWeightKg / 200.0) * durationMin).toInt()
 
         val session = WorkoutSession(
+            id = current.scheduledSessionId ?: 0L,
             templateId = current.templateId,
             title = current.title.ifBlank { "Treino de Musculação" },
-            dateEpochDay = DateUtils.todayEpochDay(),
+            dateEpochDay = current.scheduledDateEpochDay ?: DateUtils.todayEpochDay(),
             startTimeMillis = System.currentTimeMillis() - (current.durationSeconds * 1000L),
             endTimeMillis = System.currentTimeMillis(),
             durationSeconds = current.durationSeconds,
@@ -901,7 +1139,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             val insertedId = repository.saveWorkoutSession(session)
-            val savedSession = session.copy(id = insertedId)
+            val savedSession = session.copy(id = if (session.id != 0L) session.id else insertedId)
 
             _activeWorkout.value = ActiveWorkoutState() // Reset
             onSaved(savedSession)
@@ -1194,6 +1432,135 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 estimatedCalories = 0
             )
             repository.saveWorkoutSession(session)
+        }
+    }
+
+    fun logRetroactiveWorkout(
+        title: String,
+        epochDay: Long,
+        muscleGroups: List<MuscleGroup>,
+        durationMinutes: Int = 45,
+        location: String = "Academia Smart Fit",
+        rpe: Int = 7,
+        notes: String = "",
+        templateId: Long? = null,
+        customVolumeKg: Double? = null
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+            val durationSec = durationMinutes * 60
+            val estimatedCal = ((6.0 * 3.5 * profile.currentWeightKg / 200.0) * durationMinutes).toInt()
+
+            // Generate representative completed exercises for the chosen muscle groups
+            val availableExercises = allExercises.value
+            val generatedPlans = mutableListOf<WorkoutExercisePlan>()
+            var calculatedVolume = 0.0
+
+            for (group in muscleGroups) {
+                val matching = availableExercises.filter { it.muscleGroup == group }
+                val chosenExercises = if (matching.isNotEmpty()) matching.take(2) else emptyList()
+                for (ex in chosenExercises) {
+                    val defaultWeight = when (group) {
+                        MuscleGroup.QUADRICEPS -> 60.0
+                        MuscleGroup.PEITO -> 40.0
+                        MuscleGroup.COSTAS -> 45.0
+                        MuscleGroup.POSTERIOR_GLUTEOS -> 40.0
+                        MuscleGroup.OMBROS -> 16.0
+                        MuscleGroup.BICEPS, MuscleGroup.TRICEPS -> 14.0
+                        MuscleGroup.PANTURRILHA -> 50.0
+                        MuscleGroup.ABDOMEN -> 0.0
+                    }
+                    val sets = (1..3).map { setNum ->
+                        ExerciseSetEntry(
+                            setNumber = setNum,
+                            weightKg = defaultWeight,
+                            reps = 10,
+                            isCompleted = true,
+                            restSeconds = 60,
+                            setTag = SetTag.NORMAL
+                        )
+                    }
+                    val exerciseVolume = sets.sumOf { it.weightKg * it.reps }
+                    calculatedVolume += exerciseVolume
+                    generatedPlans.add(
+                        WorkoutExercisePlan(
+                            exerciseId = ex.id,
+                            exerciseName = ex.name,
+                            muscleGroup = group.displayName,
+                            sets = sets,
+                            targetRestSeconds = 60,
+                            notes = "Realizado em sessão retroativa"
+                        )
+                    )
+                }
+            }
+
+            val totalWeight = customVolumeKg ?: (if (calculatedVolume > 0.0) calculatedVolume else (durationMinutes * 55.0).coerceAtLeast(1000.0))
+
+            val exercisesJson = try {
+                plansAdapter.toJson(generatedPlans)
+            } catch (_: Exception) {
+                "[]"
+            }
+
+            val finalTitle = if (title.isNotBlank()) {
+                title
+            } else if (muscleGroups.isNotEmpty()) {
+                "Treino de " + muscleGroups.joinToString(", ") { it.displayName }
+            } else {
+                "Treino de Musculação"
+            }
+
+            val groupNames = muscleGroups.joinToString(", ") { it.displayName }
+            val finalNotes = buildString {
+                if (groupNames.isNotBlank()) {
+                    append("Grupos Musculares: $groupNames")
+                }
+                if (notes.isNotBlank()) {
+                    if (isNotEmpty()) append(" • ")
+                    append(notes)
+                }
+                if (isEmpty()) {
+                    append("Treino registrado retroativamente")
+                }
+            }
+
+            val session = WorkoutSession(
+                templateId = templateId,
+                title = finalTitle,
+                dateEpochDay = epochDay,
+                startTimeMillis = (epochDay * 86400000L) + (18 * 3600000L), // 18:00
+                endTimeMillis = (epochDay * 86400000L) + (18 * 3600000L) + (durationSec * 1000L),
+                durationSeconds = durationSec,
+                location = location.ifBlank { "Academia" },
+                status = SessionStatus.COMPLETED,
+                totalWeightLiftedKg = totalWeight,
+                estimatedCalories = estimatedCal,
+                perceivedExertion = rpe,
+                notes = finalNotes,
+                exercisesDoneJson = exercisesJson,
+                aiCaloricEvaluation = ""
+            )
+
+            val savedId = repository.saveWorkoutSession(session)
+            val savedSession = session.copy(id = savedId)
+
+            // Sync gamification and achievements
+            syncGamificationAndGoals()
+
+            // Unlock first workout medal
+            unlockMedalIfNotUnlocked("first_workout")
+
+            // AI evaluation in background
+            evaluateSessionWithAI(savedSession, profile)
+
+            // Health Connect if granted
+            try {
+                if (_healthPermissionsGranted.value) {
+                    healthConnectManager.writeStrengthWorkoutSession(savedSession)
+                    refreshHealthDailyMetrics()
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -1776,5 +2143,56 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             healthConnectManager.writeWeight(weightKg)
             refreshHealthDailyMetrics()
         }
+    }
+
+    // --- Volume-Based AI Nutrition Module ---
+    fun requestVolumeNutritionEvaluation() {
+        viewModelScope.launch {
+            _isEvaluatingVolumeNutrition.value = true
+            val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+            val sessions = allWorkoutSessions.value
+            val cardios = allCardioSessions.value
+            try {
+                val result = repository.evaluateNutritionFromVolumeHistory(profile, sessions, cardios)
+                _volumeNutritionEvaluation.value = result
+            } catch (_: Exception) {
+                val fallback = repository.evaluateNutritionFromVolumeHistory(profile, sessions, cardios)
+                _volumeNutritionEvaluation.value = fallback
+            } finally {
+                _isEvaluatingVolumeNutrition.value = false
+            }
+        }
+    }
+
+    fun applyNutritionTargetsToProfile(advice: String) {
+        viewModelScope.launch {
+            val current = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
+            val updated = current.copy(aiCaloricAdvice = advice)
+            repository.saveUserProfile(updated)
+        }
+    }
+
+    // --- Gemini AI Exercise Execution Guide ---
+    fun requestExerciseExecutionGuide(exerciseName: String, muscleGroup: String = "", equipment: String = "") {
+        viewModelScope.launch {
+            _isLoadingExerciseExecutionGuide.value = true
+            try {
+                val guide = repository.generateExerciseExecutionGuide(exerciseName, muscleGroup, equipment)
+                _activeExerciseExecutionGuide.value = guide
+            } catch (_: Exception) {
+                val fallbackGuide = repository.generateExerciseExecutionGuide(exerciseName, muscleGroup, equipment)
+                _activeExerciseExecutionGuide.value = fallbackGuide
+            } finally {
+                _isLoadingExerciseExecutionGuide.value = false
+            }
+        }
+    }
+
+    fun clearExerciseExecutionGuide() {
+        _activeExerciseExecutionGuide.value = null
+    }
+
+    fun speakExerciseTip(text: String) {
+        ttsVoiceManager.speak(text)
     }
 }

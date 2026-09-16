@@ -34,11 +34,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.CheckCircle
 import com.example.ui.components.WorkoutReminderDialog
+import com.example.ui.components.RetroactiveWorkoutDialog
+import com.example.data.model.MuscleGroup
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
+import com.example.ui.components.FullWorkoutHistorySheet
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -95,10 +101,11 @@ import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaScreen(
     viewModel: FitnessViewModel,
-    onStartScheduledWorkout: (WorkoutTemplate, String) -> Unit,
+    onStartScheduledWorkout: (WorkoutTemplate, String, Long?, Long?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val workoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
@@ -112,7 +119,9 @@ fun AgendaScreen(
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var showScheduleDialog by remember { mutableStateOf(false) }
+    var showRetroactiveDialog by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
+    var showFullHistorySheet by remember { mutableStateOf(false) }
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
 
@@ -122,7 +131,12 @@ fun AgendaScreen(
     val workoutsForSelectedDay = workoutSessions.filter { it.dateEpochDay == selectedEpochDay }
     val cardiosForSelectedDay = cardioSessions.filter { it.dateEpochDay == selectedEpochDay }
 
-    val workoutDaysSet = remember(workoutSessions) { workoutSessions.map { it.dateEpochDay }.toSet() }
+    val completedWorkoutDaysSet = remember(workoutSessions) {
+        workoutSessions.filter { it.status == SessionStatus.COMPLETED }.map { it.dateEpochDay }.toSet()
+    }
+    val scheduledWorkoutDaysSet = remember(workoutSessions) {
+        workoutSessions.filter { it.status == SessionStatus.SCHEDULED }.map { it.dateEpochDay }.toSet()
+    }
     val cardioDaysSet = remember(cardioSessions) { cardioSessions.map { it.dateEpochDay }.toSet() }
 
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -160,33 +174,65 @@ fun AgendaScreen(
                             color = TextSecondary
                         )
                     }
-                    Surface(
-                        onClick = { showReminderDialog = true },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (reminderSettings.isEnabled) PurplePrimary.copy(alpha = 0.15f) else PurpleDarkSurface,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (reminderSettings.isEnabled) PurplePrimary.copy(alpha = 0.4f) else GlassBorderSubtle
-                        ),
-                        modifier = Modifier.testTag("btn_open_reminders_header")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            onClick = { showFullHistorySheet = true },
+                            shape = RoundedCornerShape(14.dp),
+                            color = PurpleDarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
+                            modifier = Modifier.testTag("btn_open_full_history_agenda")
                         ) {
-                            Icon(
-                                Icons.Default.NotificationsActive,
-                                contentDescription = "Configurar Lembretes",
-                                tint = if (reminderSettings.isEnabled) LilacAccent else TextMuted,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (reminderSettings.isEnabled) reminderSettings.formattedTime else "Lembretes",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (reminderSettings.isEnabled) LilacAccent else TextSecondary
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.History,
+                                    contentDescription = "Histórico de Treinos",
+                                    tint = LilacAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Histórico",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LilacAccent
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = { showReminderDialog = true },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (reminderSettings.isEnabled) PurplePrimary.copy(alpha = 0.15f) else PurpleDarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (reminderSettings.isEnabled) PurplePrimary.copy(alpha = 0.4f) else GlassBorderSubtle
+                            ),
+                            modifier = Modifier.testTag("btn_open_reminders_header")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.NotificationsActive,
+                                    contentDescription = "Configurar Lembretes",
+                                    tint = if (reminderSettings.isEnabled) LilacAccent else TextMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (reminderSettings.isEnabled) reminderSettings.formattedTime else "Lembretes",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (reminderSettings.isEnabled) LilacAccent else TextSecondary
+                                )
+                            }
                         }
                     }
                 }
@@ -319,7 +365,8 @@ fun AgendaScreen(
                                         val cellEpoch = cellDate.toEpochDay()
                                         val isSelected = cellDate == selectedDate
                                         val isToday = cellDate == LocalDate.now()
-                                        val hasWorkout = workoutDaysSet.contains(cellEpoch)
+                                        val hasCompletedWorkout = completedWorkoutDaysSet.contains(cellEpoch)
+                                        val hasScheduledWorkout = scheduledWorkoutDaysSet.contains(cellEpoch)
                                         val hasCardio = cardioDaysSet.contains(cellEpoch)
 
                                         Box(
@@ -348,12 +395,20 @@ fun AgendaScreen(
                                                 )
 
                                                 // Dots for sessions
-                                                if (hasWorkout || hasCardio) {
+                                                if (hasCompletedWorkout || hasScheduledWorkout || hasCardio) {
                                                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                                        if (hasWorkout) {
+                                                        if (hasCompletedWorkout) {
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(4.dp)
+                                                                    .size(5.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(if (isSelected) Color.White else EmeraldSuccess)
+                                                            )
+                                                        }
+                                                        if (hasScheduledWorkout) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(5.dp)
                                                                     .clip(CircleShape)
                                                                     .background(if (isSelected) Color.White else LilacAccent)
                                                             )
@@ -361,9 +416,9 @@ fun AgendaScreen(
                                                         if (hasCardio) {
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(4.dp)
+                                                                    .size(5.dp)
                                                                     .clip(CircleShape)
-                                                                    .background(if (isSelected) Color.White else EmeraldSuccess)
+                                                                    .background(if (isSelected) Color.White else LilacSoft)
                                                             )
                                                         }
                                                     }
@@ -377,47 +432,144 @@ fun AgendaScreen(
                             }
                         }
                     }
+
+                    // Calendar Legend: Realizado (verde), Agendado (roxo), Cardio (lilás)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(EmeraldSuccess))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Realizado", fontSize = 11.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(LilacAccent))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Agendado", fontSize = 11.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(LilacSoft))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Cardio", fontSize = 11.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 
             // Selected Date Summary & Action Bar
             item {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = DateUtils.formatEpochDayWithWeekday(selectedEpochDay),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            color = TextPrimary
-                        )
-                        if (selectedEpochDay == DateUtils.todayEpochDay()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Text(
-                                text = "HOJE",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = LilacAccent,
-                                letterSpacing = 0.5.sp
+                                text = DateUtils.formatEpochDayWithWeekday(selectedEpochDay),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = TextPrimary
                             )
+                            if (selectedEpochDay == DateUtils.todayEpochDay()) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = EmeraldSuccess.copy(alpha = 0.15f),
+                                    border = androidx.compose.foundation.BorderStroke(0.8.dp, EmeraldSuccess.copy(alpha = 0.4f))
+                                ) {
+                                    Text(
+                                        text = "HOJE",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = EmeraldSuccess,
+                                        letterSpacing = 0.5.sp,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(GradientAction)
-                            .clickable { showScheduleDialog = true }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                            .testTag("btn_schedule_workout_agenda"),
-                        contentAlignment = Alignment.Center
+                    // Action Buttons Row: symmetrical, equal height, no text wrapping
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Agendar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Surface(
+                            onClick = { showRetroactiveDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = EmeraldSuccess.copy(alpha = 0.14f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.55f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .testTag("btn_log_retroactive_workout_agenda")
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = EmeraldSuccess,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Já Treinei",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldSuccess,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = { showScheduleDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = PurplePrimary,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .testTag("btn_schedule_workout_agenda")
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Agendar",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
                     }
                 }
@@ -430,18 +582,29 @@ fun AgendaScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(PurpleDeepCard)
+                                    .border(1.dp, GlassBorderSubtle, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = LilacSoft, modifier = Modifier.size(22.dp))
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "Nenhum treino agendado para este dia",
+                                text = "Nenhum registro para este dia",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Clique em 'Agendar' para planejar seu treino ou registrar suas atividades no local escolhido.",
+                                text = "Nenhum treino agendado ou realizado neste dia.\nUse os botões acima para registrar ou agendar.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -454,8 +617,8 @@ fun AgendaScreen(
                     AgendaWorkoutItemCard(
                         session = session,
                         templates = templates,
-                        onStart = { template, location ->
-                            onStartScheduledWorkout(template, location)
+                        onStart = { template, location, sessionId, dateEpoch ->
+                            onStartScheduledWorkout(template, location, sessionId, dateEpoch)
                         },
                         onDelete = { viewModel.deleteWorkoutSession(session.id) },
                         onViewAiFeedback = { feedback ->
@@ -555,6 +718,28 @@ fun AgendaScreen(
         )
     }
 
+    // Retroactive Workout Dialog
+    if (showRetroactiveDialog) {
+        RetroactiveWorkoutDialog(
+            initialEpochDay = selectedEpochDay,
+            templates = templates,
+            onDismiss = { showRetroactiveDialog = false },
+            onConfirm = { title, epochDay, muscleGroups, durationMinutes, location, rpe, notes, templateId ->
+                viewModel.logRetroactiveWorkout(
+                    title = title,
+                    epochDay = epochDay,
+                    muscleGroups = muscleGroups,
+                    durationMinutes = durationMinutes,
+                    location = location,
+                    rpe = rpe,
+                    notes = notes,
+                    templateId = templateId
+                )
+                showRetroactiveDialog = false
+            }
+        )
+    }
+
     // Schedule Dialog
     if (showScheduleDialog) {
         ScheduleWorkoutDialog(
@@ -575,13 +760,28 @@ fun AgendaScreen(
             }
         )
     }
+
+    // Full Training History BottomSheet
+    if (showFullHistorySheet) {
+        FullWorkoutHistorySheet(
+            workoutSessions = workoutSessions,
+            cardioSessions = cardioSessions,
+            onDismiss = { showFullHistorySheet = false },
+            onDeleteWorkoutSession = { sessionId -> viewModel.deleteWorkoutSession(sessionId) },
+            onDeleteCardioSession = { cardioId -> viewModel.deleteCardioSession(cardioId) },
+            onViewAiFeedback = { aiFeedback ->
+                selectedSessionAiFeedback = aiFeedback
+                showAiDialog = true
+            }
+        )
+    }
 }
 
 @Composable
 fun AgendaWorkoutItemCard(
     session: WorkoutSession,
     templates: List<WorkoutTemplate>,
-    onStart: (WorkoutTemplate, String) -> Unit,
+    onStart: (WorkoutTemplate, String, Long, Long) -> Unit,
     onDelete: () -> Unit,
     onViewAiFeedback: (String) -> Unit = {},
     onAnalyzeWithAi: () -> Unit = {}
@@ -684,61 +884,93 @@ fun AgendaWorkoutItemCard(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-            if (session.aiCaloricEvaluation.isNotBlank()) {
+            if (session.notes.isNotBlank()) {
                 Surface(
-                    onClick = { onViewAiFeedback(session.aiCaloricEvaluation) },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = PurpleDarkSurface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
+                    border = androidx.compose.foundation.BorderStroke(0.8.dp, GlassBorderSubtle),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = LilacAccent
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            "Ver Avaliação de Calorias (IA)",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LilacAccent
-                        )
+                    Text(
+                        text = "💪 ${session.notes}",
+                        fontSize = 11.sp,
+                        color = LilacAccent,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    if (session.aiCaloricEvaluation.isNotBlank()) {
+                        Surface(
+                            onClick = { onViewAiFeedback(session.aiCaloricEvaluation) },
+                            shape = RoundedCornerShape(10.dp),
+                            color = PurpleDarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = LilacAccent
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Avaliação IA",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LilacAccent
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            onClick = onAnalyzeWithAi,
+                            shape = RoundedCornerShape(10.dp),
+                            color = PurpleDarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = LilacSoft
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Calcular Calorias & IA",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LilacSoft
+                                )
+                            }
+                        }
                     }
                 }
-            } else {
-                Surface(
-                    onClick = onAnalyzeWithAi,
-                    shape = RoundedCornerShape(10.dp),
-                    color = PurpleDarkSurface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
-                    modifier = Modifier.fillMaxWidth()
+
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(38.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = LilacSoft
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            "Calcular Calorias & IA",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LilacSoft
-                        )
-                    }
+                    Icon(Icons.Default.Delete, contentDescription = "Excluir Registro", tint = RedDestructive.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
                 }
             }
         } else {
@@ -758,7 +990,7 @@ fun AgendaWorkoutItemCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .background(GradientAction)
-                            .clickable { onStart(template, session.location) }
+                            .clickable { onStart(template, session.location, session.id, session.dateEpochDay) }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
