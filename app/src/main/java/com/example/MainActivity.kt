@@ -34,9 +34,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DirectionsBike
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -69,9 +71,11 @@ import com.example.ui.components.QuickWorkoutSheet
 import com.example.ui.screens.ActiveWorkoutScreen
 import com.example.ui.screens.AgendaScreen
 import com.example.ui.screens.CardioScreen
+import com.example.ui.screens.CoachPRL09Screen
 import com.example.ui.screens.EvolutionScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.Phase45HubScreen
+import com.example.ui.screens.Phase7JourneyScreen
 import com.example.ui.screens.WorkoutTemplatesScreen
 import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
@@ -97,6 +101,8 @@ enum class AppDestination(
     HOME("Início", Icons.Default.Home, "tab_home"),
     WORKOUTS("Treinos", Icons.Default.FitnessCenter, "tab_workouts"),
     DASHBOARD("Painel", Icons.Default.TrendingUp, "tab_dashboard"),
+    JOURNEY("Jornada", Icons.Default.EmojiEvents, "tab_journey"),
+    COACH("Coach", Icons.Default.Psychology, "tab_coach"),
     EVOLUTION("Progresso", Icons.Default.TrendingUp, "tab_evolution"),
     AGENDA("Agenda", Icons.Default.CalendarMonth, "tab_agenda"),
     CARDIO("Cardio", Icons.Default.DirectionsBike, "tab_cardio"),
@@ -157,6 +163,12 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     AppDestination.DASHBOARD -> Phase45HubScreen(
                         onStartTodayWorkout = { currentDestination = AppDestination.WORKOUTS }
                     )
+                    AppDestination.JOURNEY -> Phase7JourneyScreen(
+                        onOpenCoach = { currentDestination = AppDestination.COACH },
+                        onOpenDashboard = { currentDestination = AppDestination.DASHBOARD },
+                        onStartWorkout = { currentDestination = AppDestination.WORKOUTS }
+                    )
+                    AppDestination.COACH -> CoachPRL09Screen()
                     AppDestination.CARDIO -> CardioScreen(viewModel = viewModel)
                     AppDestination.AGENDA -> AgendaScreen(
                         viewModel = viewModel,
@@ -263,7 +275,7 @@ fun FloatingLiquidGlassNav(
     modifier: Modifier = Modifier
 ) {
     val navItemsLeft = listOf(AppDestination.HOME, AppDestination.WORKOUTS)
-    val navItemsRight = listOf(AppDestination.DASHBOARD, AppDestination.EVOLUTION, AppDestination.AGENDA)
+    val navItemsRight = listOf(AppDestination.DASHBOARD, AppDestination.JOURNEY, AppDestination.AGENDA)
 
     Surface(
         modifier = modifier.fillMaxWidth().shadow(16.dp, RoundedCornerShape(32.dp), ambientColor = GlowPurple, spotColor = PurpleVibrant),
