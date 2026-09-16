@@ -52,9 +52,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fittreino_database"
                 )
-                    // Never use fallbackToDestructiveMigration here: workout history,
-                    // measurements and achievements must survive database upgrades.
-                    // Every future schema version must ship with an explicit Room Migration.
+                    // Nunca usar fallbackToDestructiveMigration: o histórico é patrimônio do usuário.
+                    // Toda futura mudança de schema deve ter Migration explícita + teste.
+                    .addMigrations(*DatabaseMigrations.ALL)
                     .addCallback(DatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
