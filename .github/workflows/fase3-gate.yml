@@ -1,0 +1,25 @@
+name: Fase 3 Gate
+on:
+  push:
+    branches: [ "feat/fase3-final-gate" ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Ensure local env files
+        run: |
+          test -f .env || cp .env.example .env || touch .env
+          test -f app/debug.keystore || keytool -genkeypair -v -keystore app/debug.keystore -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+      - name: Unit tests and debug build
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
+      - name: Verify Room v9 schema generated
+        run: test -f app/schemas/com.example.data.local.AppDatabase/9.json
