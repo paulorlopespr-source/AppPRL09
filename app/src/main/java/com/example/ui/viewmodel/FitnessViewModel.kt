@@ -38,6 +38,7 @@ import com.example.util.HealthConnectDailyMetrics
 import com.example.util.HealthSyncResult
 import com.example.data.repository.FitnessRepository
 import com.example.ui.components.DateUtils
+import com.example.util.GpsLocationTracker
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -88,16 +89,26 @@ data class ActiveWorkoutState(
 
 data class ActiveCardioState(
     val isActive: Boolean = false,
+    val isPaused: Boolean = false,
     val type: CardioType = CardioType.BICICLETA_INDOOR,
     val durationSeconds: Int = 0,
     val distanceKm: Double = 0.0,
     val intensity: IntensityLevel = IntensityLevel.MODERADA,
     val location: String = "Academia Smart Fit",
-    val caloriesBurned: Int = 0
+    val caloriesBurned: Int = 0,
+    val speedKmh: Double = 0.0,
+    val paceMinKm: Double = 0.0,
+    val gpsEnabled: Boolean = false,
+    val gpsAccuracyMeters: Float? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val gpsPointsCount: Int = 0,
+    val targetMinutes: Int? = null
 )
 
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
 
+    val gpsLocationTracker = GpsLocationTracker(application)
     private val repository: FitnessRepository
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     private val planListType = Types.newParameterizedType(List::class.java, WorkoutExercisePlan::class.java)
@@ -418,6 +429,23 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             isActive = true,
             templateId = null,
             title = title.ifBlank { "Treino Personalizado" },
+            location = location,
+            durationSeconds = 0,
+            exercises = plans,
+            perceivedExertion = 7,
+            notes = "",
+            restTimerVisible = false
+        )
+
+        startWorkoutDurationTimer()
+        ttsVoiceManager.speakStartWorkout(_activeWorkout.value.title)
+    }
+
+    fun startWorkoutWithPlans(title: String, location: String, plans: List<WorkoutExercisePlan>) {
+        _activeWorkout.value = ActiveWorkoutState(
+            isActive = true,
+            templateId = null,
+            title = title.ifBlank { "Treino Rápido" },
             location = location,
             durationSeconds = 0,
             exercises = plans,
@@ -946,40 +974,127 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- Live Cardio Session Functions ---
-    fun startLiveCardio(type: CardioType, location: String, intensity: IntensityLevel) {
+    fun startLiveCardio(
+        type: CardioType,
+        location: String,
+        intensity: IntensityLevel,
+        targetMinutes: Int? = null,
+        enableGps: Boolean = false
+    ) {
         cardioTimerJob?.cancel()
+        gpsLocationTracker.reset()
+
+        var isGpsActive = false
+        if (enableGps) {
+            isGpsActive = gpsLocationTracker.startTracking()
+        }
+
         _activeCardio.value = ActiveCardioState(
             isActive = true,
+            isPaused = false,
             type = type,
             durationSeconds = 0,
             distanceKm = 0.0,
             intensity = intensity,
             location = location,
-            caloriesBurned = 0
+            caloriesBurned = 0,
+            speedKmh = 0.0,
+            paceMinKm = 0.0,
+            gpsEnabled = isGpsActive,
+            targetMinutes = targetMinutes
         )
 
         cardioTimerJob = viewModelScope.launch {
             while (_activeCardio.value.isActive) {
                 delay(1000)
-                val newSec = _activeCardio.value.durationSeconds + 1
+                if (_activeCardio.value.isPaused) continue
+
+                val current = _activeCardio.value
+                val newSec = current.durationSeconds + 1
                 val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
-                val met = when (_activeCardio.value.intensity) {
-                    IntensityLevel.LEVE -> _activeCardio.value.type.metLight
-                    IntensityLevel.MODERADA -> _activeCardio.value.type.metModerate
-                    IntensityLevel.INTENSA -> _activeCardio.value.type.metIntense
+                val met = when (current.intensity) {
+                    IntensityLevel.LEVE -> current.type.metLight
+                    IntensityLevel.MODERADA -> current.type.metModerate
+                    IntensityLevel.INTENSA -> current.type.metIntense
                 }
                 val cal = ((met * 3.5 * profile.currentWeightKg / 200.0) * (newSec / 60.0)).toInt()
 
-                _activeCardio.value = _activeCardio.value.copy(
+                var currentDist = current.distanceKm
+                var speed = current.speedKmh
+                var accuracy: Float? = current.gpsAccuracyMeters
+                var lat: Double? = current.latitude
+                var lon: Double? = current.longitude
+                var pointsCount = current.gpsPointsCount
+
+                if (current.gpsEnabled) {
+                    val gpsDist = gpsLocationTracker.getDistanceKm()
+                    if (gpsDist > 0) {
+                        currentDist = gpsDist
+                    }
+                    speed = gpsLocationTracker.currentSpeedKmh.value
+                    accuracy = gpsLocationTracker.accuracyMeters.value
+                    val loc = gpsLocationTracker.currentLocation.value
+                    if (loc != null) {
+                        lat = loc.latitude
+                        lon = loc.longitude
+                    }
+                    pointsCount = gpsLocationTracker.routePoints.value.size
+                } else if (currentDist == 0.0 || speed == 0.0) {
+                    val estimatedSpeed = when (current.type) {
+                        CardioType.CAMINHADA_AR_LIVRE, CardioType.CAMINHADA_ESTEIRA -> 5.0
+                        CardioType.CORRIDA -> 9.5
+                        CardioType.BICICLETA_INDOOR -> 18.0
+                        CardioType.FUTEBOL -> 7.5
+                    }
+                    speed = estimatedSpeed
+                    currentDist = (estimatedSpeed * (newSec / 3600.0))
+                }
+
+                val pace = if (currentDist > 0.02) {
+                    (newSec / 60.0) / currentDist
+                } else 0.0
+
+                _activeCardio.value = current.copy(
                     durationSeconds = newSec,
-                    caloriesBurned = cal
+                    caloriesBurned = cal,
+                    distanceKm = currentDist,
+                    speedKmh = speed,
+                    paceMinKm = pace,
+                    gpsAccuracyMeters = accuracy,
+                    latitude = lat,
+                    longitude = lon,
+                    gpsPointsCount = pointsCount
                 )
             }
         }
     }
 
+    fun pauseLiveCardio() {
+        _activeCardio.value = _activeCardio.value.copy(isPaused = true)
+    }
+
+    fun resumeLiveCardio() {
+        _activeCardio.value = _activeCardio.value.copy(isPaused = false)
+    }
+
+    fun toggleCardioGps(enable: Boolean): Boolean {
+        val current = _activeCardio.value
+        if (!current.isActive) return false
+
+        return if (enable) {
+            val started = gpsLocationTracker.startTracking()
+            _activeCardio.value = current.copy(gpsEnabled = started)
+            started
+        } else {
+            gpsLocationTracker.stopTracking()
+            _activeCardio.value = current.copy(gpsEnabled = false)
+            false
+        }
+    }
+
     fun finishLiveCardio(distanceKm: Double?, heartRate: Int?, notes: String, onFinished: (CardioSession) -> Unit = {}) {
         cardioTimerJob?.cancel()
+        gpsLocationTracker.stopTracking()
         val current = _activeCardio.value
         val durationMin = (current.durationSeconds / 60).coerceAtLeast(1)
         val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
@@ -991,12 +1106,14 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
         val cal = ((met * 3.5 * profile.currentWeightKg / 200.0) * durationMin).toInt()
 
+        val finalDistance = distanceKm ?: if (current.distanceKm > 0) current.distanceKm else null
+
         val cardioSession = CardioSession(
             type = current.type,
             dateEpochDay = DateUtils.todayEpochDay(),
             timestampMillis = System.currentTimeMillis(),
             durationMinutes = durationMin,
-            distanceKm = distanceKm ?: if (current.distanceKm > 0) current.distanceKm else null,
+            distanceKm = finalDistance,
             avgHeartRateBpm = heartRate,
             intensity = current.intensity,
             location = current.location,
@@ -1008,6 +1125,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             val id = repository.saveCardioSession(cardioSession)
             val savedCardio = cardioSession.copy(id = id)
             _activeCardio.value = ActiveCardioState()
+            gpsLocationTracker.reset()
             onFinished(savedCardio)
 
             // AI cardio evaluation
@@ -1025,6 +1143,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun discardLiveCardio() {
         cardioTimerJob?.cancel()
+        gpsLocationTracker.reset()
         _activeCardio.value = ActiveCardioState()
     }
 

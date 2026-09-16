@@ -75,6 +75,7 @@ import com.example.data.model.CardioSession
 import com.example.data.model.CardioType
 import com.example.data.model.IntensityLevel
 import com.example.ui.components.AIEvaluationDialog
+import com.example.ui.components.ActiveCardioTrackerModal
 import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
 import com.example.ui.components.LiquidGlassSurface
@@ -99,6 +100,8 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+
 fun getCardioIcon(type: CardioType): ImageVector {
     return when (type) {
         CardioType.BICICLETA_INDOOR -> Icons.Default.DirectionsBike
@@ -109,6 +112,7 @@ fun getCardioIcon(type: CardioType): ImageVector {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardioScreen(
     viewModel: FitnessViewModel,
@@ -122,6 +126,7 @@ fun CardioScreen(
     var showStartLiveDialog by remember { mutableStateOf(false) }
     var selectedCardioForLive by remember { mutableStateOf(CardioType.BICICLETA_INDOOR) }
     var showFinishLiveDialog by remember { mutableStateOf(false) }
+    var showActiveCardioModal by remember { mutableStateOf(false) }
 
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
@@ -245,14 +250,32 @@ fun CardioScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        PrimaryButton(
-                            text = "Finalizar e Salvar Cardio",
-                            onClick = { showFinishLiveDialog = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("btn_finish_live_cardio")
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            PrimaryButton(
+                                text = "Abrir GPS & Tempo",
+                                icon = Icons.Default.DirectionsRun,
+                                onClick = { showActiveCardioModal = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("btn_open_cardio_tracker")
+                            )
+
+                            Button(
+                                onClick = { showFinishLiveDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("btn_finish_live_cardio")
+                            ) {
+                                Text("Finalizar", fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
                     }
                 }
             }
@@ -490,8 +513,16 @@ fun CardioScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.startLiveCardio(selectedCardioForLive, location, intensity)
+                        val enableGps = selectedCardioForLive == CardioType.CAMINHADA_AR_LIVRE || selectedCardioForLive == CardioType.CORRIDA
+                        viewModel.startLiveCardio(
+                            type = selectedCardioForLive,
+                            location = location,
+                            intensity = intensity,
+                            targetMinutes = 20,
+                            enableGps = enableGps
+                        )
                         showStartLiveDialog = false
+                        showActiveCardioModal = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                     shape = RoundedCornerShape(12.dp),
@@ -612,6 +643,14 @@ fun CardioScreen(
                 viewModel.logManualCardio(cardio)
                 showManualLogDialog = false
             }
+        )
+    }
+
+    // Active Cardio Full Tracker Modal
+    if (activeCardio.isActive && showActiveCardioModal) {
+        ActiveCardioTrackerModal(
+            viewModel = viewModel,
+            onDismiss = { showActiveCardioModal = false }
         )
     }
 

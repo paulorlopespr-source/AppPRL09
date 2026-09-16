@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,8 +63,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.model.WorkoutTemplate
+import com.example.ui.components.ActiveCardioTrackerModal
 import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.PrimaryButton
+import com.example.ui.components.QuickWorkoutSheet
 import com.example.ui.components.SecondaryButton
 import com.example.ui.screens.ActiveWorkoutScreen
 import com.example.ui.screens.AgendaScreen
@@ -71,6 +74,8 @@ import com.example.ui.screens.CardioScreen
 import com.example.ui.screens.EvolutionScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.WorkoutTemplatesScreen
+import com.example.ui.theme.EmeraldSubtle
+import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.FitPr09Theme
 import com.example.ui.theme.GlassBorder
 import com.example.ui.theme.GlassBorderSubtle
@@ -121,9 +126,11 @@ class MainActivity : ComponentActivity() {
 fun MainAppScreen(viewModel: FitnessViewModel) {
     var currentDestination by remember { mutableStateOf(AppDestination.HOME) }
     val activeWorkoutState by viewModel.activeWorkout.collectAsStateWithLifecycle()
+    val activeCardioState by viewModel.activeCardio.collectAsStateWithLifecycle()
     val workoutTemplates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
 
     var showQuickStartSheet by remember { mutableStateOf(false) }
+    var showActiveCardioModal by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val showBottomBar = currentDestination != AppDestination.ACTIVE_WORKOUT
@@ -181,6 +188,74 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                 }
             }
 
+            // Floating Active Cardio Mini-Bar (if active and modal is closed)
+            if (activeCardioState.isActive && !showActiveCardioModal && showBottomBar) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 84.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable { showActiveCardioModal = true }
+                        .testTag("floating_active_cardio_bar"),
+                    color = PurpleDeepCard,
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, EmeraldSuccess)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(EmeraldSuccess)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "${activeCardioState.type.title} em Andamento",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = String.format(
+                                        "%02d:%02d • %.2f km • ~%d kcal",
+                                        activeCardioState.durationSeconds / 60,
+                                        activeCardioState.durationSeconds % 60,
+                                        activeCardioState.distanceKm,
+                                        activeCardioState.caloriesBurned
+                                    ),
+                                    fontSize = 11.sp,
+                                    color = EmeraldSuccess,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(EmeraldSubtle)
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = "VER TEMPO/GPS",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = EmeraldSuccess
+                            )
+                        }
+                    }
+                }
+            }
+
             // Floating Liquid Glass Bottom Navigation
             AnimatedVisibility(
                 visible = showBottomBar,
@@ -198,6 +273,8 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     onCenterActionClick = {
                         if (activeWorkoutState.isActive) {
                             currentDestination = AppDestination.ACTIVE_WORKOUT
+                        } else if (activeCardioState.isActive) {
+                            showActiveCardioModal = true
                         } else {
                             showQuickStartSheet = true
                         }
@@ -207,131 +284,40 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
         }
     }
 
-    // Quick Workout Start Modal Sheet
+    // Active Cardio Live Tracker Modal (GPS, Timer, Pace, Distance, Calories)
+    if (activeCardioState.isActive && showActiveCardioModal) {
+        ActiveCardioTrackerModal(
+            viewModel = viewModel,
+            onDismiss = { showActiveCardioModal = false }
+        )
+    }
+
+    // Quick Workout Start Modal Sheet (Strength & Cardio Express)
     if (showQuickStartSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showQuickStartSheet = false },
-            sheetState = sheetState,
-            containerColor = PurpleDarkSurface,
-            contentColor = TextPrimary,
-            dragHandle = {
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 10.dp)
-                        .size(width = 40.dp, height = 4.dp)
-                        .clip(CircleShape)
-                        .background(LilacSoft.copy(alpha = 0.4f))
+        QuickWorkoutSheet(
+            onDismiss = { showQuickStartSheet = false },
+            onStartStrengthWorkout = { title, location, plans ->
+                viewModel.startWorkoutWithPlans(
+                    title = title,
+                    location = location,
+                    plans = plans
                 )
-            }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .navigationBarsPadding()
-            ) {
-                Text(
-                    text = "Iniciar Atividade",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black,
-                    color = TextPrimary
+                showQuickStartSheet = false
+                currentDestination = AppDestination.ACTIVE_WORKOUT
+            },
+            onStartCardio = { type, location, intensity, targetMinutes, enableGps ->
+                viewModel.startLiveCardio(
+                    type = type,
+                    location = location,
+                    intensity = intensity,
+                    targetMinutes = targetMinutes,
+                    enableGps = enableGps
                 )
-                Text(
-                    text = "Escolha um treino para iniciar agora:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Option 1: Start Full Body A (Default template or first template)
-                val firstTemplate = workoutTemplates.firstOrNull()
-                if (firstTemplate != null) {
-                    LiquidGlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.startWorkoutFromTemplate(firstTemplate)
-                                showQuickStartSheet = false
-                                currentDestination = AppDestination.ACTIVE_WORKOUT
-                            },
-                        backgroundColor = PurpleDeepCard,
-                        borderColor = LilacAccent.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "⚡ Iniciar Treino de Hoje",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = LilacAccent,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = firstTemplate.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "${firstTemplate.exerciseCount} exercícios • ~${firstTemplate.executionDurationMinutes} min",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(GradientAction),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Iniciar",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    SecondaryButton(
-                        text = "Ver Todos os Treinos",
-                        icon = Icons.Default.FitnessCenter,
-                        onClick = {
-                            showQuickStartSheet = false
-                            currentDestination = AppDestination.WORKOUTS
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SecondaryButton(
-                        text = "Novo Treino Livre",
-                        icon = Icons.Default.Add,
-                        onClick = {
-                            viewModel.startEmptyWorkout("Treino Personalizado")
-                            showQuickStartSheet = false
-                            currentDestination = AppDestination.ACTIVE_WORKOUT
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-            }
-        }
+                showQuickStartSheet = false
+                showActiveCardioModal = true
+            },
+            sheetState = sheetState
+        )
     }
 }
 

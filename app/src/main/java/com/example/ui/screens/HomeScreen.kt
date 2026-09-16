@@ -30,11 +30,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
@@ -73,6 +76,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.CardioSession
+import com.example.data.model.CardioType
+import com.example.data.model.IntensityLevel
 import com.example.data.model.MedalRarity
 import com.example.data.model.SessionStatus
 import com.example.data.model.WorkoutSession
@@ -80,6 +85,7 @@ import com.example.data.model.WorkoutTemplate
 import com.example.ui.components.AIEvaluationDialog
 import com.example.ui.components.AIInsightCard
 import com.example.ui.components.AINutritionDialog
+import com.example.ui.components.ActiveCardioTrackerModal
 import com.example.ui.components.CentralMenuSheet
 import com.example.ui.components.HealthConnectDialog
 import com.example.ui.components.BentoCard
@@ -92,8 +98,13 @@ import com.example.ui.components.SecondaryButton
 import com.example.ui.components.SupersetHeaderBadge
 import com.example.ui.components.UserAvatarView
 import com.example.ui.components.UserProfileDialog
+import com.example.ui.components.UserProfileMenuSheet
+import com.example.ui.components.DataExportDialog
 import com.example.ui.components.AIWorkoutGeneratorDialog
+import com.example.ui.components.QuickWorkoutSheet
 import com.example.ui.components.WorkoutReminderDialog
+import com.example.ui.theme.AmberSubtle
+import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
@@ -137,15 +148,20 @@ fun HomeScreen(
     val workoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
     val cardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
     val workoutTemplates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
+    val bodyMeasurements by viewModel.allBodyMeasurements.collectAsStateWithLifecycle()
 
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
     var showNutritionDialog by remember { mutableStateOf(false) }
     var showHealthConnectDialog by remember { mutableStateOf(false) }
     var showCentralMenu by remember { mutableStateOf(false) }
+    var showProfileMenuSheet by remember { mutableStateOf(false) }
     var showProfileDialog by remember { mutableStateOf(false) }
+    var showDataExportDialog by remember { mutableStateOf(false) }
     var showWorkoutGeneratorDialog by remember { mutableStateOf(false) }
     var showWorkoutReminderDialog by remember { mutableStateOf(false) }
+    var showQuickWorkoutSheet by remember { mutableStateOf(false) }
+    var showActiveCardioModal by remember { mutableStateOf(false) }
 
     val healthDailyMetrics by viewModel.healthDailyMetrics.collectAsStateWithLifecycle()
     val permissionsGranted by viewModel.healthPermissionsGranted.collectAsStateWithLifecycle()
@@ -196,7 +212,7 @@ fun HomeScreen(
                         userName = userProfile?.name ?: "Atleta",
                         size = 46.dp,
                         showEditBadge = true,
-                        onClick = { showProfileDialog = true },
+                        onClick = { showProfileMenuSheet = true },
                         modifier = Modifier.testTag("btn_header_profile")
                     )
 
@@ -271,8 +287,90 @@ fun HomeScreen(
         }
 
         // ==========================================
-        // 2. HERO CARD — TREINO DE HOJE (FULL BODY A)
+        // 2. HERO CARD — TREINO DE HOJE (FULL BODY A) OU CARDIO ATIVO
         // ==========================================
+        if (activeCardio.isActive) {
+            item {
+                LiquidGlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(26.dp))
+                        .clickable { showActiveCardioModal = true }
+                        .testTag("banner_active_cardio"),
+                    shape = RoundedCornerShape(26.dp),
+                    backgroundColor = PurpleDeepCard,
+                    borderColor = EmeraldSuccess
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(EmeraldSubtle)
+                                    .border(1.dp, EmeraldSuccess, RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(EmeraldSuccess)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (activeCardio.isPaused) "CARDIO PAUSADO" else "CARDIO EM ANDAMENTO",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = EmeraldSuccess,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+
+                            Text(
+                                text = DateUtils.formatSecondsToTime(activeCardio.durationSeconds),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black,
+                                color = EmeraldSuccess
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = activeCardio.type.title,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${activeCardio.location} • Ritmo: ${if (activeCardio.paceMinKm > 0) String.format("%.1f min/km", activeCardio.paceMinKm) else "--"} • Distância: ${String.format("%.2f", activeCardio.distanceKm)} km",
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        PrimaryButton(
+                            text = "VER TEMPO & GPS EM TELA CHEIA",
+                            icon = Icons.Default.DirectionsRun,
+                            onClick = { showActiveCardioModal = true },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+
         item {
             if (activeWorkout.isActive) {
                 // Live Active Workout Banner
@@ -532,6 +630,227 @@ fun HomeScreen(
                                         letterSpacing = 0.5.sp
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 2.5 QUICK WORKOUT & FAST CARDIO ACCESS (CAMINHADA, CORRIDA & FORÇA)
+        // ==========================================
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Banner Principal Treino Rápido
+                LiquidGlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { showQuickWorkoutSheet = true }
+                        .testTag("btn_quick_workout"),
+                    shape = RoundedCornerShape(20.dp),
+                    backgroundColor = PurpleDarkSurface,
+                    borderColor = AmberWarning.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(AmberWarning, PurplePrimary, PurpleVibrant)
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Bolt,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "TREINO RÁPIDO",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = TextPrimary,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(AmberSubtle)
+                                            .border(0.8.dp, AmberWarning, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "10 a 20 min",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AmberWarning
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Caminhada, Corrida com GPS ou Força Express",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(GradientAction)
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Abrir",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // Atalhos Diretos de 1 Toque: Caminhada e Corrida (Tempo + GPS)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Atalho 1: Caminhada
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, EmeraldSuccess.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                            .clickable {
+                                viewModel.startLiveCardio(
+                                    type = CardioType.CAMINHADA_AR_LIVRE,
+                                    location = "Parque / Rua",
+                                    intensity = IntensityLevel.LEVE,
+                                    targetMinutes = 20,
+                                    enableGps = true
+                                )
+                                showActiveCardioModal = true
+                            }
+                            .testTag("btn_shortcut_walk"),
+                        color = PurpleDeepCard
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(EmeraldSubtle),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsWalk,
+                                    contentDescription = null,
+                                    tint = EmeraldSuccess,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Caminhada",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "Tempo + GPS",
+                                    fontSize = 10.sp,
+                                    color = EmeraldSuccess,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Atalho 2: Corrida
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, LilacAccent.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                            .clickable {
+                                viewModel.startLiveCardio(
+                                    type = CardioType.CORRIDA,
+                                    location = "Rua / Parque",
+                                    intensity = IntensityLevel.MODERADA,
+                                    targetMinutes = 20,
+                                    enableGps = true
+                                )
+                                showActiveCardioModal = true
+                            }
+                            .testTag("btn_shortcut_run"),
+                        color = PurpleDeepCard
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(LilacAccent.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsRun,
+                                    contentDescription = null,
+                                    tint = LilacAccent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Corrida",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "Ritmo + GPS",
+                                    fontSize = 10.sp,
+                                    color = LilacSoft,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                     }
@@ -1025,7 +1344,7 @@ fun HomeScreen(
             gamificationOverview = gamificationOverview,
             isSmartwatchConnected = permissionsGranted,
             onDismiss = { showCentralMenu = false },
-            onOpenEditProfile = { showProfileDialog = true },
+            onOpenEditProfile = { showProfileMenuSheet = true },
             onNavigateToWorkouts = onNavigateToWorkouts,
             onNavigateToActiveWorkout = onNavigateToActiveWorkout,
             onNavigateToCardio = onNavigateToCardio,
@@ -1034,11 +1353,32 @@ fun HomeScreen(
             onOpenAiWorkoutGenerator = { showWorkoutGeneratorDialog = true },
             onOpenNutritionAi = { showNutritionDialog = true },
             onOpenHealthConnect = { showHealthConnectDialog = true },
-            onOpenReminders = { showWorkoutReminderDialog = true }
+            onOpenReminders = { showWorkoutReminderDialog = true },
+            onOpenQuickWorkout = { showQuickWorkoutSheet = true }
         )
     }
 
-    // User Profile & Photo Manager Dialog
+    // User Profile Menu Bottom Sheet
+    if (showProfileMenuSheet && userProfile != null) {
+        UserProfileMenuSheet(
+            userProfile = userProfile!!,
+            gamificationOverview = gamificationOverview,
+            onDismiss = { showProfileMenuSheet = false },
+            onOpenEditDialog = { showProfileDialog = true },
+            onPhotoSelected = { uri ->
+                viewModel.updateUserPhoto(uri)
+            },
+            onPhotoRemoved = {
+                viewModel.removeUserPhoto()
+            },
+            onOpenHealthConnect = { showHealthConnectDialog = true },
+            onOpenReminders = { showWorkoutReminderDialog = true },
+            onOpenDataExport = { showDataExportDialog = true },
+            onNavigateToEvolution = onNavigateToEvolution
+        )
+    }
+
+    // Dedicated User Profile Field Edit Dialog
     if (showProfileDialog && userProfile != null) {
         UserProfileDialog(
             userProfile = userProfile!!,
@@ -1053,6 +1393,17 @@ fun HomeScreen(
             onPhotoRemoved = {
                 viewModel.removeUserPhoto()
             }
+        )
+    }
+
+    // Data Export & Backup Dialog
+    if (showDataExportDialog) {
+        DataExportDialog(
+            userProfile = userProfile,
+            workoutSessions = workoutSessions,
+            cardioSessions = cardioSessions,
+            measurements = bodyMeasurements,
+            onDismiss = { showDataExportDialog = false }
         )
     }
 
@@ -1087,6 +1438,42 @@ fun HomeScreen(
                 viewModel.triggerTestReminderNotification()
             },
             onDismiss = { showWorkoutReminderDialog = false }
+        )
+    }
+
+    // Active Cardio Live Tracker Modal
+    if (activeCardio.isActive && showActiveCardioModal) {
+        ActiveCardioTrackerModal(
+            viewModel = viewModel,
+            onDismiss = { showActiveCardioModal = false }
+        )
+    }
+
+    // Quick Workout Modal Sheet (Strength & Cardio Express)
+    if (showQuickWorkoutSheet) {
+        QuickWorkoutSheet(
+            onDismiss = { showQuickWorkoutSheet = false },
+            onStartStrengthWorkout = { title, location, plans ->
+                viewModel.startWorkoutWithPlans(
+                    title = title,
+                    location = location,
+                    plans = plans
+                )
+                showQuickWorkoutSheet = false
+                onNavigateToActiveWorkout()
+            },
+            onStartCardio = { type, location, intensity, targetMinutes, enableGps ->
+                viewModel.startLiveCardio(
+                    type = type,
+                    location = location,
+                    intensity = intensity,
+                    targetMinutes = targetMinutes,
+                    enableGps = enableGps
+                )
+                showQuickWorkoutSheet = false
+                showActiveCardioModal = true
+            },
+            defaultLocation = userProfile?.defaultGymLocation ?: "Academia Smart Fit"
         )
     }
 }

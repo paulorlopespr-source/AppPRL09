@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsBike
@@ -69,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.UserProfile
+import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
@@ -122,6 +124,7 @@ fun CentralMenuSheet(
     onOpenHealthConnect: () -> Unit = {},
     onOpenReminders: () -> Unit = {},
     onOpenAudioPlayer: () -> Unit = {},
+    onOpenQuickWorkout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -129,6 +132,20 @@ fun CentralMenuSheet(
     val allMenuItems = remember(userProfile, gamificationOverview, isSmartwatchConnected) {
         listOf(
             // 🏋️ Treinos & Força
+            MenuItemDefinition(
+                id = "quick_workout",
+                title = "⚡ Treino Rápido (Express)",
+                description = "Força ou Cardio de 10 a 20 min com início direto em 1 toque",
+                category = "Treinos & Força",
+                icon = Icons.Default.Bolt,
+                badge = "⚡ Rápido",
+                iconTint = AmberWarning,
+                testTag = "menu_item_quick_workout",
+                onClick = {
+                    onDismiss()
+                    onOpenQuickWorkout()
+                }
+            ),
             MenuItemDefinition(
                 id = "today_workout",
                 title = "Treino de Hoje",
