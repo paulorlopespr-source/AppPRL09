@@ -13,7 +13,14 @@ class CoachContextBuilderTest {
             WorkoutSession(title="A", dateEpochDay=today.toEpochDay(), status=SessionStatus.COMPLETED, totalWeightLiftedKg=5000.0, perceivedExertion=8),
             WorkoutSession(title="B", dateEpochDay=today.minusDays(2).toEpochDay(), status=SessionStatus.COMPLETED, totalWeightLiftedKg=4000.0, perceivedExertion=6)
         )
-        val cardio = listOf(CardioSession(dateEpochDay=today.minusDays(1).toEpochDay(), durationMinutes=30, distanceKm=5.0))
+        val cardio = listOf(
+            CardioSession(
+                type = CardioType.CORRIDA,
+                dateEpochDay = today.minusDays(1).toEpochDay(),
+                durationMinutes = 30,
+                distanceKm = 5.0
+            )
+        )
         val readiness = ReadinessResult(72,"Atenção",listOf("Carga elevada"),"Treino conservador",false)
         val context = CoachContextBuilder.build(null, workouts, cardio, emptyList(), readiness, today=today)
         assertEquals(2, context.last7Days.strengthSessions)
