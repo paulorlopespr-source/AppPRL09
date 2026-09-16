@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
         com.example.data.model.UserMedal::class
     ],
     version = 7,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -52,7 +52,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fittreino_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    // Never use fallbackToDestructiveMigration here: workout history,
+                    // measurements and achievements must survive database upgrades.
+                    // Every future schema version must ship with an explicit Room Migration.
                     .addCallback(DatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
