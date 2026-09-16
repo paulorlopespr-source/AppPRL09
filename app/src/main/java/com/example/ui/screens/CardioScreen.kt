@@ -74,8 +74,10 @@ import com.example.data.model.CardioRoutinePlan
 import com.example.data.model.CardioSession
 import com.example.data.model.CardioType
 import com.example.data.model.IntensityLevel
+import com.example.data.model.OutdoorSessionState
 import com.example.ui.components.AIEvaluationDialog
 import com.example.ui.components.ActiveCardioTrackerModal
+import com.example.ui.components.OutdoorActivityHistoryCard
 import com.example.ui.components.BentoCard
 import com.example.ui.components.DateUtils
 import com.example.ui.components.LiquidGlassSurface
@@ -120,6 +122,7 @@ fun CardioScreen(
 ) {
     val cardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
     val activeCardio by viewModel.activeCardio.collectAsStateWithLifecycle()
+    val outdoorSession by viewModel.outdoorSessionState.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
 
     var showManualLogDialog by remember { mutableStateOf(false) }
@@ -433,7 +436,7 @@ fun CardioScreen(
                 }
             } else {
                 items(cardioSessions, key = { it.id }) { cardio ->
-                    CardioSessionHistoryItem(
+                    OutdoorActivityHistoryCard(
                         cardio = cardio,
                         onViewAi = { feedback ->
                             selectedSessionAiFeedback = feedback

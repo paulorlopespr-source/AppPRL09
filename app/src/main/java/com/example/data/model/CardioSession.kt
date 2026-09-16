@@ -80,5 +80,9 @@ data class CardioSession(
     val location: String = "Academia Smart Fit",
     val caloriesBurned: Int = 0,
     val notes: String = "",
-    val aiEvaluation: String = ""
+    val aiEvaluation: String = "",
+    val routePointsJson: String = "[]",
+    val splitsJson: String = "[]",
+    val elevationGainMeters: Double? = 0.0,
+    val avgPaceMinKm: String = "--:--"
 )

@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
         com.example.data.model.MealLog::class,
         com.example.data.model.UserMedal::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -191,6 +191,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `routePointsJson` TEXT NOT NULL DEFAULT '[]'")
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `splitsJson` TEXT NOT NULL DEFAULT '[]'")
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `elevationGainMeters` REAL DEFAULT 0.0")
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `avgPaceMinKm` TEXT NOT NULL DEFAULT '--:--'")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -205,7 +214,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_4_5,
                         MIGRATION_5_6,
                         MIGRATION_6_7,
-                        MIGRATION_7_8
+                        MIGRATION_7_8,
+                        MIGRATION_8_9
                     )
                     .addCallback(DatabaseCallback(scope))
                     .build()

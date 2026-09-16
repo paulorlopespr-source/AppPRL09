@@ -43,7 +43,16 @@ import com.example.util.HealthConnectDailyMetrics
 import com.example.util.HealthSyncResult
 import com.example.data.repository.FitnessRepository
 import com.example.ui.components.DateUtils
-import com.example.util.GpsLocationTracker
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.Build
+import android.os.IBinder
+import android.util.Log
+import com.example.data.local.OutdoorCardioPersistence
+import com.example.data.model.OutdoorSessionState
+import com.example.data.model.OutdoorTrackingStatus
+import com.example.service.OutdoorLocationService
 import com.example.util.PhotoStorageHelper
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
@@ -117,7 +126,28 @@ data class ActiveCardioState(
 
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
 
-    val gpsLocationTracker = GpsLocationTracker(application)
+    private var outdoorServiceBinder: OutdoorLocationService.OutdoorLocationBinder? = null
+    private val _outdoorSessionState = MutableStateFlow(OutdoorSessionState())
+    val outdoorSessionState: StateFlow<OutdoorSessionState> = _outdoorSessionState.asStateFlow()
+
+    private val outdoorServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            outdoorServiceBinder = service as? OutdoorLocationService.OutdoorLocationBinder
+            outdoorServiceBinder?.let { binder ->
+                viewModelScope.launch {
+                    binder.sessionState.collect { state ->
+                        _outdoorSessionState.value = state
+                        syncActiveCardioWithOutdoorState(state)
+                    }
+                }
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            outdoorServiceBinder = null
+        }
+    }
+
     private val repository: FitnessRepository
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     private val planListType = Types.newParameterizedType(List::class.java, WorkoutExercisePlan::class.java)
@@ -211,6 +241,20 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             syncGamificationAndGoals()
             checkHealthConnectStatus()
         }
+
+        try {
+            val serviceIntent = Intent(application, OutdoorLocationService::class.java)
+            application.bindService(serviceIntent, outdoorServiceConnection, Context.BIND_AUTO_CREATE)
+        } catch (e: Exception) {
+            Log.e("FitnessViewModel", "Error binding to OutdoorLocationService: ${e.message}")
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            getApplication<Application>().unbindService(outdoorServiceConnection)
+        } catch (_: Exception) {}
     }
 
     // --- Backup & Data Migration ---
@@ -1319,178 +1363,180 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         _activeWorkout.value = ActiveWorkoutState()
     }
 
-    // --- Live Cardio Session Functions ---
+    // --- Live Cardio Session Functions (OutdoorLocationService) ---
+    private fun syncActiveCardioWithOutdoorState(state: OutdoorSessionState) {
+        if (state.isActive) {
+            _activeCardio.value = ActiveCardioState(
+                isActive = true,
+                isPaused = state.isPaused,
+                type = state.cardioType,
+                durationSeconds = state.durationSeconds.toInt(),
+                distanceKm = state.distanceKm,
+                intensity = state.intensity,
+                location = state.locationName,
+                caloriesBurned = state.caloriesBurned,
+                speedKmh = state.currentSpeedKmh,
+                paceMinKm = if (state.avgSpeedKmh > 0.5) (60.0 / state.avgSpeedKmh) else 0.0,
+                gpsEnabled = state.routePoints.isNotEmpty() || state.status == OutdoorTrackingStatus.RUNNING,
+                gpsAccuracyMeters = state.accuracyMeters,
+                latitude = state.currentLocation?.latitude,
+                longitude = state.currentLocation?.longitude,
+                gpsPointsCount = state.routePoints.size,
+                targetMinutes = state.targetMinutes
+            )
+        } else if (_activeCardio.value.isActive && state.isStopped) {
+            _activeCardio.value = ActiveCardioState()
+        }
+    }
+
     fun startLiveCardio(
         type: CardioType,
         location: String,
         intensity: IntensityLevel,
         targetMinutes: Int? = null,
-        enableGps: Boolean = false
+        enableGps: Boolean = true
     ) {
-        cardioTimerJob?.cancel()
-        gpsLocationTracker.reset()
+        val app = getApplication<Application>()
+        val startIntent = OutdoorLocationService.startServiceIntent(
+            app, type, intensity, location, targetMinutes
+        )
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                app.startForegroundService(startIntent)
+            } else {
+                app.startService(startIntent)
+            }
+        } catch (e: Exception) {
+            Log.e("FitnessViewModel", "Error starting OutdoorLocationService: ${e.message}")
+        }
+        outdoorServiceBinder?.start(type, intensity, location, targetMinutes)
+    }
 
-        var isGpsActive = false
-        if (enableGps) {
-            isGpsActive = gpsLocationTracker.startTracking()
+    fun onPauseClicked() {
+        if (!_outdoorSessionState.value.isActive || _outdoorSessionState.value.isPaused) return
+        val app = getApplication<Application>()
+        try {
+            app.startService(Intent(app, OutdoorLocationService::class.java).apply {
+                action = OutdoorLocationService.ACTION_PAUSE
+            })
+        } catch (e: Exception) {
+            Log.e("FitnessViewModel", "Error sending ACTION_PAUSE: ${e.message}")
+        }
+        outdoorServiceBinder?.pause()
+    }
+
+    fun onResumeClicked() {
+        if (!_outdoorSessionState.value.isPaused) return
+        val app = getApplication<Application>()
+        try {
+            app.startService(Intent(app, OutdoorLocationService::class.java).apply {
+                action = OutdoorLocationService.ACTION_RESUME
+            })
+        } catch (e: Exception) {
+            Log.e("FitnessViewModel", "Error sending ACTION_RESUME: ${e.message}")
+        }
+        outdoorServiceBinder?.resume()
+    }
+
+    fun onStopClicked(
+        distanceKm: Double? = null,
+        heartRate: Int? = null,
+        notes: String = "",
+        onFinished: ((CardioSession) -> Unit)? = null
+    ) {
+        val currentState = outdoorServiceBinder?.stop() ?: _outdoorSessionState.value
+        val app = getApplication<Application>()
+        try {
+            app.startService(Intent(app, OutdoorLocationService::class.java).apply {
+                action = OutdoorLocationService.ACTION_STOP
+            })
+        } catch (e: Exception) {
+            Log.e("FitnessViewModel", "Error sending ACTION_STOP: ${e.message}")
         }
 
-        _activeCardio.value = ActiveCardioState(
-            isActive = true,
-            isPaused = false,
-            type = type,
-            durationSeconds = 0,
-            distanceKm = 0.0,
-            intensity = intensity,
-            location = location,
-            caloriesBurned = 0,
-            speedKmh = 0.0,
-            paceMinKm = 0.0,
-            gpsEnabled = isGpsActive,
-            targetMinutes = targetMinutes
-        )
+        if (currentState.durationSeconds == 0L && currentState.distanceKm == 0.0 && !currentState.isActive) {
+            _activeCardio.value = ActiveCardioState()
+            _outdoorSessionState.value = OutdoorSessionState()
+            return
+        }
 
-        cardioTimerJob = viewModelScope.launch {
-            while (_activeCardio.value.isActive) {
-                delay(1000)
-                if (_activeCardio.value.isPaused) continue
-
-                val current = _activeCardio.value
-                val newSec = current.durationSeconds + 1
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val finalDurationMin = (currentState.durationSeconds / 60).toInt().coerceAtLeast(1)
+                val finalDist = distanceKm ?: if (currentState.distanceKm > 0.0) currentState.distanceKm else null
                 val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
-                val met = when (current.intensity) {
-                    IntensityLevel.LEVE -> current.type.metLight
-                    IntensityLevel.MODERADA -> current.type.metModerate
-                    IntensityLevel.INTENSA -> current.type.metIntense
-                }
-                val cal = ((met * 3.5 * profile.currentWeightKg / 200.0) * (newSec / 60.0)).toInt()
 
-                var currentDist = current.distanceKm
-                var speed = current.speedKmh
-                var accuracy: Float? = current.gpsAccuracyMeters
-                var lat: Double? = current.latitude
-                var lon: Double? = current.longitude
-                var pointsCount = current.gpsPointsCount
-
-                if (current.gpsEnabled) {
-                    val gpsDist = gpsLocationTracker.getDistanceKm()
-                    if (gpsDist > 0) {
-                        currentDist = gpsDist
-                    }
-                    speed = gpsLocationTracker.currentSpeedKmh.value
-                    accuracy = gpsLocationTracker.accuracyMeters.value
-                    val loc = gpsLocationTracker.currentLocation.value
-                    if (loc != null) {
-                        lat = loc.latitude
-                        lon = loc.longitude
-                    }
-                    pointsCount = gpsLocationTracker.routePoints.value.size
-                } else if (currentDist == 0.0 || speed == 0.0) {
-                    val estimatedSpeed = when (current.type) {
-                        CardioType.CAMINHADA_AR_LIVRE, CardioType.CAMINHADA_ESTEIRA -> 5.0
-                        CardioType.CORRIDA -> 9.5
-                        CardioType.BICICLETA_INDOOR -> 18.0
-                        CardioType.FUTEBOL -> 7.5
-                    }
-                    speed = estimatedSpeed
-                    currentDist = (estimatedSpeed * (newSec / 3600.0))
-                }
-
-                val pace = if (currentDist > 0.02) {
-                    (newSec / 60.0) / currentDist
-                } else 0.0
-
-                _activeCardio.value = current.copy(
-                    durationSeconds = newSec,
-                    caloriesBurned = cal,
-                    distanceKm = currentDist,
-                    speedKmh = speed,
-                    paceMinKm = pace,
-                    gpsAccuracyMeters = accuracy,
-                    latitude = lat,
-                    longitude = lon,
-                    gpsPointsCount = pointsCount
+                val session = OutdoorCardioPersistence.buildSession(
+                    type = currentState.cardioType,
+                    dateEpochDay = DateUtils.todayEpochDay(),
+                    timestampMillis = System.currentTimeMillis(),
+                    durationMinutes = finalDurationMin,
+                    distanceKm = finalDist,
+                    avgHeartRateBpm = heartRate,
+                    intensity = currentState.intensity,
+                    location = currentState.locationName,
+                    caloriesBurned = currentState.caloriesBurned,
+                    notes = notes,
+                    routePoints = currentState.routePoints,
+                    splits = currentState.splits,
+                    elevationGainMeters = currentState.elevationGainMeters,
+                    avgPaceMinKm = currentState.avgPaceMinKm
                 )
+
+                val id = repository.saveCardioSession(session)
+                val savedSession = session.copy(id = id)
+
+                withContext(Dispatchers.Main) {
+                    _activeCardio.value = ActiveCardioState()
+                    _outdoorSessionState.value = OutdoorSessionState()
+                    onFinished?.invoke(savedSession)
+                }
+
+                // AI cardio evaluation
+                evaluateCardioWithAI(savedSession, profile)
+
+                // Sync Health Connect
+                try {
+                    if (_healthPermissionsGranted.value) {
+                        healthConnectManager.writeCardioSession(savedSession)
+                        refreshHealthDailyMetrics()
+                    }
+                } catch (e: Exception) {
+                    Log.w("FitnessViewModel", "Health Connect write error: ${e.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("FitnessViewModel", "Error saving outdoor cardio session: ${e.message}", e)
             }
         }
     }
 
-    fun pauseLiveCardio() {
-        _activeCardio.value = _activeCardio.value.copy(isPaused = true)
-    }
+    fun pauseLiveCardio() = onPauseClicked()
 
-    fun resumeLiveCardio() {
-        _activeCardio.value = _activeCardio.value.copy(isPaused = false)
-    }
+    fun resumeLiveCardio() = onResumeClicked()
+
+    fun finishLiveCardio(
+        distanceKm: Double?,
+        heartRate: Int?,
+        notes: String,
+        onFinished: (CardioSession) -> Unit = {}
+    ) = onStopClicked(distanceKm, heartRate, notes, onFinished)
 
     fun toggleCardioGps(enable: Boolean): Boolean {
-        val current = _activeCardio.value
-        if (!current.isActive) return false
-
-        return if (enable) {
-            val started = gpsLocationTracker.startTracking()
-            _activeCardio.value = current.copy(gpsEnabled = started)
-            started
-        } else {
-            gpsLocationTracker.stopTracking()
-            _activeCardio.value = current.copy(gpsEnabled = false)
-            false
-        }
-    }
-
-    fun finishLiveCardio(distanceKm: Double?, heartRate: Int?, notes: String, onFinished: (CardioSession) -> Unit = {}) {
-        cardioTimerJob?.cancel()
-        gpsLocationTracker.stopTracking()
-        val current = _activeCardio.value
-        val durationMin = (current.durationSeconds / 60).coerceAtLeast(1)
-        val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
-
-        val met = when (current.intensity) {
-            IntensityLevel.LEVE -> current.type.metLight
-            IntensityLevel.MODERADA -> current.type.metModerate
-            IntensityLevel.INTENSA -> current.type.metIntense
-        }
-        val cal = ((met * 3.5 * profile.currentWeightKg / 200.0) * durationMin).toInt()
-
-        val finalDistance = distanceKm ?: if (current.distanceKm > 0) current.distanceKm else null
-
-        val cardioSession = CardioSession(
-            type = current.type,
-            dateEpochDay = DateUtils.todayEpochDay(),
-            timestampMillis = System.currentTimeMillis(),
-            durationMinutes = durationMin,
-            distanceKm = finalDistance,
-            avgHeartRateBpm = heartRate,
-            intensity = current.intensity,
-            location = current.location,
-            caloriesBurned = cal,
-            notes = notes
-        )
-
-        viewModelScope.launch {
-            val id = repository.saveCardioSession(cardioSession)
-            val savedCardio = cardioSession.copy(id = id)
-            _activeCardio.value = ActiveCardioState()
-            gpsLocationTracker.reset()
-            onFinished(savedCardio)
-
-            // AI cardio evaluation
-            evaluateCardioWithAI(savedCardio, profile)
-
-            // Auto-sync with Health Connect if enabled
-            try {
-                if (_healthPermissionsGranted.value) {
-                    healthConnectManager.writeCardioSession(savedCardio)
-                    refreshHealthDailyMetrics()
-                }
-            } catch (_: Exception) {}
-        }
+        return _outdoorSessionState.value.isActive
     }
 
     fun discardLiveCardio() {
-        cardioTimerJob?.cancel()
-        gpsLocationTracker.reset()
+        val app = getApplication<Application>()
+        try {
+            app.startService(Intent(app, OutdoorLocationService::class.java).apply {
+                action = OutdoorLocationService.ACTION_STOP
+            })
+        } catch (e: Exception) {
+            Log.e("FitnessViewModel", "Error stopping service on discard: ${e.message}")
+        }
+        outdoorServiceBinder?.stop()
         _activeCardio.value = ActiveCardioState()
+        _outdoorSessionState.value = OutdoorSessionState()
     }
 
     fun logManualCardio(cardio: CardioSession) {
