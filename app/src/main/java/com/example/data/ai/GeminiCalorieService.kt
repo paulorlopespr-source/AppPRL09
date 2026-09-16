@@ -971,8 +971,8 @@ class GeminiCalorieService {
     ): VolumeNutritionEvaluationResult = withContext(Dispatchers.IO) {
         val apiKey = BuildConfig.GEMINI_API_KEY
         val completedSessions = workoutSessions.filter { it.status == com.example.data.model.SessionStatus.COMPLETED }
-        val totalVolumeKg = completedSessions.sumOf { it.totalVolumeKg }
-        val totalWorkoutMinutes = completedSessions.sumOf { it.durationMinutes }
+        val totalVolumeKg = completedSessions.sumOf { it.totalWeightLiftedKg }
+        val totalWorkoutMinutes = completedSessions.sumOf { it.durationSeconds / 60 }
         val totalWorkoutsCount = completedSessions.size
         val avgVolumePerSession = if (totalWorkoutsCount > 0) totalVolumeKg / totalWorkoutsCount else 0.0
         val totalCardioMinutes = cardioSessions.sumOf { it.durationMinutes }

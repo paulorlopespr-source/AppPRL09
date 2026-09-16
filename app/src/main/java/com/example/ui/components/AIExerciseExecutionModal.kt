@@ -246,7 +246,7 @@ fun AIExerciseExecutionModal(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    val speech = "${guide.exerciseName}. Dica de execução: ${guide.mindMuscleTip}. Respire: ${guide.breathingPattern}."
+                                    val speech = "${guide.exerciseName}. Dica de execução: ${guide.mindMuscleConnectionTip}. Biomecânica e respiração: ${guide.biomechanicsAndBreathing}."
                                     onSpeakTip(speech)
                                     isSpeaking = true
                                 }
@@ -277,7 +277,7 @@ fun AIExerciseExecutionModal(
                             title = "1. Setup & Posicionamento Inicial",
                             color = LilacAccent
                         ) {
-                            guide.setupSteps.forEachIndexed { idx, step ->
+                            guide.setupInstructions.forEachIndexed { idx, step ->
                                 Row(
                                     modifier = Modifier.padding(vertical = 3.dp),
                                     verticalAlignment = Alignment.Top
@@ -342,7 +342,7 @@ fun AIExerciseExecutionModal(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = guide.breathingPattern,
+                                    text = guide.biomechanicsAndBreathing,
                                     fontSize = 12.sp,
                                     color = TextSecondary,
                                     lineHeight = 16.sp
@@ -415,7 +415,7 @@ fun AIExerciseExecutionModal(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = guide.mindMuscleTip,
+                                        text = guide.mindMuscleConnectionTip,
                                         fontSize = 12.sp,
                                         color = TextPrimary,
                                         lineHeight = 16.sp,

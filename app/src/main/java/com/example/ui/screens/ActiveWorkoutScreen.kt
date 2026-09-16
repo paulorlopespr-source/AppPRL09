@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MobileOff
@@ -162,6 +163,14 @@ fun ActiveWorkoutScreen(
     var plateCalculatorExerciseName by remember { mutableStateOf("") }
     var warmupGeneratorExerciseIndex by remember { mutableStateOf<Int?>(null) }
     var completedSessionForStory by remember { mutableStateOf<WorkoutSession?>(null) }
+
+    var showAIExecutionModal by remember { mutableStateOf(false) }
+    var selectedAIExerciseName by remember { mutableStateOf("") }
+    var selectedAIMuscleGroup by remember { mutableStateOf("") }
+    var selectedAIEquipment by remember { mutableStateOf("") }
+
+    val activeExerciseExecutionGuide by viewModel.activeExerciseExecutionGuide.collectAsStateWithLifecycle()
+    val isLoadingExerciseExecutionGuide by viewModel.isLoadingExerciseExecutionGuide.collectAsStateWithLifecycle()
 
     if (!activeState.isActive) {
         // Fallback view when no workout is running
@@ -407,6 +416,19 @@ fun ActiveWorkoutScreen(
                         progressionSuggestion = progressionSuggestion,
                         appliedWeight = appliedProgressions[plan.exerciseName],
                         onViewFullHistory = { historyDialogExerciseName = plan.exerciseName },
+                        onOpenAIExecutionGuide = {
+                            val matched = allExercises.find { it.id == plan.exerciseId || it.name.equals(plan.exerciseName, ignoreCase = true) }
+                            val equipStr = matched?.equipment?.displayName ?: "Halteres / Máquina"
+                            selectedAIExerciseName = plan.exerciseName
+                            selectedAIMuscleGroup = plan.muscleGroup
+                            selectedAIEquipment = equipStr
+                            showAIExecutionModal = true
+                            viewModel.requestExerciseExecutionGuide(
+                                exerciseName = plan.exerciseName,
+                                muscleGroup = plan.muscleGroup,
+                                equipment = equipStr
+                            )
+                        },
                         onViewVisualGuide = {
                             val found = allExercises.find { it.id == plan.exerciseId || it.name.equals(plan.exerciseName, ignoreCase = true) }
                             selectedVisualGuideExercise = found ?: com.example.data.model.Exercise(
@@ -902,6 +924,24 @@ fun ActiveWorkoutScreen(
             }
         )
     }
+
+    // Gemini AI Exercise Execution Guide Modal
+    if (showAIExecutionModal) {
+        AIExerciseExecutionModal(
+            exerciseName = selectedAIExerciseName,
+            muscleGroup = selectedAIMuscleGroup,
+            equipment = selectedAIEquipment,
+            guide = activeExerciseExecutionGuide,
+            isLoading = isLoadingExerciseExecutionGuide,
+            onDismiss = {
+                showAIExecutionModal = false
+                viewModel.clearExerciseExecutionGuide()
+            },
+            onSpeakTip = { tip ->
+                viewModel.speakExerciseTip(tip)
+            }
+        )
+    }
 }
 
 @Composable
@@ -912,6 +952,7 @@ fun ActiveExerciseCard(
     progressionSuggestion: ProgressionSuggestion?,
     appliedWeight: Double?,
     onViewFullHistory: () -> Unit,
+    onOpenAIExecutionGuide: () -> Unit,
     onViewVisualGuide: () -> Unit,
     onOpenPlateCalculator: (Double) -> Unit,
     onOpenWarmupGenerator: () -> Unit,
@@ -965,6 +1006,27 @@ fun ActiveExerciseCard(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Gemini AI Execution Guide Button
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(PurpleDarkSurface)
+                        .border(1.dp, LilacAccent, CircleShape)
+                        .clickable { onOpenAIExecutionGuide() }
+                        .testTag("btn_gemini_execution_guide_$exerciseIndex"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "Execução Correta com Gemini AI",
+                        tint = LilacAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
                 // Biomechanical Execution Visual Guide Button
                 Box(
                     modifier = Modifier
@@ -1029,9 +1091,43 @@ fun ActiveExerciseCard(
         Spacer(modifier = Modifier.height(10.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val topWeight = plan.sets.firstOrNull()?.weightKg ?: 60.0
+
+            // Gemini AI Execution Guide Pill
+            Surface(
+                onClick = onOpenAIExecutionGuide,
+                shape = RoundedCornerShape(10.dp),
+                color = PurpleDarkSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .weight(1.1f)
+                    .testTag("btn_ai_guide_pill_$exerciseIndex")
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = LilacAccent,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Execução IA",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LilacAccent,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+
             // Warm-up sets generator
             Surface(
                 onClick = onOpenWarmupGenerator,
@@ -1056,7 +1152,9 @@ fun ActiveExerciseCard(
                         text = "Aquecimento",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFB74D)
+                        color = Color(0xFFFFB74D),
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -1085,7 +1183,9 @@ fun ActiveExerciseCard(
                         text = "Anilhas",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = LilacAccent
+                        color = LilacAccent,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -1114,7 +1214,9 @@ fun ActiveExerciseCard(
                         text = "Substituir",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = EmeraldSuccess
+                        color = EmeraldSuccess,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
