@@ -45,6 +45,14 @@ enum class CardioType(
         metModerate = 9.8,
         metIntense = 12.0
     ),
+    TRILHA(
+        title = "Trilha / Trekking",
+        description = "Caminhada ou corrida em trilhas ecológicas, montanhas, relevo acidentado e contato intenso com a natureza.",
+        iconKey = "Landscape",
+        metLight = 5.0,
+        metModerate = 7.3,
+        metIntense = 9.5
+    ),
     FUTEBOL(
         title = "Futebol",
         description = "Partida em campo, society ou futsal. Exercício intermitente de alta intensidade com agilidade.",

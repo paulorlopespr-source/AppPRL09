@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -40,6 +44,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MobileOff
@@ -76,7 +81,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.core.content.ContextCompat
+import com.example.ui.components.OutdoorGpsPromptDialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -170,6 +178,32 @@ fun HomeScreen(
     var showActiveCardioModal by remember { mutableStateOf(false) }
     var showWorkoutSubstitutionDialog by remember { mutableStateOf(false) }
     var showFullWorkoutHistorySheet by remember { mutableStateOf(false) }
+    var showGpsPromptDialog by remember { mutableStateOf(false) }
+    var pendingOutdoorCardioType by remember { mutableStateOf<CardioType?>(null) }
+
+    val context = LocalContext.current
+    val gpsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        val granted = fineGranted || coarseGranted
+        val targetType = pendingOutdoorCardioType ?: CardioType.CAMINHADA_AR_LIVRE
+        viewModel.startLiveCardio(
+            type = targetType,
+            location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
+            intensity = IntensityLevel.MODERADA,
+            targetMinutes = 25,
+            enableGps = granted
+        )
+        showActiveCardioModal = true
+        pendingOutdoorCardioType = null
+    }
+
+    val onOutdoorCardioClick: (CardioType) -> Unit = { type ->
+        pendingOutdoorCardioType = type
+        showGpsPromptDialog = true
+    }
 
     val healthDailyMetrics by viewModel.healthDailyMetrics.collectAsStateWithLifecycle()
     val permissionsGranted by viewModel.healthPermissionsGranted.collectAsStateWithLifecycle()
@@ -897,10 +931,10 @@ fun HomeScreen(
                     }
                 }
 
-                // Atalhos Diretos de 1 Toque: Caminhada e Corrida (Tempo + GPS)
+                // Atalhos Diretos de 1 Toque: Caminhada, Corrida e Trilha (Opção de Ativar GPS)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Atalho 1: Caminhada
                     Surface(
@@ -909,23 +943,16 @@ fun HomeScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .border(1.dp, EmeraldSuccess.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                             .clickable {
-                                viewModel.startLiveCardio(
-                                    type = CardioType.CAMINHADA_AR_LIVRE,
-                                    location = "Parque / Rua",
-                                    intensity = IntensityLevel.LEVE,
-                                    targetMinutes = 20,
-                                    enableGps = true
-                                )
-                                showActiveCardioModal = true
+                                onOutdoorCardioClick(CardioType.CAMINHADA_AR_LIVRE)
                             }
                             .testTag("btn_shortcut_walk"),
                         color = PurpleDeepCard
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Box(
                                 modifier = Modifier
@@ -941,21 +968,19 @@ fun HomeScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "Caminhada",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "Tempo + GPS",
-                                    fontSize = 10.sp,
-                                    color = EmeraldSuccess,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Caminhada",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "GPS / Mapa",
+                                fontSize = 9.sp,
+                                color = EmeraldSuccess,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
 
@@ -966,23 +991,16 @@ fun HomeScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .border(1.dp, LilacAccent.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                             .clickable {
-                                viewModel.startLiveCardio(
-                                    type = CardioType.CORRIDA,
-                                    location = "Rua / Parque",
-                                    intensity = IntensityLevel.MODERADA,
-                                    targetMinutes = 20,
-                                    enableGps = true
-                                )
-                                showActiveCardioModal = true
+                                onOutdoorCardioClick(CardioType.CORRIDA)
                             }
                             .testTag("btn_shortcut_run"),
                         color = PurpleDeepCard
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Box(
                                 modifier = Modifier
@@ -998,21 +1016,67 @@ fun HomeScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "Corrida",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "Ritmo + GPS",
-                                    fontSize = 10.sp,
-                                    color = LilacSoft,
-                                    fontWeight = FontWeight.Medium
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Corrida",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Ritmo + GPS",
+                                fontSize = 9.sp,
+                                color = LilacSoft,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Atalho 3: Trilha / Trekking
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, Color(0xFFFF9800).copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                            .clickable {
+                                onOutdoorCardioClick(CardioType.TRILHA)
+                            }
+                            .testTag("btn_shortcut_trail"),
+                        color = PurpleDeepCard
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFF9800).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Landscape,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF9800),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Trilha",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Relevo + GPS",
+                                fontSize = 9.sp,
+                                color = Color(0xFFFFB74D),
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
@@ -1607,6 +1671,54 @@ fun HomeScreen(
         ActiveCardioTrackerModal(
             viewModel = viewModel,
             onDismiss = { showActiveCardioModal = false }
+        )
+    }
+
+    // Outdoor Cardio GPS Activation Prompt Dialog
+    if (showGpsPromptDialog && pendingOutdoorCardioType != null) {
+        OutdoorGpsPromptDialog(
+            cardioType = pendingOutdoorCardioType!!,
+            onConfirmGps = {
+                showGpsPromptDialog = false
+                val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                if (hasFine || hasCoarse) {
+                    val targetType = pendingOutdoorCardioType ?: CardioType.CAMINHADA_AR_LIVRE
+                    viewModel.startLiveCardio(
+                        type = targetType,
+                        location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
+                        intensity = IntensityLevel.MODERADA,
+                        targetMinutes = 25,
+                        enableGps = true
+                    )
+                    showActiveCardioModal = true
+                    pendingOutdoorCardioType = null
+                } else {
+                    gpsPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                }
+            },
+            onConfirmNoGps = {
+                showGpsPromptDialog = false
+                val targetType = pendingOutdoorCardioType ?: CardioType.CAMINHADA_AR_LIVRE
+                viewModel.startLiveCardio(
+                    type = targetType,
+                    location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
+                    intensity = IntensityLevel.MODERADA,
+                    targetMinutes = 25,
+                    enableGps = false
+                )
+                showActiveCardioModal = true
+                pendingOutdoorCardioType = null
+            },
+            onDismiss = {
+                showGpsPromptDialog = false
+                pendingOutdoorCardioType = null
+            }
         )
     }
 

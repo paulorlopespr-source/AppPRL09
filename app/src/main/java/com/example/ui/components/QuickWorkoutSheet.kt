@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Park
 import androidx.compose.material.icons.filled.PlayArrow
@@ -386,6 +387,20 @@ fun QuickWorkoutSheet(
                 targetHeartRate = "150 - 175 BPM",
                 enableGps = false,
                 badge = "⏱️ INTENSO"
+            ),
+            // TRILHA / TREKKING (Ar livre / GPS)
+            QuickCardioPreset(
+                id = "cardio_trail_outdoor_30",
+                title = "⛰️ Trilha / Trekking ao Ar Livre",
+                subtitle = "GPS ativo + mapa ao vivo, ganho de elevação e altimetria",
+                type = CardioType.TRILHA,
+                defaultMinutes = 30,
+                estimatedCalories = 290,
+                intensity = IntensityLevel.MODERADA,
+                icon = Icons.Default.Landscape,
+                targetHeartRate = "130 - 160 BPM",
+                enableGps = true,
+                badge = "🛰️ GPS + MAPA"
             ),
             // OUTROS CÁRDIOS DO APP
             QuickCardioPreset(

@@ -213,6 +213,7 @@ class HealthConnectManager(private val context: Context) {
 
             val exerciseType = when (session.type) {
                 CardioType.CORRIDA -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
+                CardioType.TRILHA -> ExerciseSessionRecord.EXERCISE_TYPE_HIKING
                 CardioType.BICICLETA_INDOOR -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY
                 CardioType.CAMINHADA_ESTEIRA, CardioType.CAMINHADA_AR_LIVRE -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
                 CardioType.FUTEBOL -> ExerciseSessionRecord.EXERCISE_TYPE_SOCCER

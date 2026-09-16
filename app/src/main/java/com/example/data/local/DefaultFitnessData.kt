@@ -1105,6 +1105,24 @@ object DefaultFitnessData {
                 observacaoSeguranca = "Monitore a hidratação e faça reposição adequada de eletrólitos para evitar cãibras em sessões longas.",
                 cardioType = CardioType.CORRIDA,
                 intensity = IntensityLevel.MODERADA
+            ),
+            CardioRoutinePlan(
+                id = "trilha_outdoor_trekking",
+                tipo = "Trilha / Trekking",
+                nivel = "Todos os Níveis",
+                duracaoMinutos = 45,
+                estrutura = "Ritmo constante com desnível natural e subidas",
+                rodadas = 1,
+                frequenciaSemanal = 2,
+                exercicios = listOf(
+                    "Caminhada / Trote em trilhas naturais e terra batida",
+                    "Passadas firmes em terreno irregular e aclives",
+                    "Subidas com cadência estável e ativação de glúteos",
+                    "Descidas controladas com amortecimento nos joelhos e core"
+                ),
+                observacaoSeguranca = "Use calçados adequados com boa tração, leve água para hidratação e acompanhe o trajeto no mapa GPS ao vivo.",
+                cardioType = CardioType.TRILHA,
+                intensity = IntensityLevel.MODERADA
             )
         )
     }

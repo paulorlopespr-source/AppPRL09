@@ -26,7 +26,9 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Park
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SportsSoccer
@@ -78,6 +80,7 @@ fun OutdoorActivityHistoryCard(
     modifier: Modifier = Modifier
 ) {
     var expandedSplits by remember { mutableStateOf(false) }
+    var showRouteMap by remember { mutableStateOf(false) }
 
     val routePoints = remember(cardio.routePointsJson) {
         OutdoorCardioPersistence.parseRoutePoints(cardio.routePointsJson)
@@ -385,6 +388,56 @@ fun OutdoorActivityHistoryCard(
                 }
             }
 
+            // Route Map Preview Section (if GPS route recorded)
+            if (hasGpsRoute && routePoints.size >= 2) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { showRouteMap = !showRouteMap },
+                    color = PurpleDarkSurface.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Map, contentDescription = null, tint = EmeraldSuccess, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (showRouteMap) "Ocultar Trajeto no Mapa" else "Ver Trajeto no Google Maps (${routePoints.size} pts)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+                        Icon(
+                            imageVector = if (showRouteMap) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                AnimatedVisibility(visible = showRouteMap) {
+                    Column(modifier = Modifier.padding(top = 8.dp)) {
+                        OutdoorRouteMapView(
+                            routePoints = routePoints,
+                            cardioType = cardio.type,
+                            splits = splits,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
+                        )
+                    }
+                }
+            }
+
             // Notes if present
             if (cardio.notes.isNotBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -405,6 +458,7 @@ fun getOutdoorCardioIcon(type: CardioType): ImageVector {
         CardioType.CAMINHADA_ESTEIRA -> Icons.AutoMirrored.Filled.DirectionsWalk
         CardioType.CAMINHADA_AR_LIVRE -> Icons.Default.Park
         CardioType.CORRIDA -> Icons.AutoMirrored.Filled.DirectionsRun
+        CardioType.TRILHA -> Icons.Default.Landscape
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
     }
 }

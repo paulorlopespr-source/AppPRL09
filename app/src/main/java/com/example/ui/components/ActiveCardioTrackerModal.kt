@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.GpsNotFixed
 import androidx.compose.material.icons.filled.GpsOff
+import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Park
 import androidx.compose.material.icons.filled.Pause
@@ -116,8 +117,14 @@ fun ActiveCardioTrackerModal(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     val context = LocalContext.current
+    val outdoorSession by viewModel.outdoorSessionState.collectAsStateWithLifecycle()
+    var isMapExpanded by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
+
+    val isOutdoor = activeCardio.type == CardioType.CORRIDA ||
+            activeCardio.type == CardioType.CAMINHADA_AR_LIVRE ||
+            activeCardio.type == CardioType.TRILHA
 
     // GPS Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -342,6 +349,13 @@ fun ActiveCardioTrackerModal(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // Ritmo / Pace calculation
+            val paceMin = activeCardio.paceMinKm.toInt()
+            val paceSec = ((activeCardio.paceMinKm - paceMin) * 60).toInt()
+            val paceStr = if (activeCardio.paceMinKm > 0 && activeCardio.paceMinKm < 30) {
+                String.format(Locale.US, "%d'%02d\"", paceMin, paceSec)
+            } else "--'--\""
+
             // Metrics 2x2 Bento (Distância, Pace, Calorias, Velocidade)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -368,12 +382,6 @@ fun ActiveCardioTrackerModal(
                 }
 
                 // Metric 2: Ritmo / Pace
-                val paceMin = activeCardio.paceMinKm.toInt()
-                val paceSec = ((activeCardio.paceMinKm - paceMin) * 60).toInt()
-                val paceStr = if (activeCardio.paceMinKm > 0 && activeCardio.paceMinKm < 30) {
-                    String.format(Locale.US, "%d'%02d\"", paceMin, paceSec)
-                } else "--'--\""
-
                 Surface(
                     modifier = Modifier.weight(1f),
                     color = PurpleDeepCard,
@@ -442,6 +450,29 @@ fun ActiveCardioTrackerModal(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            // ==========================================
+            // LIVE GOOGLE MAP (OUTDOOR CARDIO & TRAIL)
+            // ==========================================
+            if (isOutdoor) {
+                OutdoorLiveMapView(
+                    routePoints = outdoorSession.routePoints,
+                    currentLocation = outdoorSession.currentLocation,
+                    splits = outdoorSession.splits,
+                    cardioType = activeCardio.type,
+                    isPaused = activeCardio.isPaused,
+                    speedKmh = activeCardio.speedKmh,
+                    paceMinKm = if (outdoorSession.currentPaceMinKm != "--:--") outdoorSession.currentPaceMinKm else paceStr,
+                    elevationGainMeters = outdoorSession.elevationGainMeters,
+                    accuracyMeters = outdoorSession.accuracyMeters ?: activeCardio.gpsAccuracyMeters,
+                    isExpanded = isMapExpanded,
+                    onToggleExpand = { isMapExpanded = !isMapExpanded },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (isMapExpanded) 420.dp else 260.dp)
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             // ==========================================
             // GPS LIVE TRACKING CARD & SATELLITE STATUS
@@ -812,6 +843,7 @@ fun getCardioIcon(type: CardioType): ImageVector {
         CardioType.CAMINHADA_ESTEIRA -> Icons.Default.DirectionsWalk
         CardioType.CAMINHADA_AR_LIVRE -> Icons.Default.Park
         CardioType.CORRIDA -> Icons.Default.DirectionsRun
+        CardioType.TRILHA -> Icons.Default.Landscape
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
     }
 }

@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +41,10 @@ import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.GpsOff
+import androidx.compose.material.icons.filled.Landscape
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Park
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Timer
@@ -51,6 +59,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,7 +73,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.core.content.ContextCompat
+import com.example.ui.components.OutdoorGpsPromptDialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -85,6 +98,8 @@ import com.example.ui.components.LocationSelector
 import com.example.ui.components.MetricBentoCard
 import com.example.ui.components.PrimaryButton
 import com.example.ui.theme.AmberWarning
+import com.example.ui.theme.EmeraldDark
+import com.example.ui.theme.EmeraldSubtle
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.GlassBorder
 import com.example.ui.theme.GlassBorderSubtle
@@ -110,6 +125,7 @@ fun getCardioIcon(type: CardioType): ImageVector {
         CardioType.CAMINHADA_ESTEIRA -> Icons.Default.DirectionsWalk
         CardioType.CAMINHADA_AR_LIVRE -> Icons.Default.Park
         CardioType.CORRIDA -> Icons.Default.DirectionsRun
+        CardioType.TRILHA -> Icons.Default.Landscape
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
     }
 }
@@ -128,8 +144,35 @@ fun CardioScreen(
     var showManualLogDialog by remember { mutableStateOf(false) }
     var showStartLiveDialog by remember { mutableStateOf(false) }
     var selectedCardioForLive by remember { mutableStateOf(CardioType.BICICLETA_INDOOR) }
+    var enableGpsForLive by remember { mutableStateOf(true) }
     var showFinishLiveDialog by remember { mutableStateOf(false) }
     var showActiveCardioModal by remember { mutableStateOf(false) }
+    var showGpsPromptDialog by remember { mutableStateOf(false) }
+    var pendingOutdoorCardioType by remember { mutableStateOf<CardioType?>(null) }
+
+    val context = LocalContext.current
+    val gpsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        val granted = fineGranted || coarseGranted
+        val targetType = pendingOutdoorCardioType ?: selectedCardioForLive
+        viewModel.startLiveCardio(
+            type = targetType,
+            location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
+            intensity = IntensityLevel.MODERADA,
+            targetMinutes = 20,
+            enableGps = granted
+        )
+        showActiveCardioModal = true
+        pendingOutdoorCardioType = null
+    }
+
+    val onStartOutdoorWithPrompt: (CardioType) -> Unit = { type ->
+        pendingOutdoorCardioType = type
+        showGpsPromptDialog = true
+    }
 
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
@@ -347,8 +390,15 @@ fun CardioScreen(
                         CardioRoutinePlanCard(
                             routine = routine,
                             onStart = {
-                                selectedCardioForLive = routine.cardioType
-                                showStartLiveDialog = true
+                                val isOutdoor = routine.cardioType == CardioType.CAMINHADA_AR_LIVRE ||
+                                        routine.cardioType == CardioType.CORRIDA ||
+                                        routine.cardioType == CardioType.TRILHA
+                                if (isOutdoor) {
+                                    onStartOutdoorWithPrompt(routine.cardioType)
+                                } else {
+                                    selectedCardioForLive = routine.cardioType
+                                    showStartLiveDialog = true
+                                }
                             }
                         )
                     }
@@ -370,8 +420,15 @@ fun CardioScreen(
                         CardioTypeItemCard(
                             type = cType,
                             onStartLive = {
-                                selectedCardioForLive = cType
-                                showStartLiveDialog = true
+                                val isOutdoor = cType == CardioType.CAMINHADA_AR_LIVRE ||
+                                        cType == CardioType.CORRIDA ||
+                                        cType == CardioType.TRILHA
+                                if (isOutdoor) {
+                                    onStartOutdoorWithPrompt(cType)
+                                } else {
+                                    selectedCardioForLive = cType
+                                    showStartLiveDialog = true
+                                }
                             }
                         )
                     }
@@ -453,6 +510,9 @@ fun CardioScreen(
     if (showStartLiveDialog) {
         var location by remember { mutableStateOf("Academia Smart Fit") }
         var intensity by remember { mutableStateOf(IntensityLevel.MODERADA) }
+        val isOutdoor = selectedCardioForLive == CardioType.CAMINHADA_AR_LIVRE ||
+                selectedCardioForLive == CardioType.CORRIDA ||
+                selectedCardioForLive == CardioType.TRILHA
 
         AlertDialog(
             onDismissRequest = { showStartLiveDialog = false },
@@ -486,6 +546,65 @@ fun CardioScreen(
                         onLocationSelected = { location = it }
                     )
 
+                    if (isOutdoor) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (enableGpsForLive) EmeraldDark.copy(alpha = 0.4f) else PurpleDeepCard,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (enableGpsForLive) EmeraldSuccess else GlassBorderSubtle
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { enableGpsForLive = !enableGpsForLive }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = if (enableGpsForLive) Icons.Default.GpsFixed else Icons.Default.GpsOff,
+                                        contentDescription = null,
+                                        tint = if (enableGpsForLive) EmeraldSuccess else TextMuted,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Rastreamento GPS (Ao Vivo)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextPrimary
+                                        )
+                                        Text(
+                                            text = if (enableGpsForLive) "Google Maps ao vivo, ritmo e altimetria" else "Modo indoor (sem GPS)",
+                                            fontSize = 10.sp,
+                                            color = if (enableGpsForLive) LilacSoft else TextMuted
+                                        )
+                                    }
+                                }
+                                Switch(
+                                    checked = enableGpsForLive,
+                                    onCheckedChange = { enableGpsForLive = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = EmeraldSuccess,
+                                        uncheckedThumbColor = TextMuted,
+                                        uncheckedTrackColor = PurpleDarkSurface
+                                    )
+                                )
+                            }
+                        }
+                    }
+
                     Text(
                         text = "Intensidade Estimada:",
                         style = MaterialTheme.typography.labelMedium,
@@ -516,16 +635,40 @@ fun CardioScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val enableGps = selectedCardioForLive == CardioType.CAMINHADA_AR_LIVRE || selectedCardioForLive == CardioType.CORRIDA
-                        viewModel.startLiveCardio(
-                            type = selectedCardioForLive,
-                            location = location,
-                            intensity = intensity,
-                            targetMinutes = 20,
-                            enableGps = enableGps
-                        )
+                        val wantGps = isOutdoor && enableGpsForLive
                         showStartLiveDialog = false
-                        showActiveCardioModal = true
+
+                        if (wantGps) {
+                            val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            if (hasFine || hasCoarse) {
+                                viewModel.startLiveCardio(
+                                    type = selectedCardioForLive,
+                                    location = location,
+                                    intensity = intensity,
+                                    targetMinutes = 20,
+                                    enableGps = true
+                                )
+                                showActiveCardioModal = true
+                            } else {
+                                pendingOutdoorCardioType = selectedCardioForLive
+                                gpsPermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            }
+                        } else {
+                            viewModel.startLiveCardio(
+                                type = selectedCardioForLive,
+                                location = location,
+                                intensity = intensity,
+                                targetMinutes = 20,
+                                enableGps = false
+                            )
+                            showActiveCardioModal = true
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                     shape = RoundedCornerShape(12.dp),
@@ -541,6 +684,54 @@ fun CardioScreen(
             },
             containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
+        )
+    }
+
+    // Outdoor GPS Prompt Dialog
+    if (showGpsPromptDialog && pendingOutdoorCardioType != null) {
+        OutdoorGpsPromptDialog(
+            cardioType = pendingOutdoorCardioType!!,
+            onConfirmGps = {
+                showGpsPromptDialog = false
+                val targetType = pendingOutdoorCardioType ?: selectedCardioForLive
+                val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                if (hasFine || hasCoarse) {
+                    viewModel.startLiveCardio(
+                        type = targetType,
+                        location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
+                        intensity = IntensityLevel.MODERADA,
+                        targetMinutes = 25,
+                        enableGps = true
+                    )
+                    showActiveCardioModal = true
+                    pendingOutdoorCardioType = null
+                } else {
+                    gpsPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                }
+            },
+            onConfirmNoGps = {
+                showGpsPromptDialog = false
+                val targetType = pendingOutdoorCardioType ?: selectedCardioForLive
+                viewModel.startLiveCardio(
+                    type = targetType,
+                    location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
+                    intensity = IntensityLevel.MODERADA,
+                    targetMinutes = 25,
+                    enableGps = false
+                )
+                showActiveCardioModal = true
+                pendingOutdoorCardioType = null
+            },
+            onDismiss = {
+                showGpsPromptDialog = false
+                pendingOutdoorCardioType = null
+            }
         )
     }
 
