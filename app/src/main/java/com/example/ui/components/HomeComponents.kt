@@ -60,6 +60,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,30 +98,24 @@ import kotlinx.coroutines.launch
  * Centralizes presentation-only data to keep the composables declarative and clean.
  */
 data class HomeUiState(
-    val userName: String = "Paulo",
-    val todayWorkoutTitle: String = "Full Body A",
-    val todayMuscleGroup: String = "Peito, Costas & Pernas",
-    val hasPlannedWorkout: Boolean = true,
+    val userName: String = "Atleta",
+    val todayWorkoutTitle: String = "Treino do Dia",
+    val todayMuscleGroup: String = "",
+    val hasPlannedWorkout: Boolean = false,
     val isWorkoutActive: Boolean = false,
     val activeWorkoutTitle: String = "",
     val activeWorkoutDurationSeconds: Long = 0L,
     val isCardioActive: Boolean = false,
     val activeCardioTitle: String = "",
     val activeCardioDurationMinutes: Int = 0,
-    val streakDays: Int = 12,
-    val weeklyDoneCount: Int = 2,
+    val streakDays: Int = 0,
+    val weeklyDoneCount: Int = 0,
     val weeklyGoalTarget: Int = 5,
-    val readinessScore: Int = 78,
+    val readinessScore: Int? = null,
+    val readinessLabel: String = "",
+    val hasReadinessData: Boolean = false,
     val hasSufficientData: Boolean = true,
-    val weeklyDayStatuses: List<DayProgressStatus> = listOf(
-        DayProgressStatus("S", isCompleted = true, isCurrentOrNext = false, isFuture = false),
-        DayProgressStatus("T", isCompleted = true, isCurrentOrNext = false, isFuture = false),
-        DayProgressStatus("Q", isCompleted = false, isCurrentOrNext = true, isFuture = false),
-        DayProgressStatus("Q", isCompleted = false, isCurrentOrNext = false, isFuture = true),
-        DayProgressStatus("S", isCompleted = false, isCurrentOrNext = false, isFuture = true),
-        DayProgressStatus("S", isCompleted = false, isCurrentOrNext = false, isFuture = true),
-        DayProgressStatus("D", isCompleted = false, isCurrentOrNext = false, isFuture = true)
-    )
+    val weeklyDayStatuses: List<DayProgressStatus> = emptyList()
 )
 
 data class DayProgressStatus(
@@ -177,8 +175,8 @@ fun HomeHeader(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Disciplina hoje, resultados amanhã.",
-                    fontSize = 14.sp,
-                    color = Color(0xFFC4B5FD)
+                    fontSize = 13.sp,
+                    color = Color(0xFF94A3B8)
                 )
             }
         }
@@ -194,7 +192,7 @@ fun HomeHeader(
                     if (hasUnreadNotification) {
                         Badge(
                             containerColor = Color(0xFFA855F7),
-                            modifier = Modifier.size(8.dp)
+                            modifier = Modifier.size(7.dp)
                         )
                     }
                 }
@@ -202,7 +200,7 @@ fun HomeHeader(
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Notificações e Lembretes",
-                    tint = Color(0xFFC4B5FD),
+                    tint = Color(0xFFC084FC),
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -261,32 +259,33 @@ fun TodayWorkoutHero(
             .fillMaxWidth()
             .testTag("card_today_workout_hero"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E20)),
-        border = BorderStroke(1.dp, Color(0xFF2E204A).copy(alpha = 0.6f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E22)),
+        border = BorderStroke(1.dp, Color(0xFF281C40))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(290.dp)
+                .height(300.dp)
         ) {
-            // Mountain Sunset Silhouette Artwork
-            HeroSunsetMountainBackground(
+            // Background Artwork: Asset oficial ou Artwork de altíssima fidelidade à referência
+            HeroBackgroundContainer(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Dark readability gradients
+            // Gradiente escuro suave no lado esquerdo para contraste e legibilidade impecável dos textos
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
-                                Color(0xFF0F0B1A).copy(alpha = 0.94f),
-                                Color(0xFF0F0B1A).copy(alpha = 0.72f),
-                                Color(0xFF0F0B1A).copy(alpha = 0.25f)
+                                Color(0xFF0F0B1A).copy(alpha = 0.92f),
+                                Color(0xFF0F0B1A).copy(alpha = 0.70f),
+                                Color(0xFF0F0B1A).copy(alpha = 0.15f),
+                                Color.Transparent
                             ),
                             startX = 0f,
-                            endX = 900f
+                            endX = 750f
                         )
                     )
             )
@@ -298,19 +297,19 @@ fun TodayWorkoutHero(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0xFF0F0B1A).copy(alpha = 0.65f),
-                                Color(0xFF0F0B1A).copy(alpha = 0.95f)
+                                Color(0xFF0F0B1A).copy(alpha = 0.40f),
+                                Color(0xFF0F0B1A).copy(alpha = 0.85f)
                             ),
-                            startY = 140f
+                            startY = 180f
                         )
                     )
             )
 
-            // Foreground Content
+            // Foreground Content idêntico à referência visual do usuário
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
@@ -318,17 +317,17 @@ fun TodayWorkoutHero(
                         withStyle(
                             SpanStyle(
                                 color = Color.White,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 fontSize = 28.sp,
                                 letterSpacing = 0.5.sp
                             )
                         ) {
-                            append("UM DIA\nMAIS FORTE\nCOMEÇA ")
+                            append("UM DIA\nMAIS FORTE\nCOMEÇA\n")
                         }
                         withStyle(
                             SpanStyle(
-                                color = Color(0xFFA855F7),
-                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFC084FC), // Lilás / violeta luminoso da referência
+                                fontWeight = FontWeight.ExtraBold,
                                 fontSize = 28.sp,
                                 letterSpacing = 0.5.sp
                             )
@@ -342,16 +341,17 @@ fun TodayWorkoutHero(
                         lineHeight = 32.sp
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
                         text = "Disciplina é liberdade.",
-                        fontSize = 14.sp,
-                        color = Color(0xFFE2E8F0)
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color(0xFFCBD5E1)
                     )
                 }
 
-                // CTA Button depending on State
+                // CTA Button: Estilo vibrante idêntico à referência
                 val (ctaLabel, ctaAction) = when {
                     !state.hasSufficientData -> Pair("Configurar / registrar dados", onConfigureData)
                     !state.hasPlannedWorkout -> Pair("Escolher treino", onSelectWorkout)
@@ -360,22 +360,14 @@ fun TodayWorkoutHero(
 
                 Button(
                     onClick = ctaAction,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6D28D9) // Roxo sólido vibrante da referência
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFF7C3AED),
-                                    Color(0xFF9333EA),
-                                    Color(0xFFA855F7)
-                                )
-                            )
-                        )
+                        .height(50.dp)
                         .testTag("btn_hero_cta")
                 ) {
                     Row(
@@ -386,14 +378,14 @@ fun TodayWorkoutHero(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = ctaLabel,
                             color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -403,132 +395,247 @@ fun TodayWorkoutHero(
 }
 
 /**
- * Custom Canvas drawing the atmospheric sunset mountains and athletic male silhouette
+ * Container de fundo para o Hero da Tela Início.
+ *
+ * Suporta tanto imagem externa em drawable (img_hero_workout_card / hero_home_bg)
+ * quanto a renderização procedural de alta fidelidade da cena exata (montanhas, pôr do sol e silhueta atlética).
  */
 @Composable
-fun HeroSunsetMountainBackground(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
+fun HeroBackgroundContainer(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val heroDrawableId = remember(context) {
+        val id1 = context.resources.getIdentifier("img_hero_workout_card", "drawable", context.packageName)
+        if (id1 != 0) id1 else {
+            val id2 = context.resources.getIdentifier("hero_home_bg", "drawable", context.packageName)
+            if (id2 != 0) id2 else 0
+        }
+    }
+
+    if (heroDrawableId != 0) {
+        Image(
+            painter = painterResource(id = heroDrawableId),
+            contentDescription = "Hero Background",
+            contentScale = ContentScale.Crop,
+            modifier = modifier.fillMaxSize()
+        )
+    } else {
+        HeroMountainSunsetAthleteArtwork(modifier = modifier)
+    }
+}
+
+/**
+ * Arte procedural em alta fidelidade reproduzindo a imagem de referência:
+ * - Céu crepuscular roxo/violeta
+ * - Brilho do sol poente quente (âmbar/dourado) atrás das montanhas
+ * - Cordilheira rochosa com silhuetas de pinheiros na encosta esquerda
+ * - Silhueta atlética masculina de costas com iluminação rim light dourada nos ombros e trapézio
+ */
+@Composable
+fun HeroMountainSunsetAthleteArtwork(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
 
-        // 1. Twilight sunset sky gradient
+        // 1. Céu base do crepúsculo (gradiente vertical roxo profundo a magenta)
         drawRect(
             brush = Brush.verticalGradient(
-                listOf(
-                    Color(0xFF140827), // deep twilight night sky
-                    Color(0xFF280B45), // rich purple
-                    Color(0xFF5B168C), // magenta purple
-                    Color(0xFFB45309), // sunset warm amber glow at horizon
-                    Color(0xFF431407)  // deep mountain base
+                colors = listOf(
+                    Color(0xFF120726), // Topo noturno
+                    Color(0xFF260D47), // Roxo profundo
+                    Color(0xFF4C1572), // Violeta médio
+                    Color(0xFF8B2671), // Magenta do pôr do sol
+                    Color(0xFF200B36)  // Base inferior
                 )
             )
         )
 
-        // 2. Sunset sun glow behind mountain/athlete
-        val sunCenter = Offset(w * 0.72f, h * 0.42f)
+        // 2. Brilho do sol poente no horizonte (centro à direita, atrás do atleta)
+        val sunCenter = Offset(w * 0.74f, h * 0.38f)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0xFFFFB056).copy(alpha = 0.55f),
-                    Color(0xFFEA580C).copy(alpha = 0.25f),
+                    Color(0xFFFFD494).copy(alpha = 0.85f), // Núcleo dourado/pêssego
+                    Color(0xFFF97316).copy(alpha = 0.65f), // Laranja fogo
+                    Color(0xFFEA580C).copy(alpha = 0.40f), // Âmbar
+                    Color(0xFFA855F7).copy(alpha = 0.18f), // Difusão lilás
                     Color.Transparent
                 ),
                 center = sunCenter,
-                radius = w * 0.38f
+                radius = w * 0.42f
             ),
-            radius = w * 0.38f,
+            radius = w * 0.42f,
             center = sunCenter
         )
 
-        // 3. Distant mountain peaks (Deep Violet)
-        val distantMountain = Path().apply {
-            moveTo(0f, h * 0.65f)
-            lineTo(w * 0.20f, h * 0.50f)
-            lineTo(w * 0.38f, h * 0.58f)
-            lineTo(w * 0.55f, h * 0.44f)
-            lineTo(w * 0.72f, h * 0.54f)
-            lineTo(w * 0.88f, h * 0.42f)
+        // Faixas suaves de nuvens quentes no horizonte direito
+        val cloudBrush = Brush.horizontalGradient(
+            colors = listOf(
+                Color.Transparent,
+                Color(0xFFFF9E3D).copy(alpha = 0.30f),
+                Color(0xFFC026D3).copy(alpha = 0.25f),
+                Color.Transparent
+            ),
+            startX = w * 0.45f,
+            endX = w
+        )
+        drawRect(
+            brush = cloudBrush,
+            topLeft = Offset(w * 0.40f, h * 0.32f),
+            size = androidx.compose.ui.geometry.Size(w * 0.60f, h * 0.08f)
+        )
+
+        // 3. Montanhas distantes (picos alpinos pontiagudos em roxo-azul escuro)
+        val distantMountains = Path().apply {
+            moveTo(0f, h * 0.64f)
+            lineTo(w * 0.15f, h * 0.58f)
+            lineTo(w * 0.30f, h * 0.48f)
+            lineTo(w * 0.42f, h * 0.54f)
+            lineTo(w * 0.58f, h * 0.41f) // Pico central atrás do horizonte
+            lineTo(w * 0.70f, h * 0.50f)
+            lineTo(w * 0.82f, h * 0.44f) // Pico direito
+            lineTo(w * 0.94f, h * 0.52f)
             lineTo(w, h * 0.48f)
             lineTo(w, h)
             lineTo(0f, h)
             close()
         }
-        drawPath(
-            path = distantMountain,
-            color = Color(0xFF261048)
-        )
+        drawPath(distantMountains, color = Color(0xFF261245))
 
-        // 4. Closer mountain ridges (Dark Purple)
-        val closerMountain = Path().apply {
+        // 4. Encosta montanhosa da esquerda com silhuetas de pinheiros
+        val leftRidge = Path().apply {
             moveTo(0f, h * 0.78f)
-            lineTo(w * 0.28f, h * 0.64f)
-            lineTo(w * 0.50f, h * 0.72f)
-            lineTo(w * 0.70f, h * 0.56f)
-            lineTo(w * 0.85f, h * 0.62f)
-            lineTo(w, h * 0.58f)
+            lineTo(w * 0.12f, h * 0.66f)
+            lineTo(w * 0.26f, h * 0.55f)
+            lineTo(w * 0.40f, h * 0.68f)
+            lineTo(w * 0.55f, h * 0.78f)
+            lineTo(w, h * 0.82f)
             lineTo(w, h)
             lineTo(0f, h)
             close()
         }
-        drawPath(
-            path = closerMountain,
-            color = Color(0xFF17092E)
-        )
+        drawPath(leftRidge, color = Color(0xFF170A2A))
 
-        // 5. Athletic muscular man silhouette (back view, standing strong)
-        val manX = w * 0.72f
-        val manY = h * 0.45f
-        val manScale = h * 0.0032f
+        // Silhuetas de pinheiros na encosta esquerda (como na imagem de referência)
+        fun drawPineTree(x: Float, baseY: Float, treeH: Float, treeW: Float) {
+            val treePath = Path().apply {
+                moveTo(x, baseY - treeH)
+                lineTo(x + treeW * 0.3f, baseY - treeH * 0.65f)
+                lineTo(x + treeW * 0.2f, baseY - treeH * 0.65f)
+                lineTo(x + treeW * 0.45f, baseY - treeH * 0.35f)
+                lineTo(x + treeW * 0.3f, baseY - treeH * 0.35f)
+                lineTo(x + treeW * 0.5f, baseY)
+                lineTo(x - treeW * 0.5f, baseY)
+                lineTo(x - treeW * 0.3f, baseY - treeH * 0.35f)
+                lineTo(x - treeW * 0.45f, baseY - treeH * 0.35f)
+                lineTo(x - treeW * 0.2f, baseY - treeH * 0.65f)
+                lineTo(x - treeW * 0.3f, baseY - treeH * 0.65f)
+                close()
+            }
+            drawPath(treePath, color = Color(0xFF0F061C))
+        }
 
-        val silhouettePath = Path().apply {
-            // Head
-            val headRadius = 14f * manScale
-            val headCenterY = manY - 55f * manScale
+        drawPineTree(w * 0.04f, h * 0.68f, h * 0.18f, w * 0.05f)
+        drawPineTree(w * 0.09f, h * 0.64f, h * 0.22f, w * 0.06f)
+        drawPineTree(w * 0.15f, h * 0.61f, h * 0.16f, w * 0.045f)
+        drawPineTree(w * 0.20f, h * 0.58f, h * 0.14f, w * 0.04f)
+        drawPineTree(w * 0.25f, h * 0.57f, h * 0.12f, w * 0.035f)
 
-            // Neck & Traps
-            moveTo(manX - 8f * manScale, headCenterY + headRadius)
-            // Left Trap to broad left shoulder
-            lineTo(manX - 34f * manScale, manY - 26f * manScale)
-            // Left Deltoid curve
-            lineTo(manX - 38f * manScale, manY - 14f * manScale)
-            // Left Arm / Triceps down to waist
-            lineTo(manX - 35f * manScale, manY + 36f * manScale)
-            // Left Lat / Torso tapering into waist
-            lineTo(manX - 22f * manScale, manY + 50f * manScale)
-            // Lower waist / base
-            lineTo(manX + 22f * manScale, manY + 50f * manScale)
-            // Right Lat / Torso
-            lineTo(manX + 35f * manScale, manY + 36f * manScale)
-            // Right Deltoid / Arm
-            lineTo(manX + 38f * manScale, manY - 14f * manScale)
-            // Right Shoulder
-            lineTo(manX + 34f * manScale, manY - 26f * manScale)
-            // Right Trap back to head
-            lineTo(manX + 8f * manScale, headCenterY + headRadius)
+        // 5. Silhueta Atlética Masculina de Costas (Corpo musculoso, ombros largos e trapézio)
+        val manX = w * 0.71f
+        val manY = h * 0.48f
+        val scale = h * 0.0035f
+
+        val athleteBody = Path().apply {
+            val headRadius = 15f * scale
+            val headTop = manY - 58f * scale
+
+            // Início no pescoço/trapézio esquerdo
+            moveTo(manX - 10f * scale, headTop + headRadius * 1.5f)
+            // Trapézio subindo até o ombro esquerdo largo
+            lineTo(manX - 38f * scale, manY - 24f * scale)
+            // Deltoide posterior esquerdo (curva musculosa)
+            lineTo(manX - 44f * scale, manY - 10f * scale)
+            // Manga da camiseta atlética esquerda
+            lineTo(manX - 42f * scale, manY + 16f * scale)
+            // Braço / tríceps descendo
+            lineTo(manX - 40f * scale, manY + 48f * scale)
+            // Entrada para a cintura (V-Taper acentuado)
+            lineTo(manX - 25f * scale, manY + 68f * scale)
+            // Base inferior da camiseta / tronco
+            lineTo(manX - 22f * scale, h)
+            lineTo(manX + 26f * scale, h)
+            // Cintura direita
+            lineTo(manX + 28f * scale, manY + 68f * scale)
+            // Braço / tríceps direito
+            lineTo(manX + 44f * scale, manY + 48f * scale)
+            // Manga da camiseta atlética direita
+            lineTo(manX + 46f * scale, manY + 16f * scale)
+            // Deltoide direito
+            lineTo(manX + 48f * scale, manY - 10f * scale)
+            // Trapézio direito descendo em direção ao pescoço
+            lineTo(manX + 42f * scale, manY - 24f * scale)
+            lineTo(manX + 10f * scale, headTop + headRadius * 1.5f)
             close()
         }
 
-        // Draw body silhouette
-        drawPath(path = silhouettePath, color = Color(0xFF090412))
-        // Draw Head
+        // Desenhar corpo da silhueta (cor da camiseta atlética escura)
+        drawPath(athleteBody, color = Color(0xFF100B1A))
+
+        // Cabeça com corte atlético
+        val headCenter = Offset(manX + 1f * scale, manY - 44f * scale)
         drawCircle(
-            color = Color(0xFF090412),
-            radius = 14f * manScale,
-            center = Offset(manX, manY - 55f * manScale)
+            color = Color(0xFF0F0818),
+            radius = 15f * scale,
+            center = headCenter
         )
 
-        // Warm rim light edge on athlete shoulders
+        // Detalhes de costura/sombra na camiseta atlética (costas musculosas)
+        val backSeam = Path().apply {
+            moveTo(manX - 26f * scale, manY - 18f * scale)
+            lineTo(manX, manY - 8f * scale)
+            lineTo(manX + 28f * scale, manY - 18f * scale)
+        }
+        drawPath(
+            path = backSeam,
+            color = Color(0xFF1D152A),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * scale)
+        )
+
+        // 6. Rim Light Dourada do Pôr do Sol (contorno de luz nas bordas direitas)
+        // Destaca ombro, trapézio, pescoço e cabeça banhados pelo sol
         drawLine(
-            color = Color(0xFFFFBE76).copy(alpha = 0.45f),
-            start = Offset(manX - 34f * manScale, manY - 26f * manScale),
-            end = Offset(manX - 8f * manScale, manY - 40f * manScale),
-            strokeWidth = 2.5f
+            color = Color(0xFFFFBF7F).copy(alpha = 0.95f),
+            start = Offset(manX + 8f * scale, manY - 32f * scale),
+            end = Offset(manX + 42f * scale, manY - 24f * scale),
+            strokeWidth = 3.5f * scale
         )
         drawLine(
-            color = Color(0xFFFFBE76).copy(alpha = 0.45f),
-            start = Offset(manX + 8f * manScale, manY - 40f * manScale),
-            end = Offset(manX + 34f * manScale, manY - 26f * manScale),
-            strokeWidth = 2.5f
+            color = Color(0xFFFFBF7F).copy(alpha = 0.95f),
+            start = Offset(manX + 42f * scale, manY - 24f * scale),
+            end = Offset(manX + 48f * scale, manY - 10f * scale),
+            strokeWidth = 3.5f * scale
+        )
+        drawLine(
+            color = Color(0xFFFF9E3D).copy(alpha = 0.85f),
+            start = Offset(manX + 48f * scale, manY - 10f * scale),
+            end = Offset(manX + 46f * scale, manY + 22f * scale),
+            strokeWidth = 3.0f * scale
+        )
+
+        // Rim light na orelha e lateral da cabeça
+        drawLine(
+            color = Color(0xFFFFBF7F).copy(alpha = 0.90f),
+            start = Offset(manX + 12f * scale, manY - 52f * scale),
+            end = Offset(manX + 16f * scale, manY - 42f * scale),
+            strokeWidth = 2.5f * scale
+        )
+
+        // Rim light suave e lilás no lado esquerdo
+        drawLine(
+            color = Color(0xFFA855F7).copy(alpha = 0.40f),
+            start = Offset(manX - 8f * scale, manY - 32f * scale),
+            end = Offset(manX - 38f * scale, manY - 24f * scale),
+            strokeWidth = 2.0f * scale
         )
     }
 }
@@ -643,11 +750,97 @@ fun ActiveSessionBanner(
 }
 
 /**
- * 3. EssentialMetricsRow (3 cards compactos, Row com weight igual)
- * - Card 1: 🔥 flame (orange) + "12" + "Dias seguidos"
- * - Card 2: 🏋️ dumbbell (purple) + "2 / 5" + "Treinos semanais"
- * - Card 3: 🎯 target (green) + "78" + "Seu foco hoje"
+ * Ícone concêntrico vetorial de Alvo / Bullseye verde (foco/readiness)
  */
+@Composable
+fun TargetFocusIcon(tint: Color, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val radius = size.minDimension / 2f
+        val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+
+        // Anel externo
+        drawCircle(
+            color = tint,
+            radius = radius * 0.88f,
+            center = center,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.2.dp.toPx())
+        )
+        // Anel intermediário
+        drawCircle(
+            color = tint,
+            radius = radius * 0.52f,
+            center = center,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.0.dp.toPx())
+        )
+        // Ponto central
+        drawCircle(
+            color = tint,
+            radius = radius * 0.22f,
+            center = center
+        )
+    }
+}
+
+/**
+ * 3. EssentialMetricsRow (3 cards compactos, Row com weight igual)
+ * - Card 1: 🔥 flame (orange) + streak real (ex: "12" ou "0") + "Dias seguidos"
+ * - Card 2: 🏋️ dumbbell (purple) + "2 / 5" + "Treinos semanais"
+ * - Card 3: 🎯 target (green) + real score (ex: "78" ou "—") + "Seu foco hoje"
+ */
+@Composable
+fun EssentialMetricsRow(
+    streakDays: Int,
+    weeklyDone: Int,
+    weeklyGoal: Int,
+    readinessScore: Int?,
+    readinessLabel: String = "",
+    hasReadinessData: Boolean,
+    onReadinessClick: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Card 1: Streak (dados reais)
+        EssentialMetricCard(
+            icon = Icons.Default.LocalFireDepartment,
+            iconTint = Color(0xFFF97316), // Laranja vibrante da referência
+            value = if (streakDays > 0) "$streakDays" else "0",
+            label = "Dias seguidos",
+            testTag = "card_metric_streak",
+            modifier = Modifier.weight(1f)
+        )
+
+        // Card 2: Weekly Workouts (dados reais)
+        EssentialMetricCard(
+            icon = Icons.Default.FitnessCenter,
+            iconTint = Color(0xFFC084FC), // Lilás / violeta luminoso da referência
+            value = "$weeklyDone / $weeklyGoal",
+            label = "Treinos semanais",
+            testTag = "card_metric_weekly",
+            modifier = Modifier.weight(1f)
+        )
+
+        // Card 3: Focus / Readiness (dados reais com affordance para check-in)
+        EssentialMetricCard(
+            icon = Icons.Default.GpsFixed,
+            iconTint = Color(0xFF22C55E), // Verde esmeralda da referência
+            customIcon = {
+                TargetFocusIcon(
+                    tint = Color(0xFF22C55E),
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            value = if (hasReadinessData && readinessScore != null) "$readinessScore" else "—",
+            label = "Seu foco hoje",
+            testTag = "card_metric_focus",
+            onClick = onReadinessClick,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
 @Composable
 fun EssentialMetricsRow(
     streakDays: Int,
@@ -657,40 +850,16 @@ fun EssentialMetricsRow(
     hasSufficientData: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        // Card 1: Streak
-        EssentialMetricCard(
-            icon = Icons.Default.LocalFireDepartment,
-            iconTint = Color(0xFFFB923C), // Amber/Orange Flame
-            value = if (hasSufficientData) streakDays.toString() else "--",
-            label = "Dias seguidos",
-            testTag = "card_metric_streak",
-            modifier = Modifier.weight(1f)
-        )
-
-        // Card 2: Weekly Workouts
-        EssentialMetricCard(
-            icon = Icons.Default.FitnessCenter,
-            iconTint = Color(0xFFA855F7), // Purple/Lilac Dumbbell
-            value = if (hasSufficientData) "$weeklyDone / $weeklyGoal" else "--",
-            label = "Treinos semanais",
-            testTag = "card_metric_weekly",
-            modifier = Modifier.weight(1f)
-        )
-
-        // Card 3: Focus / Readiness
-        EssentialMetricCard(
-            icon = Icons.Default.GpsFixed,
-            iconTint = Color(0xFF22C55E), // Emerald/Green Target
-            value = if (hasSufficientData) readinessScore.toString() else "--",
-            label = "Seu foco hoje",
-            testTag = "card_metric_focus",
-            modifier = Modifier.weight(1f)
-        )
-    }
+    EssentialMetricsRow(
+        streakDays = streakDays,
+        weeklyDone = weeklyDone,
+        weeklyGoal = weeklyGoal,
+        readinessScore = if (hasSufficientData) readinessScore else null,
+        readinessLabel = if (hasSufficientData) "Readiness" else "",
+        hasReadinessData = hasSufficientData,
+        onReadinessClick = {},
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -700,13 +869,17 @@ fun EssentialMetricCard(
     value: String,
     label: String,
     testTag: String,
+    customIcon: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.testTag(testTag),
+        modifier = modifier
+            .testTag(testTag)
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E20)),
-        border = BorderStroke(1.dp, Color(0xFF2E204A).copy(alpha = 0.6f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E22)),
+        border = BorderStroke(1.dp, Color(0xFF281C40))
     ) {
         Column(
             modifier = Modifier
@@ -714,12 +887,16 @@ fun EssentialMetricCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = iconTint,
-                modifier = Modifier.size(24.dp)
-            )
+            if (customIcon != null) {
+                customIcon()
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = iconTint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(2.dp))
 
@@ -761,8 +938,8 @@ fun WeeklyProgressCard(
             .clickable { onOpenDashboard() }
             .testTag("card_weekly_progress"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E20)),
-        border = BorderStroke(1.dp, Color(0xFF2E204A).copy(alpha = 0.6f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E22)),
+        border = BorderStroke(1.dp, Color(0xFF281C40))
     ) {
         Column(
             modifier = Modifier
@@ -833,7 +1010,7 @@ fun WeeklyProgressCard(
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0xFF241838))
+                    .background(Color(0xFF251A3C))
             ) {
                 Box(
                     modifier = Modifier
@@ -873,62 +1050,43 @@ fun DayCircleIndicator(status: DayProgressStatus) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        when {
-            status.isCompleted -> {
-                // Filled Green Circle with Checkmark
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF22C55E)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Concluído",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Text(
-                    text = status.dayLetter,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF22C55E)
+        if (status.isCompleted) {
+            // Círculo Verde Preenchido com Checkmark
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF10B981)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Concluído",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
                 )
             }
-            status.isCurrentOrNext -> {
-                // Hollow circle with purple border
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, Color(0xFFA855F7), CircleShape)
-                        .background(Color.Transparent)
-                )
-                Text(
-                    text = status.dayLetter,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFA855F7)
-                )
-            }
-            else -> {
-                // Hollow circle with gray border (future days)
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .border(1.5.dp, Color(0xFF3F3F46), CircleShape)
-                        .background(Color.Transparent)
-                )
-                Text(
-                    text = status.dayLetter,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color(0xFF71717A)
-                )
-            }
+            Text(
+                text = status.dayLetter,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF10B981)
+            )
+        } else {
+            // Círculo com Anel Roxo Fino (Dias futuros ou pendentes)
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, Color(0xFF581C87), CircleShape)
+                    .background(Color.Transparent)
+            )
+            Text(
+                text = status.dayLetter,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFF94A3B8)
+            )
         }
     }
 }
@@ -941,7 +1099,7 @@ fun DayCircleIndicator(status: DayProgressStatus) {
  */
 @Composable
 fun MotivationCard(
-    quote: String = "Pequenas ações diárias constroem grandes resultados.",
+    quote: String = "Pequenas ações diárias\nconstroem grandes resultados.",
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -949,8 +1107,8 @@ fun MotivationCard(
             .fillMaxWidth()
             .testTag("card_motivation"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E20)),
-        border = BorderStroke(1.dp, Color(0xFF2E204A).copy(alpha = 0.6f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF130E22)),
+        border = BorderStroke(1.dp, Color(0xFF281C40))
     ) {
         Row(
             modifier = Modifier
@@ -973,7 +1131,7 @@ fun MotivationCard(
                     text = quote,
                     fontSize = 14.sp,
                     fontStyle = FontStyle.Italic,
-                    color = Color(0xFFE2E8F0),
+                    color = Color(0xFFCBD5E1),
                     lineHeight = 20.sp
                 )
 
@@ -981,7 +1139,7 @@ fun MotivationCard(
 
                 Box(
                     modifier = Modifier
-                        .width(36.dp)
+                        .width(28.dp)
                         .height(2.5.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFA855F7))

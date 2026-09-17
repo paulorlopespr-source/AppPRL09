@@ -27,7 +27,7 @@ object DefaultFitnessData {
     fun getDefaultUserProfile(): UserProfile {
         return UserProfile(
             id = 1,
-            name = "Atleta Fit",
+            name = "Paulo",
             age = 26,
             heightCm = 175.0,
             startingWeightKg = 76.0,

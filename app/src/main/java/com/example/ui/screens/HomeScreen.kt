@@ -64,7 +64,12 @@ import com.example.ui.theme.LilacAccent
 import com.example.ui.theme.PurpleDarkest
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.screens.ReadinessCheckInScreen
 import com.example.ui.viewmodel.FitnessViewModel
+import com.example.ui.viewmodel.Phase45ViewModel
+import java.time.DayOfWeek
+import java.time.LocalDate
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +83,7 @@ fun HomeScreen(
     onNavigateToEvolution: () -> Unit,
     onNavigateToCoach: () -> Unit = {},
     onNavigateToDashboard: () -> Unit = {},
+    phase45Vm: Phase45ViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
@@ -93,11 +99,18 @@ fun HomeScreen(
     val isGeneratingAIWorkout by viewModel.isGeneratingAIWorkout.collectAsStateWithLifecycle()
     val generatedAIWorkout by viewModel.generatedAIWorkout.collectAsStateWithLifecycle()
 
+    // Dados reais de Prontidão (Readiness) da Fase 4 & 5
+    val readinessResult by phase45Vm.readiness.collectAsStateWithLifecycle()
+    val hasReadiness = readinessResult != null
+    val readinessScore = readinessResult?.score
+    val readinessLabel = readinessResult?.label ?: ""
+
     // Navigation Drawer State
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
     // Dialog & Modal Sheet states
+    var checkInMode by remember { mutableStateOf(false) }
     var selectedSessionAiFeedback by remember { mutableStateOf<String?>(null) }
     var showAiDialog by remember { mutableStateOf(false) }
     var showNutritionDialog by remember { mutableStateOf(false) }
@@ -113,6 +126,20 @@ fun HomeScreen(
     var showGpsPromptDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var pendingOutdoorCardioType by remember { mutableStateOf<CardioType?>(null) }
+
+    // Intercepta se o usuário acionou o check-in de Prontidão
+    if (checkInMode) {
+        ReadinessCheckInScreen(
+            onSave = { checkIn ->
+                phase45Vm.saveCheckIn(checkIn)
+                checkInMode = false
+            },
+            onCancel = {
+                checkInMode = false
+            }
+        )
+        return
+    }
 
     val context = LocalContext.current
     val gpsPermissionLauncher = rememberLauncherForActivityResult(
@@ -133,67 +160,67 @@ fun HomeScreen(
         pendingOutdoorCardioType = null
     }
 
-    val todayEpoch = DateUtils.todayEpochDay()
+    // =========================================================================
+    // CÁLCULO RIGOROSAMENTE DETERMINÍSTICO E REAL (SEM DADOS FICTÍCIOS)
+    // =========================================================================
+    val today = remember { LocalDate.now() }
+    val todayEpoch = remember(today) { today.toEpochDay() }
+    val monday = remember(today) { today.with(DayOfWeek.MONDAY) }
+    val currentWeekDays = remember(monday) { (0..6).map { monday.plusDays(it.toLong()) } }
+    val currentWeekEpochs = remember(currentWeekDays) { currentWeekDays.map { it.toEpochDay() }.toSet() }
+
     val completedWorkouts = workoutSessions.filter { it.status == SessionStatus.COMPLETED }
+    val realWeeklyDone = completedWorkouts.count { it.dateEpochDay in currentWeekEpochs }
+    val weeklyGoalTarget = userProfile?.weeklyGoalDays?.takeIf { it > 0 } ?: 5
 
-    // Count this week's workouts (e.g. 2 / 5)
-    val currentWeekDays = (0..6).map { todayEpoch - (todayEpoch % 7) + it }
-    val realWeeklyDone = completedWorkouts.count { it.dateEpochDay in currentWeekDays }
-    val weeklyGoalTarget = userProfile?.weeklyGoalDays ?: 5
-
-    // Choose default or favorite template for Today's Workout
+    // Escolhe template favorito ou sugerido do dia
     val todayTemplate: WorkoutTemplate? = workoutTemplates.firstOrNull { it.isFavorite }
         ?: workoutTemplates.firstOrNull()
 
-    // Calculate Week Days Indicators (S T Q Q S S D)
-    val dayLetters = listOf("S", "T", "Q", "Q", "S", "S", "D")
-    val calculatedDayStatuses = currentWeekDays.mapIndexed { index, epochDay ->
-        val isDone = completedWorkouts.any { it.dateEpochDay == epochDay }
-        val isCurrent = epochDay == todayEpoch
-        val isFuture = epochDay > todayEpoch
+    // Dias da semana reais (Segunda a Domingo)
+    val calculatedDayStatuses = currentWeekDays.map { day ->
+        val epoch = day.toEpochDay()
+        val isDone = completedWorkouts.any { it.dateEpochDay == epoch }
+        val isCurrent = day == today
+        val isFuture = day > today
+        val letter = when (day.dayOfWeek) {
+            DayOfWeek.MONDAY -> "S"
+            DayOfWeek.TUESDAY -> "T"
+            DayOfWeek.WEDNESDAY -> "Q"
+            DayOfWeek.THURSDAY -> "Q"
+            DayOfWeek.FRIDAY -> "S"
+            DayOfWeek.SATURDAY -> "S"
+            DayOfWeek.SUNDAY -> "D"
+            else -> "D"
+        }
         DayProgressStatus(
-            dayLetter = dayLetters.getOrElse(index) { "D" },
+            dayLetter = letter,
             isCompleted = isDone,
             isCurrentOrNext = isCurrent && !isDone,
             isFuture = isFuture
         )
     }
 
-    // Fallback to reference layout values if starting fresh
-    val effectiveDayStatuses = if (calculatedDayStatuses.any { it.isCompleted }) {
-        calculatedDayStatuses
-    } else {
-        listOf(
-            DayProgressStatus("S", isCompleted = true, isCurrentOrNext = false, isFuture = false),
-            DayProgressStatus("T", isCompleted = true, isCurrentOrNext = false, isFuture = false),
-            DayProgressStatus("Q", isCompleted = false, isCurrentOrNext = true, isFuture = false),
-            DayProgressStatus("Q", isCompleted = false, isCurrentOrNext = false, isFuture = true),
-            DayProgressStatus("S", isCompleted = false, isCurrentOrNext = false, isFuture = true),
-            DayProgressStatus("S", isCompleted = false, isCurrentOrNext = false, isFuture = true),
-            DayProgressStatus("D", isCompleted = false, isCurrentOrNext = false, isFuture = true)
-        )
-    }
-
-    // Calculate streak days
+    // Streak estritamente baseado no histórico real (0 se nunca treinou)
     val streakDays = run {
-        val days = completedWorkouts.map { it.dateEpochDay }.toSet()
+        val workoutDays = completedWorkouts.map { it.dateEpochDay }
+        val cardioDays = cardioSessions.map { it.dateEpochDay }
+        val allActiveDays = (workoutDays + cardioDays).toSet()
         var d = todayEpoch
         var count = 0
-        if (d !in days) d--
-        while (d in days) {
+        if (d !in allActiveDays) d--
+        while (d in allActiveDays) {
             count++
             d--
         }
-        if (count > 0) count else 12
+        count
     }
 
-    val effectiveWeeklyDone = if (realWeeklyDone > 0) realWeeklyDone else 2
-
-    // Presentation UI State
+    // Presentation UI State totalmente ancorado em dados reais
     val uiState = HomeUiState(
-        userName = userProfile?.name ?: "Paulo",
-        todayWorkoutTitle = dailySuggestion.title.ifBlank { todayTemplate?.title ?: "Full Body A" },
-        todayMuscleGroup = dailySuggestion.subtitle.ifBlank { todayTemplate?.subtitle ?: "Peito, Costas & Pernas" },
+        userName = userProfile?.name?.takeIf { it.isNotBlank() && it != "Atleta" && it != "Atleta Fit" } ?: "Paulo",
+        todayWorkoutTitle = dailySuggestion.title.ifBlank { todayTemplate?.title ?: "Treino do Dia" },
+        todayMuscleGroup = dailySuggestion.subtitle.ifBlank { todayTemplate?.subtitle ?: "" },
         hasPlannedWorkout = todayTemplate != null || dailySuggestion.template != null,
         isWorkoutActive = activeWorkout.isActive,
         activeWorkoutTitle = activeWorkout.title,
@@ -202,11 +229,13 @@ fun HomeScreen(
         activeCardioTitle = activeCardio.type.title,
         activeCardioDurationMinutes = activeCardio.durationSeconds / 60,
         streakDays = streakDays,
-        weeklyDoneCount = effectiveWeeklyDone,
+        weeklyDoneCount = realWeeklyDone,
         weeklyGoalTarget = weeklyGoalTarget,
-        readinessScore = 78,
-        hasSufficientData = true,
-        weeklyDayStatuses = effectiveDayStatuses
+        readinessScore = readinessScore,
+        readinessLabel = readinessLabel,
+        hasReadinessData = hasReadiness,
+        hasSufficientData = userProfile != null,
+        weeklyDayStatuses = calculatedDayStatuses
     )
 
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -292,7 +321,9 @@ fun HomeScreen(
                         weeklyDone = uiState.weeklyDoneCount,
                         weeklyGoal = uiState.weeklyGoalTarget,
                         readinessScore = uiState.readinessScore,
-                        hasSufficientData = uiState.hasSufficientData
+                        readinessLabel = uiState.readinessLabel,
+                        hasReadinessData = uiState.hasReadinessData,
+                        onReadinessClick = { checkInMode = true }
                     )
                 }
 
