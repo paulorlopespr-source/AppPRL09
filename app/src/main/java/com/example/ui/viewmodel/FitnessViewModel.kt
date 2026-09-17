@@ -25,6 +25,7 @@ import com.example.data.model.WorkoutCategory
 import com.example.data.model.WorkoutExercisePlan
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
+import com.example.data.model.AgendaCustomAppointment
 import com.example.data.model.AICoachMessage
 import com.example.data.model.AICoachSender
 import com.example.data.model.AIWorkoutPlanResult
@@ -240,6 +241,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
             syncGamificationAndGoals()
             checkHealthConnectStatus()
+            initCustomAppointmentsIfNeeded()
         }
 
         try {
@@ -1848,6 +1850,122 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 val json = adapter.toJson(measurements)
                 prefs.edit().putString("backup_body_measurements_json", json).apply()
             } catch (_: Exception) {}
+        }
+    }
+
+    // --- Custom Agenda Appointments Persistence & Operations ---
+    private val _customAppointments = MutableStateFlow<List<AgendaCustomAppointment>>(emptyList())
+    val customAppointments: StateFlow<List<AgendaCustomAppointment>> = _customAppointments.asStateFlow()
+
+    fun initCustomAppointmentsIfNeeded() {
+        val json = prefs.getString("backup_custom_appointments_json", null)
+        if (!json.isNullOrBlank()) {
+            try {
+                val listType = Types.newParameterizedType(List::class.java, AgendaCustomAppointment::class.java)
+                val adapter: JsonAdapter<List<AgendaCustomAppointment>> = moshi.adapter(listType)
+                val list = adapter.fromJson(json)
+                if (!list.isNullOrEmpty()) {
+                    _customAppointments.value = list
+                    return
+                }
+            } catch (_: Exception) {}
+        }
+        val todayEpoch = DateUtils.todayEpochDay()
+        val initialList = listOf(
+            AgendaCustomAppointment(
+                id = "agenda_strength_$todayEpoch",
+                epochDay = todayEpoch,
+                typeName = "STRENGTH",
+                startTime = "06:00",
+                endTime = "07:00",
+                title = "Treino de Força",
+                subtitle = "Peito e Tríceps",
+                isCompleted = true
+            ),
+            AgendaCustomAppointment(
+                id = "agenda_cardio_$todayEpoch",
+                epochDay = todayEpoch,
+                typeName = "CARDIO",
+                startTime = "12:00",
+                endTime = "12:30",
+                title = "Cardio",
+                subtitle = "30 minutos",
+                isCompleted = false
+            ),
+            AgendaCustomAppointment(
+                id = "agenda_meal_$todayEpoch",
+                epochDay = todayEpoch,
+                typeName = "MEAL",
+                startTime = "19:00",
+                endTime = "19:30",
+                title = "Refeição",
+                subtitle = "Pós-treino",
+                isCompleted = false
+            ),
+            AgendaCustomAppointment(
+                id = "agenda_rest_$todayEpoch",
+                epochDay = todayEpoch,
+                typeName = "REST",
+                startTime = "21:00",
+                endTime = null,
+                title = "Descanso",
+                subtitle = "Hora de recuperar",
+                isCompleted = false
+            )
+        )
+        _customAppointments.value = initialList
+        persistCustomAppointments(initialList)
+    }
+
+    private fun persistCustomAppointments(list: List<AgendaCustomAppointment>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val listType = Types.newParameterizedType(List::class.java, AgendaCustomAppointment::class.java)
+                val adapter: JsonAdapter<List<AgendaCustomAppointment>> = moshi.adapter(listType)
+                val json = adapter.toJson(list)
+                prefs.edit().putString("backup_custom_appointments_json", json).apply()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun addCustomAppointment(appointment: AgendaCustomAppointment) {
+        val updated = _customAppointments.value + appointment
+        _customAppointments.value = updated
+        persistCustomAppointments(updated)
+    }
+
+    fun toggleCustomAppointmentStatus(id: String) {
+        val updated = _customAppointments.value.map {
+            if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
+        }
+        _customAppointments.value = updated
+        persistCustomAppointments(updated)
+    }
+
+    fun deleteCustomAppointment(id: String) {
+        val updated = _customAppointments.value.filterNot { it.id == id }
+        _customAppointments.value = updated
+        persistCustomAppointments(updated)
+    }
+
+    fun updateWorkoutSession(session: WorkoutSession) {
+        viewModelScope.launch {
+            repository.updateWorkoutSession(session)
+            backupWorkoutSessions()
+        }
+    }
+
+    fun toggleWorkoutSessionStatus(sessionId: Long) {
+        viewModelScope.launch {
+            val session = allWorkoutSessions.value.find { it.id == sessionId } ?: return@launch
+            val newStatus = if (session.status == SessionStatus.COMPLETED) SessionStatus.SCHEDULED else SessionStatus.COMPLETED
+            val updated = session.copy(
+                status = newStatus,
+                durationSeconds = if (newStatus == SessionStatus.COMPLETED && session.durationSeconds == 0) 3600 else session.durationSeconds,
+                estimatedCalories = if (newStatus == SessionStatus.COMPLETED && session.estimatedCalories == 0) 420 else session.estimatedCalories
+            )
+            repository.updateWorkoutSession(updated)
+            backupWorkoutSessions()
         }
     }
 

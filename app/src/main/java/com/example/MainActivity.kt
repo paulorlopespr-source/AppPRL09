@@ -62,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -79,6 +80,8 @@ import com.example.ui.screens.CardioScreen
 import com.example.ui.screens.CoachPRL09Screen
 import com.example.ui.screens.EvolutionScreen
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.JornadaScreen
+import com.example.ui.screens.PainelScreen
 import com.example.ui.screens.Phase45HubScreen
 import com.example.ui.screens.Phase7JourneyScreen
 import com.example.ui.screens.WorkoutTemplatesScreen
@@ -103,13 +106,13 @@ enum class AppDestination(
     val icon: ImageVector,
     val testTag: String
 ) {
-    HOME("Home", Icons.Default.Home, "tab_home"),
+    HOME("Início", Icons.Default.Home, "tab_home"),
     WORKOUTS("Treinos", Icons.Default.FitnessCenter, "tab_workouts"),
     DASHBOARD("Painel", Icons.Default.BarChart, "tab_dashboard"),
-    JOURNEY("Conquistas", Icons.Default.EmojiEvents, "tab_journey"),
+    JOURNEY("Jornada", Icons.Default.EmojiEvents, "tab_journey"),
+    AGENDA("Agenda", Icons.Default.CalendarMonth, "tab_agenda"),
     COACH("Coach", Icons.Default.Psychology, "tab_coach"),
     EVOLUTION("Progresso", Icons.Default.BarChart, "tab_evolution"),
-    AGENDA("Agenda", Icons.Default.CalendarMonth, "tab_agenda"),
     CARDIO("Cardio", Icons.Default.DirectionsBike, "tab_cardio"),
     ACTIVE_WORKOUT("Treino Ativo", Icons.Default.FitnessCenter, "tab_active_workout")
 }
@@ -159,19 +162,23 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                         onNavigateToActiveWorkout = { currentDestination = AppDestination.ACTIVE_WORKOUT },
                         onNavigateToCardio = { currentDestination = AppDestination.CARDIO },
                         onNavigateToAgenda = { currentDestination = AppDestination.AGENDA },
-                        onNavigateToEvolution = { currentDestination = AppDestination.EVOLUTION }
+                        onNavigateToEvolution = { currentDestination = AppDestination.EVOLUTION },
+                        onNavigateToCoach = { currentDestination = AppDestination.COACH },
+                        onNavigateToDashboard = { currentDestination = AppDestination.DASHBOARD }
                     )
                     AppDestination.WORKOUTS -> WorkoutTemplatesScreen(
                         viewModel = viewModel,
                         onStartWorkout = { currentDestination = AppDestination.ACTIVE_WORKOUT }
                     )
-                    AppDestination.DASHBOARD -> Phase45HubScreen(
-                        onStartTodayWorkout = { currentDestination = AppDestination.WORKOUTS }
+                    AppDestination.DASHBOARD -> PainelScreen(
+                        onStartTodayWorkout = { currentDestination = AppDestination.WORKOUTS },
+                        fitnessVm = viewModel
                     )
-                    AppDestination.JOURNEY -> Phase7JourneyScreen(
+                    AppDestination.JOURNEY -> JornadaScreen(
                         onOpenCoach = { currentDestination = AppDestination.COACH },
                         onOpenDashboard = { currentDestination = AppDestination.DASHBOARD },
-                        onStartWorkout = { currentDestination = AppDestination.WORKOUTS }
+                        onStartWorkout = { currentDestination = AppDestination.WORKOUTS },
+                        fitnessVm = viewModel
                     )
                     AppDestination.COACH -> CoachPRL09Screen()
                     AppDestination.CARDIO -> CardioScreen(viewModel = viewModel)
@@ -302,15 +309,9 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                         }
                     }
 
-                    FloatingLiquidGlassNav(
+                    MainBottomNavigation(
                         currentDestination = currentDestination,
-                        hasActiveWorkout = activeWorkoutState.isActive,
-                        onNavigate = { currentDestination = it },
-                        onCenterActionClick = {
-                            if (activeWorkoutState.isActive) currentDestination = AppDestination.ACTIVE_WORKOUT
-                            else if (activeCardioState.isActive) showActiveCardioModal = true
-                            else showQuickStartSheet = true
-                        }
+                        onNavigate = { currentDestination = it }
                     )
                 }
             }
@@ -340,63 +341,83 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
 }
 
 @Composable
-fun FloatingLiquidGlassNav(
+fun MainBottomNavigation(
     currentDestination: AppDestination,
-    hasActiveWorkout: Boolean,
     onNavigate: (AppDestination) -> Unit,
-    onCenterActionClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navItems = listOf(
         AppDestination.HOME,
         AppDestination.WORKOUTS,
-        AppDestination.EVOLUTION,
+        AppDestination.DASHBOARD,
         AppDestination.JOURNEY,
         AppDestination.AGENDA
     )
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = Color.Black.copy(alpha = 0.85f),
-        border = BorderStroke(1.dp, Color(0xFF2E204A).copy(alpha = 0.6f)),
-        tonalElevation = 6.dp
+        color = Color.Black.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, Color(0xFF1E1530)),
+        tonalElevation = 8.dp
     ) {
-        NavigationBar(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding(),
-            containerColor = Color.Transparent,
-            tonalElevation = 0.dp
+                .navigationBarsPadding()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             navItems.forEach { dest ->
                 val isSelected = currentDestination == dest ||
-                    (dest == AppDestination.EVOLUTION && currentDestination == AppDestination.DASHBOARD)
-                NavigationBarItem(
-                    selected = isSelected,
-                    onClick = { onNavigate(dest) },
-                    icon = {
-                        Icon(
-                            imageVector = dest.icon,
-                            contentDescription = dest.title,
-                            modifier = Modifier.size(24.dp)
+                    (dest == AppDestination.DASHBOARD && currentDestination == AppDestination.EVOLUTION)
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onNavigate(dest) }
+                        .testTag(dest.testTag),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = dest.icon,
+                        contentDescription = dest.title,
+                        tint = if (isSelected) Color(0xFFA78BFA) else Color(0xFF71717A),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = dest.title,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isSelected) Color(0xFFA78BFA) else Color(0xFF71717A)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Subtle glowing indicator pill underneath the active tab
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .width(36.dp)
+                                .height(3.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Color(0xFF8B5CF6),
+                                            Color(0xFFA78BFA),
+                                            Color(0xFF8B5CF6)
+                                        )
+                                    )
+                                )
                         )
-                    },
-                    label = {
-                        Text(
-                            text = dest.title,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFFA78BFA),
-                        selectedTextColor = Color(0xFFA78BFA),
-                        indicatorColor = Color(0xFF9333EA).copy(alpha = 0.25f),
-                        unselectedIconColor = Color.Gray,
-                        unselectedTextColor = Color.Gray
-                    ),
-                    modifier = Modifier.testTag(dest.testTag)
-                )
+                    } else {
+                        Spacer(modifier = Modifier.height(3.dp))
+                    }
+                }
             }
         }
     }
