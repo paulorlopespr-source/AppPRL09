@@ -11,6 +11,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -42,6 +44,9 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -98,12 +103,12 @@ enum class AppDestination(
     val icon: ImageVector,
     val testTag: String
 ) {
-    HOME("Início", Icons.Default.Home, "tab_home"),
+    HOME("Home", Icons.Default.Home, "tab_home"),
     WORKOUTS("Treinos", Icons.Default.FitnessCenter, "tab_workouts"),
-    DASHBOARD("Painel", Icons.Default.TrendingUp, "tab_dashboard"),
-    JOURNEY("Jornada", Icons.Default.EmojiEvents, "tab_journey"),
+    DASHBOARD("Painel", Icons.Default.BarChart, "tab_dashboard"),
+    JOURNEY("Conquistas", Icons.Default.EmojiEvents, "tab_journey"),
     COACH("Coach", Icons.Default.Psychology, "tab_coach"),
-    EVOLUTION("Progresso", Icons.Default.TrendingUp, "tab_evolution"),
+    EVOLUTION("Progresso", Icons.Default.BarChart, "tab_evolution"),
     AGENDA("Agenda", Icons.Default.CalendarMonth, "tab_agenda"),
     CARDIO("Cardio", Icons.Default.DirectionsBike, "tab_cardio"),
     ACTIVE_WORKOUT("Treino Ativo", Icons.Default.FitnessCenter, "tab_active_workout")
@@ -228,18 +233,86 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                 visible = showBottomBar,
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it }),
-                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
             ) {
-                FloatingLiquidGlassNav(
-                    currentDestination = currentDestination,
-                    hasActiveWorkout = activeWorkoutState.isActive,
-                    onNavigate = { currentDestination = it },
-                    onCenterActionClick = {
-                        if (activeWorkoutState.isActive) currentDestination = AppDestination.ACTIVE_WORKOUT
-                        else if (activeCardioState.isActive) showActiveCardioModal = true
-                        else showQuickStartSheet = true
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Active Workout Resume Banner when active workout is running
+                    if (activeWorkoutState.isActive && currentDestination != AppDestination.ACTIVE_WORKOUT) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clickable { currentDestination = AppDestination.ACTIVE_WORKOUT }
+                                .testTag("floating_active_workout_bar"),
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF1B122C),
+                            border = BorderStroke(1.dp, Color(0xFF9333EA).copy(alpha = 0.7f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF9333EA)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Retomar Treino",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Treino em Andamento",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = activeWorkoutState.title,
+                                            fontSize = 10.sp,
+                                            color = Color(0xFFC4B5FD)
+                                        )
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF9333EA).copy(alpha = 0.25f))
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "RETOMAR",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFFC4B5FD)
+                                    )
+                                }
+                            }
+                        }
                     }
-                )
+
+                    FloatingLiquidGlassNav(
+                        currentDestination = currentDestination,
+                        hasActiveWorkout = activeWorkoutState.isActive,
+                        onNavigate = { currentDestination = it },
+                        onCenterActionClick = {
+                            if (activeWorkoutState.isActive) currentDestination = AppDestination.ACTIVE_WORKOUT
+                            else if (activeCardioState.isActive) showActiveCardioModal = true
+                            else showQuickStartSheet = true
+                        }
+                    )
+                }
             }
         }
     }
@@ -274,55 +347,57 @@ fun FloatingLiquidGlassNav(
     onCenterActionClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val navItemsLeft = listOf(AppDestination.HOME, AppDestination.WORKOUTS)
-    val navItemsRight = listOf(AppDestination.DASHBOARD, AppDestination.JOURNEY, AppDestination.AGENDA)
+    val navItems = listOf(
+        AppDestination.HOME,
+        AppDestination.WORKOUTS,
+        AppDestination.EVOLUTION,
+        AppDestination.JOURNEY,
+        AppDestination.AGENDA
+    )
 
     Surface(
-        modifier = modifier.fillMaxWidth().shadow(16.dp, RoundedCornerShape(32.dp), ambientColor = GlowPurple, spotColor = PurpleVibrant),
-        shape = RoundedCornerShape(32.dp),
-        color = Color.Transparent
+        modifier = modifier.fillMaxWidth(),
+        color = Color.Black.copy(alpha = 0.85f),
+        border = BorderStroke(1.dp, Color(0xFF2E204A).copy(alpha = 0.6f)),
+        tonalElevation = 6.dp
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().background(GlassSurfaceDark).border(1.dp, GlassBorder, RoundedCornerShape(32.dp)).padding(horizontal = 8.dp, vertical = 8.dp)
+        NavigationBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding(),
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceAround) {
-                navItemsLeft.forEach { dest -> NavButton(dest, currentDestination == dest) { onNavigate(dest) } }
-                CenterActionFAB(hasActiveWorkout = hasActiveWorkout, onClick = onCenterActionClick)
-                navItemsRight.forEach { dest -> NavButton(dest, currentDestination == dest) { onNavigate(dest) } }
+            navItems.forEach { dest ->
+                val isSelected = currentDestination == dest ||
+                    (dest == AppDestination.EVOLUTION && currentDestination == AppDestination.DASHBOARD)
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = { onNavigate(dest) },
+                    icon = {
+                        Icon(
+                            imageVector = dest.icon,
+                            contentDescription = dest.title,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = dest.title,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFFA78BFA),
+                        selectedTextColor = Color(0xFFA78BFA),
+                        indicatorColor = Color(0xFF9333EA).copy(alpha = 0.25f),
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray
+                    ),
+                    modifier = Modifier.testTag(dest.testTag)
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun NavButton(destination: AppDestination, isSelected: Boolean, onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) 0.90f else 1f, label = "nav_btn_scale")
-    Column(
-        modifier = Modifier.scale(scale).clip(RoundedCornerShape(16.dp)).clickable(interactionSource = interactionSource, indication = null, onClick = onClick).padding(horizontal = 8.dp, vertical = 6.dp).testTag(destination.testTag),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(destination.icon, destination.title, tint = if (isSelected) LilacAccent else TextMuted, modifier = Modifier.size(22.dp))
-        Spacer(modifier = Modifier.height(3.dp))
-        Text(destination.title, fontSize = 9.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = if (isSelected) LilacAccent else TextMuted)
-        if (isSelected) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Box(Modifier.size(4.dp).clip(CircleShape).background(LilacAccent))
-        }
-    }
-}
-
-@Composable
-private fun CenterActionFAB(hasActiveWorkout: Boolean, onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) 0.92f else 1f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f), label = "fab_scale")
-    Box(
-        modifier = Modifier.scale(scale).shadow(10.dp, CircleShape, ambientColor = GlowPurple, spotColor = LilacAccent).size(52.dp).clip(CircleShape).background(GradientAction).border(1.5.dp, LilacSoft.copy(alpha = 0.6f), CircleShape).clickable(interactionSource = interactionSource, indication = null, onClick = onClick).testTag("btn_center_floating_action"),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(if (hasActiveWorkout) Icons.Default.PlayArrow else Icons.Default.Add, if (hasActiveWorkout) "Treino em andamento" else "Adicionar/Iniciar", tint = Color.White, modifier = Modifier.size(28.dp))
     }
 }

@@ -16,7 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AltRoute
+import androidx.compose.material.icons.automirrored.filled.AltRoute
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GpsFixed
@@ -25,7 +26,6 @@ import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -154,7 +154,7 @@ fun OutdoorGpsPromptDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         GpsFeatureItem(
-                            icon = Icons.Default.AltRoute,
+                            icon = Icons.AutoMirrored.Filled.AltRoute,
                             tint = Color(0xFF00E5FF),
                             title = "Mapa Ao Vivo no Google Maps",
                             subtitle = "Traçado dinâmico e visualização de percurso"
@@ -166,7 +166,7 @@ fun OutdoorGpsPromptDialog(
                             subtitle = "Calcula tempo por quilômetro em tempo real"
                         )
                         GpsFeatureItem(
-                            icon = Icons.Default.TrendingUp,
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
                             tint = EmeraldSuccess,
                             title = "Desnível e Altimetria",
                             subtitle = "Ganho de elevação acumulado durante o treino"

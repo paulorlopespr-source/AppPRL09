@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,25 +25,36 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -54,18 +67,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.R
 import com.example.data.model.Exercise
 import com.example.data.model.ExerciseSetEntry
 import com.example.data.model.MuscleGroup
@@ -76,7 +94,9 @@ import com.example.ui.components.BentoCard
 import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
 import com.example.ui.components.PrimaryButton
+import com.example.ui.components.QuickWorkoutSheet
 import com.example.ui.components.SecondaryButton
+import com.example.ui.components.WorkoutReminderDialog
 import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.GlassBorder
@@ -98,6 +118,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutTemplatesScreen(
     viewModel: FitnessViewModel,
@@ -107,21 +128,31 @@ fun WorkoutTemplatesScreen(
     val templates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
 
+    var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Meus Treinos, 1: Treino Rápido, 2: Favoritos
     var selectedCategoryFilter by remember { mutableStateOf<WorkoutCategory?>(null) }
     var filterOnlyFavorites by remember { mutableStateOf(false) }
     var filterOnlyCustom by remember { mutableStateOf(false) }
     var showCreateCustomDialog by remember { mutableStateOf(false) }
+    var showQuickWorkoutSheet by remember { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
     var templateToStart by remember { mutableStateOf<WorkoutTemplate?>(null) }
     var selectedLocation by remember {
         mutableStateOf(userProfile?.defaultGymLocation ?: "Smart Fit Paulista")
     }
 
     val filteredTemplates = templates.filter { template ->
+        val matchesTab = when (selectedTabIndex) {
+            0 -> true // Meus Treinos (todos os treinos padrão/usuário)
+            1 -> template.executionDurationMinutes <= 45 || template.subtitle.contains("Rápido", ignoreCase = true)
+            2 -> template.isFavorite
+            else -> true
+        }
         val matchesCategory = selectedCategoryFilter == null || template.category == selectedCategoryFilter
         val matchesFavorites = !filterOnlyFavorites || template.isFavorite
         val matchesCustom = !filterOnlyCustom || !template.isPreset
-        matchesCategory && matchesFavorites && matchesCustom
+        matchesTab && matchesCategory && matchesFavorites && matchesCustom
     }
 
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -130,32 +161,138 @@ fun WorkoutTemplatesScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(PurpleDarkest)
+            .background(Color(0xFF0D0A14))
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = topInset + 16.dp, bottom = bottomInset + 96.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(top = topInset + 12.dp, bottom = bottomInset + 96.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 1. Header (Menu + Título "Treinos" + Subtítulo + Notificações com Badge)
             item {
-                Column {
-                    Text(
-                        text = "Modelos & Rotinas",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Black,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = "Treinos prescritos de alta performance e rotinas personalizadas",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(
+                            onClick = { /* Menu de opções / atalhos */ },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("btn_workout_menu")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Menu",
+                                tint = Color(0xFFC4B5FD),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Treinos",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Escolha seu treino e evolua.",
+                                fontSize = 14.sp,
+                                color = Color(0xFFC4B5FD)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { showReminderDialog = true },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("btn_workout_notifications")
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                Badge(
+                                    containerColor = Color(0xFFA855F7),
+                                    modifier = Modifier.size(8.dp)
+                                )
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Lembretes e Notificações",
+                                tint = Color(0xFFC4B5FD),
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
                 }
             }
 
-            // Quick Special Filters (Todos, Favoritos, Meus Treinos) & Category Filter Chips
+            // 2. Tabs (Meus Treinos / Treino Rápido / Favoritos)
+            item {
+                val tabTitles = listOf("Meus Treinos", "Treino Rápido", "Favoritos")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    tabTitles.forEachIndexed { index, title ->
+                        val isSelected = selectedTabIndex == index
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable {
+                                    selectedTabIndex = index
+                                    if (index == 1) {
+                                        showQuickWorkoutSheet = true
+                                    }
+                                }
+                                .testTag("tab_workout_pill_$index"),
+                            shape = RoundedCornerShape(50),
+                            color = if (isSelected) Color.Transparent else Color.White.copy(alpha = 0.05f),
+                            border = if (isSelected) null else BorderStroke(1.dp, Color(0xFF6D28D9).copy(alpha = 0.35f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .then(
+                                        if (isSelected) {
+                                            Modifier.background(
+                                                Brush.horizontalGradient(
+                                                    listOf(Color(0xFF9333EA), Color(0xFF8B5CF6))
+                                                )
+                                            )
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = if (isSelected) Color.White else Color(0xFFC4B5FD).copy(alpha = 0.8f),
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Optional secondary category filter chips when exploring
             item {
                 Row(
                     modifier = Modifier
@@ -164,13 +301,9 @@ fun WorkoutTemplatesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
-                        selected = !filterOnlyFavorites && !filterOnlyCustom && selectedCategoryFilter == null,
-                        onClick = {
-                            filterOnlyFavorites = false
-                            filterOnlyCustom = false
-                            selectedCategoryFilter = null
-                        },
-                        label = { Text("Todos") },
+                        selected = selectedCategoryFilter == null,
+                        onClick = { selectedCategoryFilter = null },
+                        label = { Text("Todas Categorias") },
                         shape = RoundedCornerShape(12.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PurpleDeepCard,
@@ -180,65 +313,10 @@ fun WorkoutTemplatesScreen(
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
-                            selected = !filterOnlyFavorites && !filterOnlyCustom && selectedCategoryFilter == null,
-                            borderColor = if (!filterOnlyFavorites && !filterOnlyCustom && selectedCategoryFilter == null) LilacAccent else GlassBorder
+                            selected = selectedCategoryFilter == null,
+                            borderColor = if (selectedCategoryFilter == null) LilacAccent else GlassBorder
                         ),
                         modifier = Modifier.testTag("filter_category_all")
-                    )
-
-                    FilterChip(
-                        selected = filterOnlyFavorites,
-                        onClick = {
-                            filterOnlyFavorites = !filterOnlyFavorites
-                            if (filterOnlyFavorites) filterOnlyCustom = false
-                        },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp),
-                                    tint = if (filterOnlyFavorites) AmberWarning else TextSecondary
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Favoritos")
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = PurpleDeepCard,
-                            selectedLabelColor = AmberWarning,
-                            containerColor = PurpleDarkSurface,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = filterOnlyFavorites,
-                            borderColor = if (filterOnlyFavorites) AmberWarning else GlassBorder
-                        ),
-                        modifier = Modifier.testTag("filter_favorites")
-                    )
-
-                    FilterChip(
-                        selected = filterOnlyCustom,
-                        onClick = {
-                            filterOnlyCustom = !filterOnlyCustom
-                            if (filterOnlyCustom) filterOnlyFavorites = false
-                        },
-                        label = { Text("Meus Treinos") },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = PurpleDeepCard,
-                            selectedLabelColor = LilacAccent,
-                            containerColor = PurpleDarkSurface,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = filterOnlyCustom,
-                            borderColor = if (filterOnlyCustom) LilacAccent else GlassBorder
-                        ),
-                        modifier = Modifier.testTag("filter_custom")
                     )
 
                     WorkoutCategory.values().forEach { cat ->
@@ -248,7 +326,7 @@ fun WorkoutTemplatesScreen(
                             onClick = {
                                 selectedCategoryFilter = if (isSelected) null else cat
                             },
-                            label = { Text(cat.label) },
+                            label = { Text(cat.label.substringBefore(" (").trim()) },
                             shape = RoundedCornerShape(12.dp),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = PurpleDeepCard,
@@ -267,35 +345,63 @@ fun WorkoutTemplatesScreen(
                 }
             }
 
+            // 3. Cards de Treino (itemsIndexed)
             if (filteredTemplates.isEmpty()) {
                 item {
-                    BentoCard(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Color(0xFF6D28D9).copy(alpha = 0.4f)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0B18)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(28.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = when {
-                                    filterOnlyFavorites -> "Nenhum treino marcado como favorito"
-                                    filterOnlyCustom -> "Você ainda não criou treinos customizados"
+                                text = when (selectedTabIndex) {
+                                    2 -> "Nenhum treino marcado como favorito"
+                                    1 -> "Nenhum treino rápido curto encontrado"
                                     else -> "Nenhum treino encontrado nesta categoria"
                                 },
-                                style = MaterialTheme.typography.titleMedium,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = Color.White
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            PrimaryButton(
-                                text = "Criar Rotina Personalizada",
-                                onClick = { showCreateCustomDialog = true }
-                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                onClick = {
+                                    if (selectedTabIndex == 1) showQuickWorkoutSheet = true
+                                    else showCreateCustomDialog = true
+                                },
+                                shape = RoundedCornerShape(50),
+                                color = Color.Transparent,
+                                modifier = Modifier.clip(RoundedCornerShape(50))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0xFF9333EA), Color(0xFF8B5CF6))
+                                            )
+                                        )
+                                        .padding(horizontal = 22.dp, vertical = 12.dp)
+                                ) {
+                                    Text(
+                                        text = if (selectedTabIndex == 1) "Abrir Treino Rápido" else "Criar Rotina Personalizada",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             } else {
-                items(filteredTemplates, key = { it.id }) { template ->
+                itemsIndexed(filteredTemplates, key = { _, template -> template.id }) { index, template ->
                     WorkoutTemplateCard(
                         template = template,
                         onStartClick = {
@@ -337,6 +443,43 @@ fun WorkoutTemplatesScreen(
                 }
             }
         }
+    }
+
+    // Quick Workout Sheet modal
+    if (showQuickWorkoutSheet) {
+        QuickWorkoutSheet(
+            onDismiss = { showQuickWorkoutSheet = false },
+            onStartStrengthWorkout = { title, location, plans ->
+                viewModel.startWorkoutWithPlans(title = title, location = location, plans = plans)
+                showQuickWorkoutSheet = false
+                onStartWorkout()
+            },
+            onStartCardio = { type, location, intensity, targetMinutes, enableGps ->
+                viewModel.startLiveCardio(
+                    type = type,
+                    location = location,
+                    intensity = intensity,
+                    targetMinutes = targetMinutes,
+                    enableGps = enableGps
+                )
+                showQuickWorkoutSheet = false
+            }
+        )
+    }
+
+    // Reminder Dialog
+    if (showReminderDialog) {
+        WorkoutReminderDialog(
+            initialSettings = reminderSettings,
+            onSaveSettings = { updated ->
+                viewModel.updateReminderSettings(updated)
+                showReminderDialog = false
+            },
+            onTestNotification = {
+                viewModel.triggerTestReminderNotification()
+            },
+            onDismiss = { showReminderDialog = false }
+        )
     }
 
     // Dialog before starting workout to confirm gym/training location
@@ -450,245 +593,323 @@ fun WorkoutTemplateCard(
         }
     }
 
-    BentoCard(
+    // Extract clean display title and muscle group subtitle to match reference
+    val (displayTitle, displaySubtitle) = remember(template.title, template.subtitle) {
+        when {
+            template.title.contains(" - ") && template.title.contains(":") -> {
+                val afterDash = template.title.substringAfter(" - ")
+                val mainTitle = afterDash.substringBefore(":").trim()
+                val sub = afterDash.substringAfter(":").trim()
+                Pair(mainTitle, sub)
+            }
+            template.title.contains(":") -> {
+                val mainTitle = template.title.substringBefore(":").trim()
+                val sub = template.title.substringAfter(":").trim()
+                Pair(mainTitle, sub)
+            }
+            template.subtitle.isNotBlank() && !template.subtitle.startsWith("Divisão") -> {
+                Pair(template.title, template.subtitle)
+            }
+            template.title.contains("Treino", ignoreCase = true) -> {
+                val sub = when {
+                    template.title.contains("A", ignoreCase = true) -> "Peito, Ombros e Tríceps"
+                    template.title.contains("B", ignoreCase = true) -> "Costas e Bíceps"
+                    template.title.contains("C", ignoreCase = true) -> "Pernas e Core"
+                    else -> template.category.label.substringBefore(" (").trim()
+                }
+                Pair(template.title, sub)
+            }
+            else -> Pair(template.title, template.subtitle.ifBlank { template.category.label })
+        }
+    }
+
+    // Workout category level label (e.g. "Intermediário", "Iniciante", "Avançado")
+    val levelLabel = remember(template.category) {
+        when (template.category) {
+            WorkoutCategory.INICIANTE -> "Iniciante"
+            WorkoutCategory.INTERMEDIARIO -> "Intermediário"
+            WorkoutCategory.AVANCADO -> "Avançado"
+            else -> template.category.label.substringBefore(" (").trim()
+        }
+    }
+
+    // High quality background workout photo
+    val workoutImageRes = remember(displayTitle, displaySubtitle, template.id) {
+        when {
+            displayTitle.contains("A", ignoreCase = true) || displaySubtitle.contains("Peito", ignoreCase = true) || displaySubtitle.contains("Push", ignoreCase = true) -> R.drawable.img_bench_press
+            displayTitle.contains("B", ignoreCase = true) || displaySubtitle.contains("Costas", ignoreCase = true) || displaySubtitle.contains("Pull", ignoreCase = true) -> R.drawable.img_lat_pulldown
+            displayTitle.contains("C", ignoreCase = true) || displaySubtitle.contains("Perna", ignoreCase = true) || displaySubtitle.contains("Leg", ignoreCase = true) -> R.drawable.img_barbell_squat
+            else -> when (template.id % 3) {
+                0L -> R.drawable.img_bench_press
+                1L -> R.drawable.img_lat_pulldown
+                else -> R.drawable.img_barbell_squat
+            }
+        }
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, Color(0xFF6D28D9).copy(alpha = 0.4f)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0B18)),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("card_template_${template.id}")
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = template.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
-                        color = TextPrimary
-                    )
-                    if (template.isFavorite) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Favorito",
-                            tint = AmberWarning,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-                Text(
-                    text = template.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onToggleFavorite != null) {
-                    IconButton(onClick = onToggleFavorite, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = if (template.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = if (template.isFavorite) "Desfavoritar" else "Favoritar",
-                            tint = if (template.isFavorite) AmberWarning else TextMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                if (onDuplicate != null) {
-                    IconButton(onClick = onDuplicate, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Duplicar",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(PurpleDarkSurface)
-                        .border(1.dp, LilacAccent.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = template.category.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = LilacAccent
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Duration and rest info
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Timer,
-                    contentDescription = null,
-                    tint = LilacAccent,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "~${template.executionDurationMinutes} min",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.FitnessCenter,
-                    contentDescription = null,
-                    tint = LilacSoft,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "${plans.size} exercícios",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-
-            Text(
-                text = "Descanso: ${template.defaultRestSeconds}s",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
+            // Right-aligned background photo
+            Image(
+                painter = painterResource(id = workoutImageRes),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .align(Alignment.CenterEnd)
             )
-        }
 
-        if (template.description.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = template.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
+            // Horizontal gradient overlay: Dark on left -> Transparent on right for high contrast text
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFF0F0B18),
+                                Color(0xFF0F0B18).copy(alpha = 0.95f),
+                                Color(0xFF0F0B18).copy(alpha = 0.65f),
+                                Color(0xFF0F0B18).copy(alpha = 0.25f)
+                            )
+                        )
+                    )
             )
-        }
 
-        // Exercise list expander
-        AnimatedVisibility(visible = expanded) {
+            // Card Content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp)
+                    .padding(18.dp)
             ) {
-                Text(
-                    text = "LISTA DE EXERCÍCIOS",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = LilacAccent,
-                    letterSpacing = 0.5.sp
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                plans.forEachIndexed { idx, p ->
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = PurpleDarkSurface,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "${idx + 1}. ${p.exerciseName}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "${p.muscleGroup} • ${p.sets.size} séries x ${p.sets.firstOrNull()?.reps ?: 10} reps",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = TextSecondary
+                // Top row: Title + Subtitle and Circular Chevron Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = displayTitle,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            if (template.isFavorite) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Favorito",
+                                    tint = AmberWarning,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                            Text(
-                                text = "${p.targetRestSeconds}s",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LilacSoft,
-                                fontWeight = FontWeight.Bold
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = displaySubtitle,
+                            color = Color(0xFFC4B5FD),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // Circular Chevron IconButton in top right with purple border
+                    Surface(
+                        onClick = { expanded = !expanded },
+                        shape = CircleShape,
+                        color = Color(0xFF1F1435).copy(alpha = 0.65f),
+                        border = BorderStroke(1.dp, Color(0xFF6D28D9).copy(alpha = 0.7f)),
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("btn_details_${template.id}")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ChevronRight,
+                                contentDescription = "Ver detalhes",
+                                tint = Color(0xFFC4B5FD),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-        // Action buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(
-                onClick = { expanded = !expanded },
-                modifier = Modifier.testTag("btn_expand_${template.id}")
-            ) {
-                Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = LilacAccent
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (expanded) "Recolher" else "Ver Exercícios",
-                    color = LilacAccent,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onDeleteClick != null) {
-                    IconButton(
-                        onClick = onDeleteClick,
-                        modifier = Modifier.testTag("btn_delete_template_${template.id}")
-                    ) {
+                // Metadata row: Schedule + Duration and BarChart + Level
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Deletar treino",
-                            tint = RedDestructive
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = Color(0xFFC4B5FD),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "~ ${template.executionDurationMinutes} min",
+                            color = Color(0xFFC4B5FD),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = null,
+                            tint = Color(0xFFC4B5FD),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = levelLabel,
+                            color = Color(0xFFC4B5FD),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(GradientAction)
-                        .clickable { onStartClick() }
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                        .testTag("btn_start_template_${template.id}"),
-                    contentAlignment = Alignment.Center
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Bottom row: Quick action icons (if present) & Iniciar treino Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                        if (onToggleFavorite != null) {
+                            IconButton(onClick = onToggleFavorite, modifier = Modifier.size(32.dp)) {
+                                Icon(
+                                    imageVector = if (template.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = if (template.isFavorite) "Desfavoritar" else "Favoritar",
+                                    tint = if (template.isFavorite) AmberWarning else Color(0xFFC4B5FD).copy(alpha = 0.5f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        if (onDuplicate != null) {
+                            IconButton(onClick = onDuplicate, modifier = Modifier.size(32.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Duplicar",
+                                    tint = Color(0xFFC4B5FD).copy(alpha = 0.5f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        if (onDeleteClick != null) {
+                            IconButton(
+                                onClick = onDeleteClick,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .testTag("btn_delete_template_${template.id}")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Deletar treino",
+                                    tint = RedDestructive.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Button "Iniciar treino": shape = RoundedCornerShape(50), purple/violet gradient, white bold text
+                    Surface(
+                        onClick = onStartClick,
+                        shape = RoundedCornerShape(50),
+                        color = Color.Transparent,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .testTag("btn_start_template_${template.id}")
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF9333EA), Color(0xFF8B5CF6))
+                                    )
+                                )
+                                .padding(horizontal = 24.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Iniciar treino",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                // Expanded exercise list
+                AnimatedVisibility(visible = expanded) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    ) {
+                        Text(
+                            text = "LISTA DE EXERCÍCIOS (${plans.size})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFC4B5FD),
+                            letterSpacing = 0.5.sp
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Iniciar", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        plans.forEachIndexed { idx, p ->
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF171029).copy(alpha = 0.8f),
+                                border = BorderStroke(1.dp, Color(0xFF6D28D9).copy(alpha = 0.25f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${idx + 1}. ${p.exerciseName}",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = "${p.muscleGroup} • ${p.sets.size} séries x ${p.sets.firstOrNull()?.reps ?: 10} reps",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFFC4B5FD).copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Text(
+                                        text = "${p.targetRestSeconds}s descanso",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFFC4B5FD),
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
