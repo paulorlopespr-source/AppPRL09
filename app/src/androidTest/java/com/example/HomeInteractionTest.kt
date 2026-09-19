@@ -69,33 +69,58 @@ class HomeInteractionTest {
     }
 
     @Test
-    fun heroRoutesMissingDataAndActiveSessionsToTheirCorrectActions() {
+    fun heroRoutesMissingDataToConfigureAction() {
         var configureClicks = 0
-        var resumeWorkoutClicks = 0
-        var resumeCardioClicks = 0
 
-        fun render(state: HomeUiState) {
-            composeRule.setContent {
-                TodayWorkoutHero(
-                    state = state,
-                    onStartWorkout = {},
-                    onResumeWorkout = { resumeWorkoutClicks++ },
-                    onResumeCardio = { resumeCardioClicks++ },
-                    onSelectWorkout = {},
-                    onConfigureData = { configureClicks++ }
-                )
-            }
+        composeRule.setContent {
+            TodayWorkoutHero(
+                state = HomeUiState(hasSufficientData = false),
+                onStartWorkout = {},
+                onResumeWorkout = {},
+                onResumeCardio = {},
+                onSelectWorkout = {},
+                onConfigureData = { configureClicks++ }
+            )
         }
 
-        render(HomeUiState(hasSufficientData = false))
         composeRule.onNodeWithTag("btn_hero_cta").performClick()
         composeRule.runOnIdle { assertEquals(1, configureClicks) }
+    }
 
-        render(HomeUiState(isWorkoutActive = true))
+    @Test
+    fun heroRoutesActiveWorkoutToResumeAction() {
+        var resumeWorkoutClicks = 0
+
+        composeRule.setContent {
+            TodayWorkoutHero(
+                state = HomeUiState(isWorkoutActive = true),
+                onStartWorkout = {},
+                onResumeWorkout = { resumeWorkoutClicks++ },
+                onResumeCardio = {},
+                onSelectWorkout = {},
+                onConfigureData = {}
+            )
+        }
+
         composeRule.onNodeWithTag("btn_active_session_action").performClick()
         composeRule.runOnIdle { assertEquals(1, resumeWorkoutClicks) }
+    }
 
-        render(HomeUiState(isCardioActive = true))
+    @Test
+    fun heroRoutesActiveCardioToResumeAction() {
+        var resumeCardioClicks = 0
+
+        composeRule.setContent {
+            TodayWorkoutHero(
+                state = HomeUiState(isCardioActive = true),
+                onStartWorkout = {},
+                onResumeWorkout = {},
+                onResumeCardio = { resumeCardioClicks++ },
+                onSelectWorkout = {},
+                onConfigureData = {}
+            )
+        }
+
         composeRule.onNodeWithTag("btn_active_session_action").performClick()
         composeRule.runOnIdle { assertEquals(1, resumeCardioClicks) }
     }
