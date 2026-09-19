@@ -265,7 +265,7 @@ fun TodayWorkoutHero(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp)
+                .height(230.dp)
         ) {
             // Background Artwork: Asset oficial ou Artwork de altíssima fidelidade à referência
             HeroBackgroundContainer(
@@ -309,7 +309,7 @@ fun TodayWorkoutHero(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 15.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
@@ -318,7 +318,7 @@ fun TodayWorkoutHero(
                             SpanStyle(
                                 color = Color.White,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 28.sp,
+                                fontSize = 24.sp,
                                 letterSpacing = 0.5.sp
                             )
                         ) {
@@ -328,7 +328,7 @@ fun TodayWorkoutHero(
                             SpanStyle(
                                 color = Color(0xFFC084FC), // Lilás / violeta luminoso da referência
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 28.sp,
+                                fontSize = 24.sp,
                                 letterSpacing = 0.5.sp
                             )
                         ) {
@@ -338,7 +338,7 @@ fun TodayWorkoutHero(
 
                     Text(
                         text = headline,
-                        lineHeight = 32.sp
+                        lineHeight = 27.sp
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -367,7 +367,7 @@ fun TodayWorkoutHero(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(42.dp)
                         .testTag("btn_hero_cta")
                 ) {
                     Row(

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - chore/fase8-validation-gate
+      - fix/fase8-hero-official-asset
   pull_request:
     branches:
       - main
