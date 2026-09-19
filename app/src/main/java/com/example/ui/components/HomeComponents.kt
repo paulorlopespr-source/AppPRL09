@@ -397,8 +397,7 @@ fun TodayWorkoutHero(
 /**
  * Container de fundo para o Hero da Tela Início.
  *
- * Suporta tanto imagem externa em drawable (img_hero_workout_card / hero_home_bg)
- * quanto a renderização procedural de alta fidelidade da cena exata (montanhas, pôr do sol e silhueta atlética).
+ * Renderiza o asset oficial quando ele estiver disponível no projeto.
  */
 @Composable
 fun HeroBackgroundContainer(modifier: Modifier = Modifier) {
@@ -418,8 +417,6 @@ fun HeroBackgroundContainer(modifier: Modifier = Modifier) {
             contentScale = ContentScale.Crop,
             modifier = modifier.fillMaxSize()
         )
-    } else {
-        HeroMountainSunsetAthleteArtwork(modifier = modifier)
     }
 }
 
