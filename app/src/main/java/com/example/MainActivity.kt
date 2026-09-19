@@ -223,7 +223,7 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                                 Text("${activeCardioState.type.title} em Andamento", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                                 Text(
                                     String.format("%02d:%02d • %.2f km • ~%d kcal", activeCardioState.durationSeconds / 60, activeCardioState.durationSeconds % 60, activeCardioState.distanceKm, activeCardioState.caloriesBurned),
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     color = EmeraldSuccess,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -356,15 +356,15 @@ fun MainBottomNavigation(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = Color.Black.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, Color(0xFF1E1530)),
-        tonalElevation = 8.dp
+        color = Color(0xFF090812),
+        border = BorderStroke(0.5.dp, Color(0xFF21192F)),
+        tonalElevation = 3.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(vertical = 8.dp),
+                .padding(top = 7.dp, bottom = 5.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -387,9 +387,9 @@ fun MainBottomNavigation(
                         imageVector = dest.icon,
                         contentDescription = dest.title,
                         tint = if (isSelected) Color(0xFFA78BFA) else Color(0xFF71717A),
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(23.dp)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = dest.title,
                         fontSize = 11.sp,
@@ -401,8 +401,8 @@ fun MainBottomNavigation(
                     if (isSelected) {
                         Box(
                             modifier = Modifier
-                                .width(36.dp)
-                                .height(3.dp)
+                                .width(30.dp)
+                                .height(2.5.dp)
                                 .clip(CircleShape)
                                 .background(
                                     Brush.horizontalGradient(
