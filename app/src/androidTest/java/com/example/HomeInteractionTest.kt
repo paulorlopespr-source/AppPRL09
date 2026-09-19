@@ -70,6 +70,38 @@ class HomeInteractionTest {
     }
 
     @Test
+    fun heroRoutesMissingDataAndActiveSessionsToTheirCorrectActions() {
+        var configureClicks = 0
+        var resumeWorkoutClicks = 0
+        var resumeCardioClicks = 0
+
+        fun render(state: HomeUiState) {
+            composeRule.setContent {
+                TodayWorkoutHero(
+                    state = state,
+                    onStartWorkout = {},
+                    onResumeWorkout = { resumeWorkoutClicks++ },
+                    onResumeCardio = { resumeCardioClicks++ },
+                    onSelectWorkout = {},
+                    onConfigureData = { configureClicks++ }
+                )
+            }
+        }
+
+        render(HomeUiState(hasSufficientData = false))
+        composeRule.onNodeWithTag("btn_hero_cta").performClick()
+        composeRule.runOnIdle { assertEquals(1, configureClicks) }
+
+        render(HomeUiState(isWorkoutActive = true))
+        composeRule.onNodeWithTag("btn_active_session").performClick()
+        composeRule.runOnIdle { assertEquals(1, resumeWorkoutClicks) }
+
+        render(HomeUiState(isCardioActive = true))
+        composeRule.onNodeWithTag("btn_active_session").performClick()
+        composeRule.runOnIdle { assertEquals(1, resumeCardioClicks) }
+    }
+
+    @Test
     fun focusCheckInAndWeeklyProgressOpenTheirDestinations() {
         var checkInClicks = 0
         var progressClicks = 0
