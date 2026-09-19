@@ -83,7 +83,9 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: google_apis
+          # The plain AOSP image has no Play Integrity verifier, which can
+          # block test APK installation on headless GitHub runners.
+          target: default
           arch: x86_64
           profile: pixel_2
           script: |
