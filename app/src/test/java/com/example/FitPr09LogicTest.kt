@@ -14,7 +14,7 @@ class FitPr09LogicTest {
     fun testDefaultUserProfile() {
         val profile = DefaultFitnessData.getDefaultUserProfile()
         assertNotNull(profile)
-        assertEquals("Atleta Fit", profile.name)
+        assertEquals("Paulo", profile.name)
         assertTrue(profile.currentWeightKg > 0)
         assertTrue(profile.weeklyGoalDays in 1..7)
         assertEquals(FitnessGoal.GANHO_PESO_HIPERTROFIA, profile.goal)
