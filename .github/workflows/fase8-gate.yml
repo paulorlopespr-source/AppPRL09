@@ -86,4 +86,10 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: gradle connectedDebugAndroidTest --stacktrace
+          script: |
+            # Android 15 may attempt cloud integrity verification for adb installs.
+            # The ephemeral CI emulator has no Play Store session, so it can time out
+            # before the instrumentation APK is installed.
+            adb shell settings put global verifier_verify_adb_installs 0
+            adb shell settings put global package_verifier_enable 0
+            gradle connectedDebugAndroidTest --stacktrace
