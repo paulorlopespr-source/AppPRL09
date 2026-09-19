@@ -263,17 +263,17 @@ fun HomeScreen(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color(0xFF0C0717)) // Deep Dark Canvas
+                .background(Color(0xFF070611)) // Deep reference canvas
         ) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 18.dp),
                 contentPadding = PaddingValues(
-                    top = topInset + 12.dp,
-                    bottom = bottomInset + 88.dp
+                    top = topInset + 10.dp,
+                    bottom = bottomInset + 84.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // ==========================================
                 // 1. HomeHeader
