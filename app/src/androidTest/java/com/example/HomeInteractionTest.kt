@@ -93,11 +93,11 @@ class HomeInteractionTest {
         composeRule.runOnIdle { assertEquals(1, configureClicks) }
 
         render(HomeUiState(isWorkoutActive = true))
-        composeRule.onNodeWithTag("banner_active_session").performClick()
+        composeRule.onNodeWithTag("btn_active_session_action").performClick()
         composeRule.runOnIdle { assertEquals(1, resumeWorkoutClicks) }
 
         render(HomeUiState(isCardioActive = true))
-        composeRule.onNodeWithTag("banner_active_session").performClick()
+        composeRule.onNodeWithTag("btn_active_session_action").performClick()
         composeRule.runOnIdle { assertEquals(1, resumeCardioClicks) }
     }
 

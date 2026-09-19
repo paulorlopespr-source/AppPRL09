@@ -502,6 +502,7 @@ fun ActiveSessionBanner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(46.dp)
+                    .testTag("btn_active_session_action")
                     .clip(RoundedCornerShape(50))
                     .background(
                         Brush.horizontalGradient(
