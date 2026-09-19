@@ -2,7 +2,6 @@ package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -67,10 +66,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
@@ -137,7 +134,7 @@ fun HomeHeader(
     userName: String,
     onMenuClick: () -> Unit,
     onNotificationClick: () -> Unit,
-    hasUnreadNotification: Boolean = true,
+    hasUnreadNotification: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -416,223 +413,6 @@ fun HeroBackgroundContainer(modifier: Modifier = Modifier) {
             contentDescription = "Hero Background",
             contentScale = ContentScale.Crop,
             modifier = modifier.fillMaxSize()
-        )
-    }
-}
-
-/**
- * Arte procedural em alta fidelidade reproduzindo a imagem de referência:
- * - Céu crepuscular roxo/violeta
- * - Brilho do sol poente quente (âmbar/dourado) atrás das montanhas
- * - Cordilheira rochosa com silhuetas de pinheiros na encosta esquerda
- * - Silhueta atlética masculina de costas com iluminação rim light dourada nos ombros e trapézio
- */
-@Composable
-fun HeroMountainSunsetAthleteArtwork(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-
-        // 1. Céu base do crepúsculo (gradiente vertical roxo profundo a magenta)
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color(0xFF120726), // Topo noturno
-                    Color(0xFF260D47), // Roxo profundo
-                    Color(0xFF4C1572), // Violeta médio
-                    Color(0xFF8B2671), // Magenta do pôr do sol
-                    Color(0xFF200B36)  // Base inferior
-                )
-            )
-        )
-
-        // 2. Brilho do sol poente no horizonte (centro à direita, atrás do atleta)
-        val sunCenter = Offset(w * 0.74f, h * 0.38f)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color(0xFFFFD494).copy(alpha = 0.85f), // Núcleo dourado/pêssego
-                    Color(0xFFF97316).copy(alpha = 0.65f), // Laranja fogo
-                    Color(0xFFEA580C).copy(alpha = 0.40f), // Âmbar
-                    Color(0xFFA855F7).copy(alpha = 0.18f), // Difusão lilás
-                    Color.Transparent
-                ),
-                center = sunCenter,
-                radius = w * 0.42f
-            ),
-            radius = w * 0.42f,
-            center = sunCenter
-        )
-
-        // Faixas suaves de nuvens quentes no horizonte direito
-        val cloudBrush = Brush.horizontalGradient(
-            colors = listOf(
-                Color.Transparent,
-                Color(0xFFFF9E3D).copy(alpha = 0.30f),
-                Color(0xFFC026D3).copy(alpha = 0.25f),
-                Color.Transparent
-            ),
-            startX = w * 0.45f,
-            endX = w
-        )
-        drawRect(
-            brush = cloudBrush,
-            topLeft = Offset(w * 0.40f, h * 0.32f),
-            size = androidx.compose.ui.geometry.Size(w * 0.60f, h * 0.08f)
-        )
-
-        // 3. Montanhas distantes (picos alpinos pontiagudos em roxo-azul escuro)
-        val distantMountains = Path().apply {
-            moveTo(0f, h * 0.64f)
-            lineTo(w * 0.15f, h * 0.58f)
-            lineTo(w * 0.30f, h * 0.48f)
-            lineTo(w * 0.42f, h * 0.54f)
-            lineTo(w * 0.58f, h * 0.41f) // Pico central atrás do horizonte
-            lineTo(w * 0.70f, h * 0.50f)
-            lineTo(w * 0.82f, h * 0.44f) // Pico direito
-            lineTo(w * 0.94f, h * 0.52f)
-            lineTo(w, h * 0.48f)
-            lineTo(w, h)
-            lineTo(0f, h)
-            close()
-        }
-        drawPath(distantMountains, color = Color(0xFF261245))
-
-        // 4. Encosta montanhosa da esquerda com silhuetas de pinheiros
-        val leftRidge = Path().apply {
-            moveTo(0f, h * 0.78f)
-            lineTo(w * 0.12f, h * 0.66f)
-            lineTo(w * 0.26f, h * 0.55f)
-            lineTo(w * 0.40f, h * 0.68f)
-            lineTo(w * 0.55f, h * 0.78f)
-            lineTo(w, h * 0.82f)
-            lineTo(w, h)
-            lineTo(0f, h)
-            close()
-        }
-        drawPath(leftRidge, color = Color(0xFF170A2A))
-
-        // Silhuetas de pinheiros na encosta esquerda (como na imagem de referência)
-        fun drawPineTree(x: Float, baseY: Float, treeH: Float, treeW: Float) {
-            val treePath = Path().apply {
-                moveTo(x, baseY - treeH)
-                lineTo(x + treeW * 0.3f, baseY - treeH * 0.65f)
-                lineTo(x + treeW * 0.2f, baseY - treeH * 0.65f)
-                lineTo(x + treeW * 0.45f, baseY - treeH * 0.35f)
-                lineTo(x + treeW * 0.3f, baseY - treeH * 0.35f)
-                lineTo(x + treeW * 0.5f, baseY)
-                lineTo(x - treeW * 0.5f, baseY)
-                lineTo(x - treeW * 0.3f, baseY - treeH * 0.35f)
-                lineTo(x - treeW * 0.45f, baseY - treeH * 0.35f)
-                lineTo(x - treeW * 0.2f, baseY - treeH * 0.65f)
-                lineTo(x - treeW * 0.3f, baseY - treeH * 0.65f)
-                close()
-            }
-            drawPath(treePath, color = Color(0xFF0F061C))
-        }
-
-        drawPineTree(w * 0.04f, h * 0.68f, h * 0.18f, w * 0.05f)
-        drawPineTree(w * 0.09f, h * 0.64f, h * 0.22f, w * 0.06f)
-        drawPineTree(w * 0.15f, h * 0.61f, h * 0.16f, w * 0.045f)
-        drawPineTree(w * 0.20f, h * 0.58f, h * 0.14f, w * 0.04f)
-        drawPineTree(w * 0.25f, h * 0.57f, h * 0.12f, w * 0.035f)
-
-        // 5. Silhueta Atlética Masculina de Costas (Corpo musculoso, ombros largos e trapézio)
-        val manX = w * 0.71f
-        val manY = h * 0.48f
-        val scale = h * 0.0035f
-
-        val athleteBody = Path().apply {
-            val headRadius = 15f * scale
-            val headTop = manY - 58f * scale
-
-            // Início no pescoço/trapézio esquerdo
-            moveTo(manX - 10f * scale, headTop + headRadius * 1.5f)
-            // Trapézio subindo até o ombro esquerdo largo
-            lineTo(manX - 38f * scale, manY - 24f * scale)
-            // Deltoide posterior esquerdo (curva musculosa)
-            lineTo(manX - 44f * scale, manY - 10f * scale)
-            // Manga da camiseta atlética esquerda
-            lineTo(manX - 42f * scale, manY + 16f * scale)
-            // Braço / tríceps descendo
-            lineTo(manX - 40f * scale, manY + 48f * scale)
-            // Entrada para a cintura (V-Taper acentuado)
-            lineTo(manX - 25f * scale, manY + 68f * scale)
-            // Base inferior da camiseta / tronco
-            lineTo(manX - 22f * scale, h)
-            lineTo(manX + 26f * scale, h)
-            // Cintura direita
-            lineTo(manX + 28f * scale, manY + 68f * scale)
-            // Braço / tríceps direito
-            lineTo(manX + 44f * scale, manY + 48f * scale)
-            // Manga da camiseta atlética direita
-            lineTo(manX + 46f * scale, manY + 16f * scale)
-            // Deltoide direito
-            lineTo(manX + 48f * scale, manY - 10f * scale)
-            // Trapézio direito descendo em direção ao pescoço
-            lineTo(manX + 42f * scale, manY - 24f * scale)
-            lineTo(manX + 10f * scale, headTop + headRadius * 1.5f)
-            close()
-        }
-
-        // Desenhar corpo da silhueta (cor da camiseta atlética escura)
-        drawPath(athleteBody, color = Color(0xFF100B1A))
-
-        // Cabeça com corte atlético
-        val headCenter = Offset(manX + 1f * scale, manY - 44f * scale)
-        drawCircle(
-            color = Color(0xFF0F0818),
-            radius = 15f * scale,
-            center = headCenter
-        )
-
-        // Detalhes de costura/sombra na camiseta atlética (costas musculosas)
-        val backSeam = Path().apply {
-            moveTo(manX - 26f * scale, manY - 18f * scale)
-            lineTo(manX, manY - 8f * scale)
-            lineTo(manX + 28f * scale, manY - 18f * scale)
-        }
-        drawPath(
-            path = backSeam,
-            color = Color(0xFF1D152A),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * scale)
-        )
-
-        // 6. Rim Light Dourada do Pôr do Sol (contorno de luz nas bordas direitas)
-        // Destaca ombro, trapézio, pescoço e cabeça banhados pelo sol
-        drawLine(
-            color = Color(0xFFFFBF7F).copy(alpha = 0.95f),
-            start = Offset(manX + 8f * scale, manY - 32f * scale),
-            end = Offset(manX + 42f * scale, manY - 24f * scale),
-            strokeWidth = 3.5f * scale
-        )
-        drawLine(
-            color = Color(0xFFFFBF7F).copy(alpha = 0.95f),
-            start = Offset(manX + 42f * scale, manY - 24f * scale),
-            end = Offset(manX + 48f * scale, manY - 10f * scale),
-            strokeWidth = 3.5f * scale
-        )
-        drawLine(
-            color = Color(0xFFFF9E3D).copy(alpha = 0.85f),
-            start = Offset(manX + 48f * scale, manY - 10f * scale),
-            end = Offset(manX + 46f * scale, manY + 22f * scale),
-            strokeWidth = 3.0f * scale
-        )
-
-        // Rim light na orelha e lateral da cabeça
-        drawLine(
-            color = Color(0xFFFFBF7F).copy(alpha = 0.90f),
-            start = Offset(manX + 12f * scale, manY - 52f * scale),
-            end = Offset(manX + 16f * scale, manY - 42f * scale),
-            strokeWidth = 2.5f * scale
-        )
-
-        // Rim light suave e lilás no lado esquerdo
-        drawLine(
-            color = Color(0xFFA855F7).copy(alpha = 0.40f),
-            start = Offset(manX - 8f * scale, manY - 32f * scale),
-            end = Offset(manX - 38f * scale, manY - 24f * scale),
-            strokeWidth = 2.0f * scale
         )
     }
 }

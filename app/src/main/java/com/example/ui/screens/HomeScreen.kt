@@ -164,6 +164,10 @@ fun HomeScreen(
     // CÁLCULO RIGOROSAMENTE DETERMINÍSTICO E REAL (SEM DADOS FICTÍCIOS)
     // =========================================================================
     val today = remember { LocalDate.now() }
+    // O badge só é exibido quando existe um lembrete realmente agendado para hoje.
+    // Não há estado de "notificação não lida" persistido pelo Android neste ponto.
+    val hasPendingWorkoutReminder = reminderSettings.isEnabled &&
+        reminderSettings.isDayActive(today.dayOfWeek.value)
     val todayEpoch = remember(today) { today.toEpochDay() }
     val monday = remember(today) { today.with(DayOfWeek.MONDAY) }
     val currentWeekDays = remember(monday) { (0..6).map { monday.plusDays(it.toLong()) } }
@@ -283,7 +287,7 @@ fun HomeScreen(
                         userName = uiState.userName,
                         onMenuClick = { coroutineScope.launch { drawerState.open() } },
                         onNotificationClick = { showWorkoutReminderDialog = true },
-                        hasUnreadNotification = true
+                        hasUnreadNotification = hasPendingWorkoutReminder
                     )
                 }
 
@@ -403,6 +407,21 @@ fun HomeScreen(
         HealthConnectDialog(
             viewModel = viewModel,
             onDismiss = { showHealthConnectDialog = false }
+        )
+    }
+
+    // O perfil pode estar sendo criado na primeira execução. Mantém um feedback
+    // visível e abre o editor assim que o estado do perfil estiver disponível.
+    if (showProfileDialog && userProfile == null) {
+        AlertDialog(
+            onDismissRequest = { showProfileDialog = false },
+            title = { Text("Preparando seu perfil") },
+            text = { Text("Estamos carregando seus dados iniciais. Tente novamente em alguns instantes.") },
+            confirmButton = {
+                TextButton(onClick = { showProfileDialog = false }) {
+                    Text("Entendi")
+                }
+            }
         )
     }
 
