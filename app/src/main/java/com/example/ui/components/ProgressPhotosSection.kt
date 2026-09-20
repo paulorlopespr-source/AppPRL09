@@ -1,6 +1,9 @@
 package com.example.ui.components
 
 import android.net.Uri
+import android.content.Context
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,6 +94,12 @@ import com.example.ui.theme.RedDestructive
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+
+private fun createProgressCameraUri(context: Context): Uri {
+    val directory = File(context.cacheDir, "progress_camera").apply { mkdirs() }
+    val photo = File(directory, "progress_${System.currentTimeMillis()}.jpg")
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photo)
+}
 
 @Composable
 fun ProgressPhotosSection(
@@ -554,7 +563,9 @@ fun AddProgressPhotoDialog(
     onDismiss: () -> Unit,
     onSave: (uri: Uri, weight: Double?, monthLabel: String, isInitial: Boolean, fat: Double?, notes: String) -> Unit
 ) {
+    val context = LocalContext.current
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var weightStr by remember { mutableStateOf(initialWeight.toString()) }
     var monthLabel by remember {
         mutableStateOf(
@@ -584,6 +595,16 @@ fun AddProgressPhotoDialog(
             errorMessage = null
         }
     }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) { selectedImageUri = cameraUri; errorMessage = null }
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            val uri = createProgressCameraUri(context)
+            cameraUri = uri
+            cameraLauncher.launch(uri)
+        } else errorMessage = "Permita o uso da câmera para tirar uma foto."
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -610,6 +631,10 @@ fun AddProgressPhotoDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                OutlinedButton(
+                    onClick = { cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA) },
+                    modifier = Modifier.fillMaxWidth().testTag("btn_take_progress_photo")
+                ) { Icon(Icons.Default.PhotoCamera, null); Spacer(Modifier.width(8.dp)); Text("Tirar foto com a câmera") }
                 // Photo Picker box
                 Box(
                     modifier = Modifier

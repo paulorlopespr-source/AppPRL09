@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -90,6 +92,7 @@ import com.example.data.model.IntensityLevel
 import com.example.data.model.SessionStatus
 import com.example.domain.dashboard.MuscleVolume
 import com.example.ui.components.AIEvaluationDialog
+import com.example.ui.components.AddProgressPhotoDialog
 import com.example.ui.components.AINutritionDialog
 import com.example.ui.components.AIWorkoutGeneratorDialog
 import com.example.ui.components.ActiveCardioTrackerModal
@@ -137,6 +140,8 @@ import java.util.Locale
  * Orquestração da tela Painel idêntica à referência visual.
  * Preserva 100% dos dados, ViewModels e integrações.
  */
+private enum class PainelTab(val label: String) { OVERVIEW("Visão Geral"), WORKOUTS("Treinos"), CARDIO("Cardio"), BODY("Corpo"), HEALTH("Saúde") }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PainelScreen(
@@ -168,6 +173,8 @@ fun PainelScreen(
     var checkInMode by remember { mutableStateOf(false) }
     var showDatePickerDialog by remember { mutableStateOf(false) }
     var showDetailedAnalysis by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(PainelTab.OVERVIEW) }
+    var showAddProgressPhoto by remember { mutableStateOf(false) }
 
     // Dialogs do Drawer
     var showProfileDialog by remember { mutableStateOf(false) }
@@ -363,8 +370,24 @@ fun PainelScreen(
                     )
                 }
 
-                // 2. GreetingCard
                 item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PainelTab.entries.forEach { tab ->
+                            Surface(
+                                onClick = { selectedTab = tab },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (selectedTab == tab) PurplePrimary else PurpleDarkSurface,
+                                border = BorderStroke(1.dp, if (selectedTab == tab) LilacAccent else GlassBorderSubtle)
+                            ) { Text(tab.label, modifier = Modifier.padding(horizontal = 18.dp, vertical = 11.dp), color = if (selectedTab == tab) Color.White else TextSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                        }
+                    }
+                }
+
+                // 2. GreetingCard
+                if (selectedTab == PainelTab.OVERVIEW) item {
                     GreetingCard(
                         headline = uiState.greetingHeadline,
                         subtitle = uiState.greetingSubtitle
@@ -372,7 +395,7 @@ fun PainelScreen(
                 }
 
                 // 3. KeyMetricsGrid (4 cards em Row)
-                item {
+                if (selectedTab != PainelTab.HEALTH) item {
                     KeyMetricsGrid(
                         workoutsDone = uiState.workoutsDone,
                         workoutsGoal = uiState.workoutsGoal,
@@ -383,7 +406,7 @@ fun PainelScreen(
                 }
 
                 // 4. WeeklyProgressChart
-                item {
+                if (selectedTab == PainelTab.OVERVIEW || selectedTab == PainelTab.WORKOUTS) item {
                     WeeklyProgressChart(
                         dayBars = uiState.weeklyBarData,
                         onVerMais = {
@@ -393,14 +416,14 @@ fun PainelScreen(
                 }
 
                 // 5. MotivationCard
-                item {
+                if (selectedTab == PainelTab.OVERVIEW) item {
                     MotivationCard(
                         quote = uiState.motivationQuote
                     )
                 }
 
                 // 6. TodayFocusCard
-                item {
+                if (selectedTab == PainelTab.OVERVIEW || selectedTab == PainelTab.HEALTH) item {
                     TodayFocusCard(
                         score = uiState.todayFocusProgress,
                         maxScore = 100,
@@ -408,6 +431,23 @@ fun PainelScreen(
                         description = uiState.todayFocusDescription,
                         onActionClick = onStartTodayWorkout
                     )
+                }
+
+                if (selectedTab == PainelTab.BODY) item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().testTag("card_body_progress_photo"),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = PurpleDarkSurface),
+                        border = BorderStroke(1.dp, GlassBorderSubtle)
+                    ) {
+                        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Fotos de progresso", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("Registre uma foto, a data e seu peso para acompanhar sua evolução.", color = TextSecondary, fontSize = 13.sp)
+                            Button(onClick = { showAddProgressPhoto = true }, modifier = Modifier.fillMaxWidth().testTag("btn_add_body_progress_photo"), colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)) {
+                                Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("Adicionar foto de progresso")
+                            }
+                        }
+                    }
                 }
 
                 // Análises secundárias detalhadas (expandidas ao clicar em "Ver mais")
@@ -430,6 +470,16 @@ fun PainelScreen(
                 }
             }
         }
+    }
+
+    if (showAddProgressPhoto) {
+        AddProgressPhotoDialog(
+            initialWeight = userProfile?.currentWeightKg ?: userProfile?.startingWeightKg ?: 0.0,
+            onDismiss = { showAddProgressPhoto = false },
+            onSave = { uri, weight, month, initial, fat, notes ->
+                fitnessVm.saveProgressPhoto(uri, weight, month, initial, fat, notes) { showAddProgressPhoto = false }
+            }
+        )
     }
 
     // Dialog de seleção de data
