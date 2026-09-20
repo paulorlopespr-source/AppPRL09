@@ -76,6 +76,7 @@ import com.example.ui.components.defaultHistoricalMilestones
 import com.example.ui.components.defaultMilestones
 import com.example.ui.viewmodel.FitnessViewModel
 import com.example.ui.viewmodel.Phase7ViewModel
+import com.example.domain.gamification.PintinhoJourneyCatalog
 
 /**
  * Tela "Jornada" (Gamificação e Progressão)
@@ -106,22 +107,26 @@ fun JornadaScreen(
 
     // Mapeamento dinâmico e consolidação do JornadaUiState
     val data = journeySnapshot
-    val level = data?.level?.coerceAtLeast(12) ?: 12
-    val levelTitle = if (data != null && data.level > 12) data.levelTitle else "Lobo Determinado"
-    val currentXp = data?.totalXp?.coerceAtLeast(1250) ?: 1250
-    val targetXp = 2000
-    val streakDays = data?.currentStreakDays?.coerceAtLeast(45) ?: 45
-    val totalAchievements = allMedals.count { it.isUnlocked }.coerceAtLeast(12)
-    val onTimeGoalsPercent = 78
+    val journeyProgress = data?.pintinhoProgress
+    val completedJourneyLevels = journeyProgress?.completedLevels ?: 0
+    val level = (completedJourneyLevels + 1).coerceAtMost(PintinhoJourneyCatalog.cards.size)
+    val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.cards.size) "Frango • nova jornada" else "Pintinho • nível $level"
+    val currentXp = journeyProgress?.totalJourneyXp ?: 0
+    val targetXp = journeyProgress?.currentCard?.xpReward ?: currentXp.coerceAtLeast(1)
+    val streakDays = data?.currentStreakDays ?: 0
+    val totalAchievements = allMedals.count { it.isUnlocked }
+    val onTimeGoalsPercent = ((data?.weeklyQuests?.firstOrNull()?.progress ?: 0f) * 100).toInt()
     val totalPoints = currentXp
 
-    val currentQuest = if (data != null && data.weeklyQuests.isNotEmpty()) {
+    val currentQuest = journeyProgress?.currentCard?.let { card ->
+        QuestData("pintinho_${card.level}", "Nível ${card.level} • ${card.title}", card.description, journeyProgress.objectiveCurrent.coerceAtMost(card.target), card.target, card.xpReward)
+    } ?: if (data != null && data.weeklyQuests.isNotEmpty()) {
         val q = data.weeklyQuests.first()
         QuestData(
             id = q.id,
             title = "Completar 5 treinos nesta semana",
             description = q.subtitle,
-            current = q.current.coerceAtLeast(2),
+            current = q.current,
             target = 5,
             rewardXp = q.rewardXp
         )
@@ -130,7 +135,7 @@ fun JornadaScreen(
             id = "quest_weekly",
             title = "Completar 5 treinos nesta semana",
             description = "Mantenha o foco e avance na sua jornada.",
-            current = 2,
+            current = 0,
             target = 5,
             rewardXp = 150
         )
@@ -203,7 +208,16 @@ fun JornadaScreen(
         totalAchievements = totalAchievements,
         onTimeGoalsPercent = onTimeGoalsPercent,
         totalPoints = totalPoints,
-        trailMilestones = defaultMilestones(),
+        trailMilestones = PintinhoJourneyCatalog.cards.map { card ->
+            TrailMilestoneData(
+                id = "pintinho_${card.level}", title = card.level.toString(), subtitle = card.title,
+                status = when {
+                    card.level <= completedJourneyLevels -> MilestoneStatus.COMPLETED
+                    card.level == level && completedJourneyLevels < PintinhoJourneyCatalog.cards.size -> MilestoneStatus.CURRENT
+                    else -> MilestoneStatus.LOCKED
+                }
+            )
+        },
         currentQuest = currentQuest,
         questList = questList,
         currentAchievement = currentAchievement,
@@ -515,9 +529,10 @@ fun JornadaScreen(
                             motivationalQuote = uiState.motivationalQuoteLevel
                         )
                     }
-                    items((1..15).toList()) { lvl ->
+                    items(PintinhoJourneyCatalog.cards) { card ->
+                        val lvl = card.level
                         val isCurrent = lvl == uiState.level
-                        val isPassed = lvl < uiState.level
+                        val isPassed = lvl <= completedJourneyLevels
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = if (isCurrent) Color(0xFF2E1A47) else Color(0xFF15111F),
@@ -536,19 +551,13 @@ fun JornadaScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "Nível $lvl • ${when {
-                                            lvl >= 12 -> "Lobo Determinado"
-                                            lvl >= 10 -> "Elite PRL09"
-                                            lvl >= 7 -> "Veterano da Disciplina"
-                                            lvl >= 4 -> "Consistente"
-                                            else -> "Iniciante"
-                                        }}",
+                                        text = "Nível $lvl • ${card.title}",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isCurrent) Color(0xFFC4B5FD) else Color.White
                                     )
                                     Text(
-                                        text = "${lvl * 1000} XP total necessário",
+                                        text = card.description,
                                         fontSize = 12.sp,
                                         color = Color(0xFF94A3B8)
                                     )
@@ -562,6 +571,34 @@ fun JornadaScreen(
                             }
                         }
                     }
+                }
+
+                JornadaTab.COLECAO -> {
+                    item(key = "collection_header") {
+                        Text("Coleção Pintinho • $completedJourneyLevels / ${PintinhoJourneyCatalog.cards.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                    }
+                    items(PintinhoJourneyCatalog.cards) { card ->
+                        val unlocked = card.level <= completedJourneyLevels
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (unlocked) Color(0xFF21163A) else Color(0xFF15111F),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (unlocked) Color(0xFF7C3AED) else Color(0xFF261D3B)),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("journey_card_${card.level}")
+                        ) {
+                            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Surface(shape = CircleShape, color = if (unlocked) Color(0xFF7C3AED) else Color(0xFF2A2439), modifier = Modifier.size(42.dp)) {
+                                    Box(contentAlignment = Alignment.Center) { Text(if (unlocked) "${card.level}" else "🔒", color = Color.White, fontWeight = FontWeight.Bold) }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(card.title, color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text(card.description, color = Color(0xFFB8A9D8), fontSize = 12.sp)
+                                    Text("+${card.xpReward} XP${card.chest?.let { " • ${it.label}" } ?: ""}", color = Color(0xFFC4B5FD), fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                    item(key = "collection_assets_note") { Text("Os 20 espaços de arte já estão preparados: journey_pintinho_card_01 a journey_pintinho_card_20.", color = Color(0xFF94A3B8), fontSize = 12.sp, modifier = Modifier.padding(16.dp)) }
                 }
 
                 JornadaTab.RECOMPENSAS -> {

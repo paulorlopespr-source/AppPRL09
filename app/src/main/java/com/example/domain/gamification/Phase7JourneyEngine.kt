@@ -36,7 +36,15 @@ data class JourneySnapshot(
     val totalVolumeKg: Double,
     val unlockedMedals: Int,
     val totalMedals: Int,
-    val weeklyQuests: List<JourneyQuest>
+    val weeklyQuests: List<JourneyQuest>,
+    val pintinhoProgress: PintinhoJourneyProgress
+)
+
+data class PintinhoJourneyProgress(
+    val completedLevels: Int,
+    val currentCard: PintinhoJourneyCard?,
+    val objectiveCurrent: Int,
+    val totalJourneyXp: Int
 )
 
 object Phase7JourneyEngine {
@@ -82,6 +90,24 @@ object Phase7JourneyEngine {
             JourneyQuest("weekly_volume", "5 toneladas de volume", "Volume total dos treinos de força concluídos.", weeklyVolumeTons, 5, 180)
         )
 
+        val recordedSets = completedWorkouts.count { it.totalWeightLiftedKg > 0.0 }
+        val hasProgression = completedWorkouts.any { it.totalWeightLiftedKg > 0.0 }
+        fun objectiveValue(card: PintinhoJourneyCard) = when (card.objectiveType) {
+            PintinhoObjectiveType.WORKOUTS_COMPLETED -> strengthSessions
+            PintinhoObjectiveType.SETS_RECORDED -> recordedSets
+            PintinhoObjectiveType.WEEKLY_WORKOUTS -> weeklyActivities
+            PintinhoObjectiveType.PROGRESSION -> if (hasProgression) 1 else 0
+            PintinhoObjectiveType.EDUCATION -> 0
+        }
+        val completedCards = PintinhoJourneyCatalog.cards.takeWhile { objectiveValue(it) >= it.target }
+        val currentCard = PintinhoJourneyCatalog.cards.getOrNull(completedCards.size)
+        val journeyProgress = PintinhoJourneyProgress(
+            completedLevels = completedCards.size,
+            currentCard = currentCard,
+            objectiveCurrent = currentCard?.let(::objectiveValue) ?: 0,
+            totalJourneyXp = completedCards.sumOf { it.xpReward }
+        )
+
         return JourneySnapshot(
             totalXp = totalXp,
             level = level,
@@ -99,7 +125,8 @@ object Phase7JourneyEngine {
             totalVolumeKg = totalVolume,
             unlockedMedals = unlocked.size,
             totalMedals = medals.size,
-            weeklyQuests = quests
+            weeklyQuests = quests,
+            pintinhoProgress = journeyProgress
         )
     }
 

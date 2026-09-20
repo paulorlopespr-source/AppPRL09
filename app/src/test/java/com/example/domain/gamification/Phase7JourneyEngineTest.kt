@@ -12,6 +12,15 @@ import java.time.LocalDate
 
 class Phase7JourneyEngineTest {
     @Test
+    fun pintinhoCatalogHasTwentyUniqueCardsAndMilestoneChests() {
+        val cards = PintinhoJourneyCatalog.cards
+
+        assertEquals((1..20).toList(), cards.map { it.level })
+        assertEquals(20, cards.map { it.assetKey }.distinct().size)
+        assertEquals(listOf(5, 10, 15, 20), cards.filter { it.chest != null }.map { it.level })
+    }
+
+    @Test
     fun buildsJourneyFromRecordedDataOnly() {
         val today = LocalDate.of(2026, 9, 16)
         val workouts = listOf(
@@ -37,5 +46,7 @@ class Phase7JourneyEngineTest {
         assertEquals(1, result.unlockedMedals)
         assertEquals(310, result.totalXp)
         assertTrue(result.weeklyQuests.first().completed)
+        assertEquals(2, result.pintinhoProgress.completedLevels)
+        assertEquals(3, result.pintinhoProgress.currentCard?.level)
     }
 }

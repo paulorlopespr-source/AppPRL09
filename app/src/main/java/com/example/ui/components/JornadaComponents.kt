@@ -74,6 +74,7 @@ enum class JornadaTab(val title: String) {
     MISSOES("Missões"),
     CONQUISTAS("Conquistas"),
     NIVEIS("Níveis"),
+    COLECAO("Coleção"),
     RECOMPENSAS("Recompensas")
 }
 
