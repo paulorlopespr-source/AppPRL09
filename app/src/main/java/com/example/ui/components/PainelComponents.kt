@@ -205,7 +205,8 @@ fun GreetingCard(
             Image(
                 painter = painterResource(R.drawable.img_painel_mountain),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.FillWidth,
+                alignment = Alignment.BottomCenter,
                 modifier = Modifier.fillMaxSize()
             )
 
