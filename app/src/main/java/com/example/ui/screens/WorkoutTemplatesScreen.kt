@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -932,26 +933,19 @@ fun CreateCustomWorkoutDialog(
     ) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
-    var subtitle by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf(WorkoutCategory.PERSONALIZADO) }
-    var restSeconds by remember { mutableStateOf(60) }
-    var durationMinutes by remember { mutableStateOf(50) }
-    var description by remember { mutableStateOf("") }
-
     val selectedExerciseIds = remember { mutableStateOf(mutableSetOf<Long>()) }
     var selectedMuscleGroupFilter by remember { mutableStateOf<MuscleGroup?>(null) }
-
-    val filteredExercises = if (selectedMuscleGroupFilter == null) {
-        allExercises
-    } else {
-        allExercises.filter { it.muscleGroup == selectedMuscleGroupFilter }
+    val selectedExercises = allExercises.filter { selectedExerciseIds.value.contains(it.id) }
+    val availableExercises = allExercises.filter { exercise ->
+        !selectedExerciseIds.value.contains(exercise.id) &&
+            (selectedMuscleGroupFilter == null || exercise.muscleGroup == selectedMuscleGroupFilter)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Criar Treino Personalizado",
+                text = "Criar treino",
                 fontWeight = FontWeight.Black,
                 color = TextPrimary
             )
@@ -961,13 +955,13 @@ fun CreateCustomWorkoutDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Nome do Treino *") },
-                    placeholder = { Text("Ex: Treino de Braços & Peitoral") },
+                    placeholder = { Text("Ex: Peito e tríceps") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary,
@@ -982,26 +976,8 @@ fun CreateCustomWorkoutDialog(
                         .testTag("input_custom_title")
                 )
 
-                OutlinedTextField(
-                    value = subtitle,
-                    onValueChange = { subtitle = it },
-                    label = { Text("Subtítulo / Divisão") },
-                    placeholder = { Text("Ex: Foco em Tríceps e Peitoral Superior") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = LilacAccent,
-                        unfocusedBorderColor = GlassBorder,
-                        focusedLabelColor = LilacAccent,
-                        unfocusedLabelColor = TextSecondary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Category selector
                 Text(
-                    text = "Categoria:",
+                    text = "1. Escolha o grupo muscular",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -1012,73 +988,11 @@ fun CreateCustomWorkoutDialog(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    WorkoutCategory.values().forEach { cat ->
-                        FilterChip(
-                            selected = category == cat,
-                            onClick = { category = cat },
-                            label = { Text(cat.label, fontSize = 12.sp) },
-                            shape = RoundedCornerShape(10.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PurpleDeepCard,
-                                selectedLabelColor = LilacAccent,
-                                containerColor = PurpleDarkSurface,
-                                labelColor = TextSecondary
-                            )
-                        )
-                    }
-                }
-
-                // Rest & Duration settings
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = durationMinutes.toString(),
-                        onValueChange = { durationMinutes = it.toIntOrNull() ?: 45 },
-                        label = { Text("Duração (min)") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = LilacAccent,
-                            unfocusedBorderColor = GlassBorder
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = restSeconds.toString(),
-                        onValueChange = { restSeconds = it.toIntOrNull() ?: 60 },
-                        label = { Text("Descanso (s)") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = LilacAccent,
-                            unfocusedBorderColor = GlassBorder
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Exercises Picker
-                Text(
-                    text = "Selecione os Exercícios (${selectedExerciseIds.value.size} selecionados):",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = LilacAccent
-                )
-
-                // Muscle Group filter for exercise picker
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
                     FilterChip(
                         selected = selectedMuscleGroupFilter == null,
                         onClick = { selectedMuscleGroupFilter = null },
-                        label = { Text("Todos", fontSize = 11.sp) },
-                        shape = RoundedCornerShape(8.dp),
+                        label = { Text("Todos", fontSize = 12.sp) },
+                        shape = RoundedCornerShape(10.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PurpleDeepCard,
                             selectedLabelColor = LilacAccent,
@@ -1090,8 +1004,8 @@ fun CreateCustomWorkoutDialog(
                         FilterChip(
                             selected = selectedMuscleGroupFilter == mg,
                             onClick = { selectedMuscleGroupFilter = mg },
-                            label = { Text(mg.displayName, fontSize = 11.sp) },
-                            shape = RoundedCornerShape(8.dp),
+                            label = { Text(mg.displayName, fontSize = 12.sp) },
+                            shape = RoundedCornerShape(10.dp),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = PurpleDeepCard,
                                 selectedLabelColor = LilacAccent,
@@ -1102,22 +1016,28 @@ fun CreateCustomWorkoutDialog(
                     }
                 }
 
-                // Exercises list checklist
+                Text(
+                    text = "2. Adicione exercícios",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = LilacAccent
+                )
+
+                if (selectedExercises.isNotEmpty()) {
+                    Text(
+                        text = "No seu treino (${selectedExercises.size}) · 3 séries × 10 repetições",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldSuccess
+                    )
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    filteredExercises.forEach { ex ->
-                        val isChecked = selectedExerciseIds.value.contains(ex.id)
+                    selectedExercises.forEach { ex ->
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isChecked) PurpleDeepCard else PurpleDarkSurface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isChecked) LilacAccent else GlassBorderSubtle),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    val currentSet = selectedExerciseIds.value.toMutableSet()
-                                    if (isChecked) currentSet.remove(ex.id)
-                                    else currentSet.add(ex.id)
-                                    selectedExerciseIds.value = currentSet
-                                }
+                            color = PurpleDeepCard,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
                                 modifier = Modifier.padding(10.dp),
@@ -1138,14 +1058,26 @@ fun CreateCustomWorkoutDialog(
                                     )
                                 }
 
-                                if (isChecked) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selecionado",
-                                        tint = LilacAccent,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                IconButton(onClick = {
+                                    selectedExerciseIds.value = selectedExerciseIds.value.toMutableSet().apply { remove(ex.id) }
+                                }) { Icon(Icons.Default.Remove, "Remover ${ex.name}", tint = RedDestructive) }
+                            }
+                        }
+                    }
+                    availableExercises.forEach { ex ->
+                        Surface(
+                            shape = RoundedCornerShape(10.dp), color = PurpleDarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(ex.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                    Text("${ex.muscleGroup.displayName} · ${ex.equipment.displayName}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                                 }
+                                IconButton(onClick = {
+                                    selectedExerciseIds.value = selectedExerciseIds.value.toMutableSet().apply { add(ex.id) }
+                                }) { Icon(Icons.Default.Add, "Adicionar ${ex.name}", tint = LilacAccent) }
                             }
                         }
                     }
@@ -1156,15 +1088,15 @@ fun CreateCustomWorkoutDialog(
             Button(
                 onClick = {
                     if (title.isNotBlank() && selectedExerciseIds.value.isNotEmpty()) {
-                        val chosenExercises = allExercises.filter { selectedExerciseIds.value.contains(it.id) }
+                        val chosenExercises = selectedExercises
                         val plans = chosenExercises.map { ex ->
-                            val sets = (1..ex.defaultSets).map {
+                            val sets = (1..3).map {
                                 ExerciseSetEntry(
                                     setNumber = it,
                                     weightKg = 20.0,
-                                    reps = ex.defaultReps,
+                                    reps = 10,
                                     isCompleted = false,
-                                    restSeconds = restSeconds
+                                    restSeconds = 60
                                 )
                             }
                             WorkoutExercisePlan(
@@ -1172,18 +1104,18 @@ fun CreateCustomWorkoutDialog(
                                 exerciseName = ex.name,
                                 muscleGroup = ex.muscleGroup.displayName,
                                 sets = sets,
-                                targetRestSeconds = restSeconds,
+                                targetRestSeconds = 60,
                                 notes = ex.executionTips
                             )
                         }
                         onSave(
                             title.trim(),
-                            subtitle.ifBlank { "${chosenExercises.size} Exercícios" },
-                            category,
+                            "${chosenExercises.size} exercícios · 3×10",
+                            WorkoutCategory.PERSONALIZADO,
                             plans,
-                            description,
-                            durationMinutes,
-                            restSeconds
+                            "",
+                            45,
+                            60
                         )
                     }
                 },
