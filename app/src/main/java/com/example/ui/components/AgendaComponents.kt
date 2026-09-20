@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,6 +54,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -702,8 +706,13 @@ fun AgendaMotivationCard(
                 .fillMaxWidth()
                 .height(125.dp)
         ) {
-            // Paisagem sutil com montanhas e lua no Canvas à direita
-            AgendaMountainSunsetCanvas(modifier = Modifier.fillMaxSize())
+            Image(
+                painter = painterResource(R.drawable.img_agenda_mountain),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                alignment = Alignment.BottomCenter,
+                modifier = Modifier.fillMaxSize()
+            )
 
             Row(
                 modifier = Modifier
