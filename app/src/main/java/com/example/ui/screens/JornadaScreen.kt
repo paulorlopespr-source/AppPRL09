@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +61,7 @@ import com.example.ui.components.AllAchievementsDialog
 import com.example.ui.components.AllQuestsDialog
 import com.example.ui.components.HistoricalMilestoneData
 import com.example.ui.components.JornadaHeader
+import com.example.ui.components.JourneyCardCelebrationDialog
 import com.example.ui.components.JornadaTab
 import com.example.ui.components.JornadaUiState
 import com.example.ui.components.JourneyTrailCard
@@ -81,6 +83,7 @@ import com.example.ui.components.defaultMilestones
 import com.example.ui.viewmodel.FitnessViewModel
 import com.example.ui.viewmodel.Phase7ViewModel
 import com.example.domain.gamification.PintinhoJourneyCatalog
+import com.example.domain.gamification.PintinhoJourneyCard
 
 /**
  * Tela "Jornada" (Gamificação e Progressão)
@@ -108,11 +111,22 @@ fun JornadaScreen(
     var showAchievementsDialog by remember { mutableStateOf(false) }
     var showRewardDialog by remember { mutableStateOf(false) }
     var selectedMilestoneForDetail by remember { mutableStateOf<TrailMilestoneData?>(null) }
+    var unlockedCardForCelebration by remember { mutableStateOf<PintinhoJourneyCard?>(null) }
 
     // Mapeamento dinâmico e consolidação do JornadaUiState
     val data = journeySnapshot
     val journeyProgress = data?.pintinhoProgress
     val completedJourneyLevels = journeyProgress?.completedLevels ?: 0
+    val context = LocalContext.current
+
+    LaunchedEffect(completedJourneyLevels) {
+        val preferences = context.getSharedPreferences("journey_card_celebrations", android.content.Context.MODE_PRIVATE)
+        val lastCelebratedLevel = preferences.getInt("last_celebrated_level", 0)
+        if (completedJourneyLevels > lastCelebratedLevel) {
+            unlockedCardForCelebration = PintinhoJourneyCatalog.cards.getOrNull(completedJourneyLevels - 1)
+            preferences.edit().putInt("last_celebrated_level", completedJourneyLevels).apply()
+        }
+    }
     val level = (completedJourneyLevels + 1).coerceAtMost(PintinhoJourneyCatalog.cards.size)
     val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.cards.size) "Frango • nova jornada" else "Pintinho • nível $level"
     val currentXp = journeyProgress?.totalJourneyXp ?: 0
@@ -675,6 +689,17 @@ fun JornadaScreen(
             MilestoneDetailDialog(
                 milestone = milestone,
                 onDismiss = { selectedMilestoneForDetail = null }
+            )
+        }
+
+        unlockedCardForCelebration?.let { card ->
+            JourneyCardCelebrationDialog(
+                card = card,
+                onOpenCollection = {
+                    selectedTab = JornadaTab.COLECAO
+                    unlockedCardForCelebration = null
+                },
+                onDismiss = { unlockedCardForCelebration = null }
             )
         }
     }
