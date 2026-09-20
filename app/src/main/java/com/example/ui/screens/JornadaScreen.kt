@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,8 +45,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -579,6 +583,8 @@ fun JornadaScreen(
                     }
                     items(PintinhoJourneyCatalog.cards) { card ->
                         val unlocked = card.level <= completedJourneyLevels
+                        val context = LocalContext.current
+                        val artworkResId = context.resources.getIdentifier(card.assetKey, "drawable", context.packageName)
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = if (unlocked) Color(0xFF21163A) else Color(0xFF15111F),
@@ -586,8 +592,17 @@ fun JornadaScreen(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("journey_card_${card.level}")
                         ) {
                             Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Surface(shape = CircleShape, color = if (unlocked) Color(0xFF7C3AED) else Color(0xFF2A2439), modifier = Modifier.size(42.dp)) {
-                                    Box(contentAlignment = Alignment.Center) { Text(if (unlocked) "${card.level}" else "🔒", color = Color.White, fontWeight = FontWeight.Bold) }
+                                if (artworkResId != 0) {
+                                    Image(
+                                        painter = painterResource(artworkResId),
+                                        contentDescription = "Card ${card.level}: ${card.title}",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(width = 72.dp, height = 106.dp).clip(RoundedCornerShape(10.dp))
+                                    )
+                                } else {
+                                    Surface(shape = CircleShape, color = if (unlocked) Color(0xFF7C3AED) else Color(0xFF2A2439), modifier = Modifier.size(42.dp)) {
+                                        Box(contentAlignment = Alignment.Center) { Text(if (unlocked) "${card.level}" else "🔒", color = Color.White, fontWeight = FontWeight.Bold) }
+                                    }
                                 }
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
