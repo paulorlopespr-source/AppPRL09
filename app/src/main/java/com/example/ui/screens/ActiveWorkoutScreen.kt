@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -1059,7 +1058,7 @@ private fun ActiveWorkoutOverviewCard(
             }
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(70.dp)) {
                 CircularProgressIndicator(
-                    progress = progress,
+                    progress = { progress },
                     modifier = Modifier.fillMaxSize(),
                     color = PurpleVibrant,
                     trackColor = PurpleDarkSurface,
