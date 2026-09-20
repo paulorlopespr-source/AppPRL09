@@ -82,16 +82,26 @@ jobs:
       - name: Run Home Compose tests on a phone emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
-          # The plain AOSP image has no Play Integrity verifier, which can
-          # block test APK installation on headless GitHub runners.
+          # API 34 is stable on GitHub runners and avoids the Android 15 ADB
+          # verifier failure (exit 224) seen with the headless API 35 image.
+          api-level: 34
           target: default
           arch: x86_64
           profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           script: |
-            # Android 15 may attempt cloud integrity verification for adb installs.
-            # The ephemeral CI emulator has no Play Store session, so it can time out
-            # before the instrumentation APK is installed.
+            adb wait-for-device
+            until adb shell getprop sys.boot_completed | grep -m 1 '1'; do sleep 2; done
             adb shell settings put global verifier_verify_adb_installs 0
             adb shell settings put global package_verifier_enable 0
-            gradle connectedDebugAndroidTest --stacktrace
+            gradle connectedDebugAndroidTest --stacktrace --no-daemon
+      - name: Upload instrumentation reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppPRL09-instrumentation-reports
+          path: |
+            app/build/reports/androidTests
+            app/build/outputs/androidTest-results
+          if-no-files-found: warn
