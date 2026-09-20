@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -52,6 +54,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -76,8 +79,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -340,6 +345,30 @@ fun ActiveWorkoutScreen(
                 contentPadding = PaddingValues(top = 10.dp, bottom = bottomNavPadding + 32.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // Visual overview aligned with the active-workout reference. It uses
+                // drawable-name lookups so final PNG/WebP assets can be added without
+                // another UI rewrite.
+                item {
+                    val currentPlan = activeState.exercises.firstOrNull { plan ->
+                        plan.sets.any { !it.isCompleted }
+                    } ?: activeState.exercises.firstOrNull()
+                    val completedExercises = activeState.exercises.count { plan ->
+                        plan.sets.isNotEmpty() && plan.sets.all { it.isCompleted }
+                    }
+                    ActiveWorkoutOverviewCard(
+                        workoutTitle = activeState.title,
+                        muscleSummary = activeState.exercises
+                            .map { it.muscleGroup }
+                            .filter { it.isNotBlank() }
+                            .distinct()
+                            .take(3)
+                            .joinToString(" • "),
+                        currentExercise = currentPlan,
+                        completedExercises = completedExercises,
+                        totalExercises = activeState.exercises.size
+                    )
+                }
+
                 // Location & Gym Switcher Banner
                 item {
                     LiquidGlassSurface(
@@ -958,6 +987,205 @@ fun ActiveWorkoutScreen(
         )
     }
 }
+
+/**
+ * Summary area for the active-workout experience.  The image is resolved by drawable name so
+ * the final isolated PNG/WebP files can be delivered independently of the Compose layout.
+ */
+@Composable
+private fun ActiveWorkoutOverviewCard(
+    workoutTitle: String,
+    muscleSummary: String,
+    currentExercise: WorkoutExercisePlan?,
+    completedExercises: Int,
+    totalExercises: Int
+) {
+    val safeTotal = totalExercises.coerceAtLeast(1)
+    val safeCompleted = completedExercises.coerceIn(0, safeTotal)
+    val progress = safeCompleted.toFloat() / safeTotal.toFloat()
+    val nextWeight = currentExercise?.sets?.firstOrNull { !it.isCompleted }?.weightKg
+        ?: currentExercise?.sets?.firstOrNull()?.weightKg
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("card_active_workout_overview"),
+        color = PurpleDeepCard,
+        shape = RoundedCornerShape(22.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            WorkoutVisualAssetSlot(
+                exerciseName = currentExercise?.exerciseName.orEmpty(),
+                muscleGroup = currentExercise?.muscleGroup.orEmpty(),
+                modifier = Modifier.size(86.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "SEU OBJETIVO",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LilacAccent,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+                Text(
+                    text = workoutTitle.ifBlank { "Treino ativo" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                Text(
+                    text = muscleSummary.ifBlank { "Preparando seus exercícios" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(9.dp))
+                Text(
+                    text = if (nextWeight != null) {
+                        "Próxima carga: ${formatWorkoutWeight(nextWeight)} kg"
+                    } else {
+                        "Defina suas séries para começar"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(70.dp)) {
+                CircularProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.fillMaxSize(),
+                    color = PurpleVibrant,
+                    trackColor = PurpleDarkSurface,
+                    strokeWidth = 7.dp
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "$safeCompleted/$safeTotal",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "EXERCÍCIOS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextMuted,
+                        fontSize = 7.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkoutVisualAssetSlot(
+    exerciseName: String,
+    muscleGroup: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val resourceId = remember(context, exerciseName, muscleGroup) {
+        var resolvedId = 0
+        for (candidate in workoutAssetCandidates(exerciseName, muscleGroup)) {
+            val candidateId = context.resources.getIdentifier(
+                candidate,
+                "drawable",
+                context.packageName
+            )
+            if (candidateId != 0) {
+                resolvedId = candidateId
+                break
+            }
+        }
+        resolvedId
+    }
+
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(15.dp)),
+        color = PurpleDarkSurface,
+        shape = RoundedCornerShape(15.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (resourceId != 0) {
+                Image(
+                    painter = painterResource(resourceId),
+                    contentDescription = "Ilustração de $exerciseName",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.FitnessCenter,
+                    contentDescription = "Asset do exercício pendente",
+                    tint = LilacAccent,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun formatWorkoutWeight(weight: Double): String =
+    if (weight % 1.0 == 0.0) weight.toInt().toString() else String.format("%.1f", weight)
+
+private fun workoutAssetCandidates(exerciseName: String, muscleGroup: String): List<String> {
+    val exerciseToken = normalizeWorkoutAssetToken(exerciseName)
+    val semanticExercise = when {
+        exerciseToken.contains("supino") && exerciseToken.contains("inclinado") &&
+            exerciseToken.contains("halter") -> "exercise_incline_dumbbell_press"
+        exerciseToken.contains("supino") && exerciseToken.contains("barra") ->
+            "exercise_bench_press_barbell"
+        exerciseToken.contains("agachamento") -> "exercise_barbell_squat"
+        exerciseToken.contains("puxada") -> "exercise_lat_pulldown"
+        else -> null
+    }
+    val includedFallback = when (semanticExercise) {
+        "exercise_bench_press_barbell", "exercise_incline_dumbbell_press" -> "img_bench_press"
+        "exercise_barbell_squat" -> "img_barbell_squat"
+        "exercise_lat_pulldown" -> "img_lat_pulldown"
+        else -> null
+    }
+    return listOfNotNull(
+        semanticExercise,
+        exerciseToken.takeIf { it.isNotBlank() }?.let { "exercise_$it" },
+        workoutMuscleAssetName(muscleGroup),
+        includedFallback
+    ).distinct()
+}
+
+private fun workoutMuscleAssetName(muscleGroup: String): String? = when {
+    normalizeWorkoutAssetToken(muscleGroup).contains("peito") ||
+        normalizeWorkoutAssetToken(muscleGroup).contains("chest") -> "muscle_chest"
+    normalizeWorkoutAssetToken(muscleGroup).contains("costas") ||
+        normalizeWorkoutAssetToken(muscleGroup).contains("back") -> "muscle_back"
+    normalizeWorkoutAssetToken(muscleGroup).contains("ombro") ||
+        normalizeWorkoutAssetToken(muscleGroup).contains("shoulder") -> "muscle_shoulders"
+    normalizeWorkoutAssetToken(muscleGroup).contains("biceps") -> "muscle_biceps"
+    normalizeWorkoutAssetToken(muscleGroup).contains("triceps") -> "muscle_triceps"
+    normalizeWorkoutAssetToken(muscleGroup).contains("quadriceps") -> "muscle_quadriceps"
+    normalizeWorkoutAssetToken(muscleGroup).contains("posterior") ||
+        normalizeWorkoutAssetToken(muscleGroup).contains("hamstring") -> "muscle_hamstrings"
+    normalizeWorkoutAssetToken(muscleGroup).contains("glute") -> "muscle_glutes"
+    normalizeWorkoutAssetToken(muscleGroup).contains("panturrilha") ||
+        normalizeWorkoutAssetToken(muscleGroup).contains("calf") -> "muscle_calves"
+    normalizeWorkoutAssetToken(muscleGroup).contains("abdomen") ||
+        normalizeWorkoutAssetToken(muscleGroup).contains("core") -> "muscle_core"
+    else -> null
+}
+
+private fun normalizeWorkoutAssetToken(value: String): String =
+    java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+        .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+        .lowercase()
+        .replace("[^a-z0-9]+".toRegex(), "_")
+        .trim('_')
 
 @Composable
 fun ActiveExerciseCard(
