@@ -697,6 +697,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             restTimerVisible = false
         )
 
+        persistActiveWorkoutDraft()
+
         startWorkoutDurationTimer()
         ttsVoiceManager.speakStartWorkout(template.title)
     }
@@ -737,6 +739,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             notes = "",
             restTimerVisible = false
         )
+
+        persistActiveWorkoutDraft()
 
         startWorkoutDurationTimer()
         ttsVoiceManager.speakStartWorkout(_activeWorkout.value.title)
@@ -807,6 +811,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 )
                 updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
                 _activeWorkout.value = current.copy(exercises = updatedExercises)
+                persistActiveWorkoutDraft()
 
                 // Sound and PR check when completing a set for the first time
                 if (completed && !wasCompleted) {
@@ -1246,6 +1251,39 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- Finish Workout ---
+    /**
+     * Persists the active session continuously. This prevents losing a workout
+     * when the process is closed before the final completion action.
+     */
+    private fun persistActiveWorkoutDraft() {
+        val current = _activeWorkout.value
+        if (!current.isActive) return
+        val exercisesJson = runCatching { plansAdapter.toJson(current.exercises) }.getOrDefault("[]")
+        val draft = WorkoutSession(
+            id = current.scheduledSessionId ?: 0L,
+            templateId = current.templateId,
+            title = current.title.ifBlank { "Treino de Musculação" },
+            dateEpochDay = current.scheduledDateEpochDay ?: DateUtils.todayEpochDay(),
+            startTimeMillis = System.currentTimeMillis() - (current.durationSeconds * 1000L),
+            endTimeMillis = System.currentTimeMillis(),
+            durationSeconds = current.durationSeconds,
+            location = current.location,
+            status = SessionStatus.IN_PROGRESS,
+            totalWeightLiftedKg = current.exercises.sumOf { plan ->
+                plan.sets.filter { it.isCompleted }.sumOf { it.volumeKg }
+            },
+            perceivedExertion = current.perceivedExertion,
+            notes = current.notes,
+            exercisesDoneJson = exercisesJson
+        )
+        viewModelScope.launch {
+            val savedId = repository.saveWorkoutSession(draft)
+            if (current.scheduledSessionId == null && _activeWorkout.value.isActive) {
+                _activeWorkout.value = _activeWorkout.value.copy(scheduledSessionId = savedId)
+            }
+        }
+    }
+
     fun finishActiveWorkout(onSaved: (WorkoutSession) -> Unit = {}) {
         val current = _activeWorkout.value
         workoutTimerJob?.cancel()
