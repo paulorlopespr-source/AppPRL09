@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -113,6 +114,8 @@ fun JornadaScreen(
     var showTrailDialog by remember { mutableStateOf(false) }
     var showQuestsDialog by remember { mutableStateOf(false) }
     var showAchievementsDialog by remember { mutableStateOf(false) }
+    var selectedQuest by remember { mutableStateOf<QuestData?>(null) }
+    var selectedAchievement by remember { mutableStateOf<AchievementData?>(null) }
     var showRewardDialog by remember { mutableStateOf(false) }
     var selectedMilestoneForDetail by remember { mutableStateOf<TrailMilestoneData?>(null) }
     var unlockedCardForCelebration by remember { mutableStateOf<PintinhoJourneyCard?>(null) }
@@ -427,6 +430,8 @@ fun JornadaScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clickable { selectedQuest = quest }
+                                .testTag("journey_quest_${quest.id}")
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
@@ -449,7 +454,7 @@ fun JornadaScreen(
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = quest.description,
+                                    text = "Toque para ver detalhes • ${quest.description}",
                                     fontSize = 12.sp,
                                     color = Color(0xFF94A3B8)
                                 )
@@ -504,6 +509,8 @@ fun JornadaScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clickable { selectedAchievement = ach }
+                                .testTag("journey_achievement_${ach.id}")
                         ) {
                             Row(
                                 modifier = Modifier
@@ -546,7 +553,7 @@ fun JornadaScreen(
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = ach.description,
+                                        text = "Toque para ver detalhes • ${ach.description}",
                                         fontSize = 12.sp,
                                         color = Color(0xFF94A3B8)
                                     )
@@ -694,6 +701,21 @@ fun JornadaScreen(
             AllAchievementsDialog(
                 achievements = uiState.achievementList,
                 onDismiss = { showAchievementsDialog = false }
+            )
+        }
+
+        selectedQuest?.let { quest ->
+            AllQuestsDialog(
+                quests = listOf(quest),
+                onClaimReward = {},
+                onDismiss = { selectedQuest = null }
+            )
+        }
+
+        selectedAchievement?.let { achievement ->
+            AllAchievementsDialog(
+                achievements = listOf(achievement),
+                onDismiss = { selectedAchievement = null }
             )
         }
 
