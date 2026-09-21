@@ -123,12 +123,12 @@ fun JornadaScreen(
         val preferences = context.getSharedPreferences("journey_card_celebrations", android.content.Context.MODE_PRIVATE)
         val lastCelebratedLevel = preferences.getInt("last_celebrated_level", 0)
         if (completedJourneyLevels > lastCelebratedLevel) {
-            unlockedCardForCelebration = PintinhoJourneyCatalog.cards.getOrNull(completedJourneyLevels - 1)
+            unlockedCardForCelebration = PintinhoJourneyCatalog.allCards.getOrNull(completedJourneyLevels - 1)
             preferences.edit().putInt("last_celebrated_level", completedJourneyLevels).apply()
         }
     }
     val level = completedJourneyLevels + 1
-    val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.cards.size) "Frango • nova jornada" else "Pintinho • nível $level"
+    val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.allCards.size) "Frango • nova jornada" else "Pintinho • nível $level"
     val avatarRes = when {
         level >= 91 -> com.example.R.drawable.journey_avatar_dragao
         level >= 71 -> com.example.R.drawable.journey_avatar_gorila
@@ -140,7 +140,7 @@ fun JornadaScreen(
     // XP exibido no cartão é o progresso do nível atual, não o total histórico.
     // Assim a jornada começa de forma clara em "Nível 1 • 0 / 100 XP".
     val totalJourneyXp = journeyProgress?.totalJourneyXp ?: 0
-    val xpFromCompletedLevels = PintinhoJourneyCatalog.cards
+    val xpFromCompletedLevels = PintinhoJourneyCatalog.allCards
         .take(completedJourneyLevels)
         .sumOf { it.xpReward }
     val currentXp = (totalJourneyXp - xpFromCompletedLevels).coerceAtLeast(0)
@@ -240,12 +240,12 @@ fun JornadaScreen(
         totalAchievements = totalAchievements,
         onTimeGoalsPercent = onTimeGoalsPercent,
         totalPoints = totalPoints,
-        trailMilestones = PintinhoJourneyCatalog.cards.map { card ->
+        trailMilestones = PintinhoJourneyCatalog.allCards.map { card ->
             TrailMilestoneData(
                 id = "pintinho_${card.level}", title = card.level.toString(), subtitle = card.title,
                 status = when {
                     card.level <= completedJourneyLevels -> MilestoneStatus.COMPLETED
-                    card.level == level && completedJourneyLevels < PintinhoJourneyCatalog.cards.size -> MilestoneStatus.CURRENT
+                    card.level == level && completedJourneyLevels < PintinhoJourneyCatalog.allCards.size -> MilestoneStatus.CURRENT
                     else -> MilestoneStatus.LOCKED
                 }
             )
@@ -562,7 +562,7 @@ fun JornadaScreen(
                             motivationalQuote = uiState.motivationalQuoteLevel
                         )
                     }
-                    items(PintinhoJourneyCatalog.cards) { card ->
+                    items(PintinhoJourneyCatalog.allCards) { card ->
                         val lvl = card.level
                         val isCurrent = lvl == uiState.level
                         val isPassed = lvl <= completedJourneyLevels
@@ -608,9 +608,9 @@ fun JornadaScreen(
 
                 JornadaTab.COLECAO -> {
                     item(key = "collection_header") {
-                        Text("Coleção Pintinho • $completedJourneyLevels / ${PintinhoJourneyCatalog.cards.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                        Text("Coleção Pintinho • $completedJourneyLevels / ${PintinhoJourneyCatalog.allCards.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                     }
-                    items(PintinhoJourneyCatalog.cards) { card ->
+                    items(PintinhoJourneyCatalog.allCards) { card ->
                         val unlocked = card.level <= completedJourneyLevels
                         val context = LocalContext.current
                         val artworkResId = context.resources.getIdentifier(card.assetKey, "drawable", context.packageName)

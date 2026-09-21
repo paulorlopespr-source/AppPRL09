@@ -38,6 +38,11 @@ data class JourneySnapshot(
     val totalMedals: Int,
     val weeklyQuests: List<JourneyQuest>,
     val pintinhoProgress: PintinhoJourneyProgress
+    ,val validWorkoutCount: Int = 0,
+    val performanceProgressions: Int = 0,
+    val adherencePercent: Int? = null,
+    val evolutionReady: Boolean = false,
+    val evolutionMessage: String = ""
 )
 
 data class PintinhoJourneyProgress(
@@ -48,13 +53,31 @@ data class PintinhoJourneyProgress(
 )
 
 object Phase7JourneyEngine {
+    data class ValidTraining(val dateEpochDay: Long, val title: String)
+
+    /** Fonte única para todos os cálculos da Jornada. */
+    fun validWorkouts(workouts: List<WorkoutSession>): List<WorkoutSession> = workouts
+        .asSequence()
+        .filter { it.status == SessionStatus.COMPLETED && it.dateEpochDay > 0 && (it.durationSeconds > 0 || it.exercisesDoneJson != "[]" || it.totalWeightLiftedKg > 0.0) }
+        .distinctBy { "${it.dateEpochDay}|${it.title.trim().lowercase()}" }
+        .toList()
+
+    fun detectPerformanceProgress(workouts: List<WorkoutSession>): Int = workouts
+        .filter { it.status == SessionStatus.COMPLETED }
+        .groupBy { it.title.trim().lowercase() }
+        .values.sumOf { sessions ->
+            sessions.sortedBy { it.dateEpochDay }.zipWithNext().count { (a, b) ->
+                b.totalWeightLiftedKg > a.totalWeightLiftedKg || b.durationSeconds > a.durationSeconds
+            }
+        }
+
     fun build(
         workouts: List<WorkoutSession>,
         cardio: List<CardioSession>,
         medals: List<UserMedal>,
         today: LocalDate = LocalDate.now()
     ): JourneySnapshot {
-        val completedWorkouts = workouts.filter { it.status == SessionStatus.COMPLETED }
+        val completedWorkouts = validWorkouts(workouts)
         val activityDays = (completedWorkouts.map { it.dateEpochDay } + cardio.map { it.dateEpochDay }).distinct().sorted()
         val activeDates = activityDays.map(LocalDate::ofEpochDay).toSet()
 
@@ -91,7 +114,8 @@ object Phase7JourneyEngine {
         )
 
         val recordedSets = completedWorkouts.count { it.totalWeightLiftedKg > 0.0 }
-        val hasProgression = completedWorkouts.any { it.totalWeightLiftedKg > 0.0 }
+        val performanceProgressions = detectPerformanceProgress(completedWorkouts)
+        val hasProgression = performanceProgressions > 0 || completedWorkouts.any { it.totalWeightLiftedKg > 0.0 }
         fun objectiveValue(card: PintinhoJourneyCard) = when (card.objectiveType) {
             PintinhoObjectiveType.WORKOUTS_COMPLETED -> strengthSessions
             PintinhoObjectiveType.SETS_RECORDED -> recordedSets
@@ -99,8 +123,11 @@ object Phase7JourneyEngine {
             PintinhoObjectiveType.PROGRESSION -> if (hasProgression) 1 else 0
             PintinhoObjectiveType.EDUCATION -> 0
         }
-        val completedCards = PintinhoJourneyCatalog.cards.takeWhile { objectiveValue(it) >= it.target }
-        val currentCard = PintinhoJourneyCatalog.cards.getOrNull(completedCards.size)
+        val completedCards = PintinhoJourneyCatalog.allCards.takeWhile { objectiveValue(it) >= it.target }
+        val currentCard = PintinhoJourneyCatalog.allCards.getOrNull(completedCards.size)
+        val rank = PintinhoJourneyCatalog.rankFor(completedCards.size + 1)
+        val requiredTrainings = when (rank) { "Pintinho" -> 10; "Frango" -> 18; "Lobo" -> 28; "Gorila" -> 38; "Leão" -> 48; else -> 65 }
+        val evolutionReady = strengthSessions >= requiredTrainings && performanceProgressions >= when (rank) { "Pintinho" -> 1; "Frango" -> 2; "Lobo" -> 4; "Gorila" -> 6; else -> 8 }
         val journeyProgress = PintinhoJourneyProgress(
             completedLevels = completedCards.size,
             currentCard = currentCard,
@@ -127,6 +154,10 @@ object Phase7JourneyEngine {
             totalMedals = medals.size,
             weeklyQuests = quests,
             pintinhoProgress = journeyProgress
+            ,validWorkoutCount = completedWorkouts.size,
+            performanceProgressions = performanceProgressions,
+            evolutionReady = evolutionReady,
+            evolutionMessage = if (evolutionReady) "Requisitos de evolução concluídos." else "XP suficiente não substitui os requisitos de evolução."
         )
     }
 

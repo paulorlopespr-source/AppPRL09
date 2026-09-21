@@ -6,7 +6,7 @@ package com.example.domain.gamification
  */
 enum class PintinhoObjectiveType { WORKOUTS_COMPLETED, SETS_RECORDED, WEEKLY_WORKOUTS, PROGRESSION, EDUCATION }
 
-enum class PintinhoChest(val label: String) { COMUM("Baú comum"), RARO("Baú raro"), EVOLUCAO("Baú de evolução") }
+enum class PintinhoChest(val label: String) { COMUM("Baú comum"), RARO("Baú raro"), EPICO("Baú épico"), EVOLUCAO("Baú de evolução") }
 
 data class PintinhoJourneyCard(
     val level: Int,
@@ -16,7 +16,8 @@ data class PintinhoJourneyCard(
     val target: Int,
     val xpReward: Int,
     val assetKey: String,
-    val chest: PintinhoChest? = null
+    val chest: PintinhoChest? = null,
+    val rank: String = "Pintinho"
 )
 
 object PintinhoJourneyCatalog {
@@ -45,6 +46,37 @@ object PintinhoJourneyCatalog {
         card(19, "Pronto para Evoluir", "Conclua 30 treinos.", PintinhoObjectiveType.WORKOUTS_COMPLETED, 30, 350),
         card(20, "Adeus, Pintinho!", "Conclua 35 treinos para chegar a Frango.", PintinhoObjectiveType.WORKOUTS_COMPLETED, 35, 500, PintinhoChest.EVOLUCAO)
     )
+
+    /** Catálogo completo das seis jornadas. Os 20 cards legados acima permanecem
+     * estáveis para retrocompatibilidade; a UI e o motor usam esta coleção. */
+    val allCards: List<PintinhoJourneyCard> = cards + (21..120).map { level ->
+        val rank = rankFor(level)
+        PintinhoJourneyCard(
+            level = level,
+            title = when (level % 20) { 0 -> "Desafio de Evolução" else -> "${rank} em evolução" },
+            description = "Mantenha consistência e cumpra o objetivo do estágio.",
+            objectiveType = PintinhoObjectiveType.WORKOUTS_COMPLETED,
+            target = targetFor(level),
+            xpReward = 100 + ((level - 1) % 20) * 15,
+            assetKey = "journey_${rank.lowercase()}_card_${((level - 1) % 20 + 1).toString().padStart(2, '0')}",
+            chest = when ((level - 1) % 20 + 1) { 5 -> PintinhoChest.COMUM; 10 -> PintinhoChest.RARO; 15 -> PintinhoChest.EPICO; 20 -> PintinhoChest.EVOLUCAO; else -> null },
+            rank = rank
+        )
+    }
+
+    fun rankFor(level: Int): String = when (level) {
+        in 1..20 -> "Pintinho"; in 21..40 -> "Frango"; in 41..60 -> "Lobo"
+        in 61..80 -> "Gorila"; in 81..100 -> "Leão"; else -> "Dragão"
+    }
+
+    fun targetFor(level: Int): Int = when (rankFor(level)) {
+        "Pintinho" -> maxOf(1, level / 2)
+        "Frango" -> 18 + (level - 21) / 3
+        "Lobo" -> 28 + (level - 41) / 2
+        "Gorila" -> 38 + (level - 61) / 2
+        "Leão" -> 48 + (level - 81) / 2
+        else -> 65 + (level - 101) / 2
+    }
 
     private fun card(level: Int, title: String, description: String, objectiveType: PintinhoObjectiveType, target: Int, xp: Int, chest: PintinhoChest? = null) =
         PintinhoJourneyCard(level, title, description, objectiveType, target, xp, "journey_pintinho_card_${level.toString().padStart(2, '0')}", chest)
