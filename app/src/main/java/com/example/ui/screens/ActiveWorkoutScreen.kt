@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -75,7 +74,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -138,7 +136,6 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,8 +170,6 @@ fun ActiveWorkoutScreen(
     var warmupGeneratorExerciseIndex by remember { mutableStateOf<Int?>(null) }
     var completedSessionForStory by remember { mutableStateOf<WorkoutSession?>(null) }
     var focusedExerciseIndex by remember { mutableStateOf(0) }
-    val workoutListState = rememberLazyListState()
-    val workoutScope = rememberCoroutineScope()
 
     var showAIExecutionModal by remember { mutableStateOf(false) }
     var selectedAIExerciseName by remember { mutableStateOf("") }
@@ -345,7 +340,6 @@ fun ActiveWorkoutScreen(
         ) { paddingValues ->
             val bottomNavPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
-                state = workoutListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
@@ -473,7 +467,6 @@ fun ActiveWorkoutScreen(
                             onClick = {
                                 val previous = (focusedExerciseIndex - 1).coerceAtLeast(0)
                                 focusedExerciseIndex = previous
-                                workoutScope.launch { workoutListState.animateScrollToItem(3 + previous) }
                             },
                             enabled = hasExercises && focusedExerciseIndex > 0,
                             modifier = Modifier.weight(1f)
@@ -486,7 +479,6 @@ fun ActiveWorkoutScreen(
                             onClick = {
                                 val next = (focusedExerciseIndex + 1).coerceAtMost(activeState.exercises.lastIndex)
                                 focusedExerciseIndex = next
-                                workoutScope.launch { workoutListState.animateScrollToItem(3 + next) }
                             },
                             enabled = hasExercises && focusedExerciseIndex < activeState.exercises.lastIndex,
                             modifier = Modifier.weight(1f)
