@@ -43,6 +43,7 @@ import com.example.R
 
 @Composable
 fun WolfAvatar(
+    avatarRes: Int = R.drawable.journey_avatar_pintinho,
     modifier: Modifier = Modifier,
     size: Dp = 86.dp
 ) {
@@ -51,8 +52,8 @@ fun WolfAvatar(
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(R.drawable.journey_pintinho_avatar),
-            contentDescription = "Pintinho da jornada",
+            painter = painterResource(avatarRes),
+            contentDescription = "Avatar da jornada",
             // O asset possui moldura circular; o clip impede qualquer pixel externo
             // (inclusive resíduos de fundo) de aparecer como um quadrado branco.
             modifier = Modifier.fillMaxSize().clip(CircleShape),

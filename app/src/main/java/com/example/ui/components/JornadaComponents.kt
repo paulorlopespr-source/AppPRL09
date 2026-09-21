@@ -287,6 +287,7 @@ fun LevelCard(
     currentXp: Int,
     targetXp: Int,
     motivationalQuote: String,
+    avatarRes: Int = R.drawable.journey_avatar_pintinho,
     modifier: Modifier = Modifier
 ) {
     val progress = if (targetXp > 0) (currentXp.toFloat() / targetXp).coerceIn(0f, 1f) else 0f
@@ -309,6 +310,7 @@ fun LevelCard(
         ) {
             // Lado esquerdo: Avatar com Lobo e Glow Neon
             WolfAvatar(
+                avatarRes = avatarRes,
                 size = 80.dp,
                 modifier = Modifier.testTag("journey_pintinho_avatar")
             )

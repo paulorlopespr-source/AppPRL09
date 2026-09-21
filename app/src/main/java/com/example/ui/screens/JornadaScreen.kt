@@ -127,8 +127,16 @@ fun JornadaScreen(
             preferences.edit().putInt("last_celebrated_level", completedJourneyLevels).apply()
         }
     }
-    val level = (completedJourneyLevels + 1).coerceAtMost(PintinhoJourneyCatalog.cards.size)
+    val level = completedJourneyLevels + 1
     val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.cards.size) "Frango • nova jornada" else "Pintinho • nível $level"
+    val avatarRes = when {
+        level >= 91 -> com.example.R.drawable.journey_avatar_dragao
+        level >= 71 -> com.example.R.drawable.journey_avatar_gorila
+        level >= 51 -> com.example.R.drawable.journey_avatar_leao
+        level >= 36 -> com.example.R.drawable.journey_avatar_lobo
+        level >= 21 -> com.example.R.drawable.journey_avatar_frango
+        else -> com.example.R.drawable.journey_avatar_pintinho
+    }
     // XP exibido no cartão é o progresso do nível atual, não o total histórico.
     // Assim a jornada começa de forma clara em "Nível 1 • 0 / 100 XP".
     val totalJourneyXp = journeyProgress?.totalJourneyXp ?: 0
@@ -289,7 +297,8 @@ fun JornadaScreen(
                             levelTitle = uiState.levelTitle,
                             currentXp = uiState.currentXp,
                             targetXp = uiState.targetXp,
-                            motivationalQuote = uiState.motivationalQuoteLevel
+                            motivationalQuote = uiState.motivationalQuoteLevel,
+                            avatarRes = avatarRes
                         )
                     }
 
