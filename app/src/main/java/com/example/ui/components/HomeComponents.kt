@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -59,6 +60,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -956,7 +958,7 @@ fun AppSideDrawer(
 ) {
     ModalDrawerSheet(
         modifier = modifier
-            .width(310.dp)
+            .fillMaxWidth(0.9f)
             .fillMaxHeight(),
         drawerContainerColor = Color(0xFF0F0B1A),
         drawerTonalElevation = 10.dp
@@ -964,16 +966,29 @@ fun AppSideDrawer(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(vertical = 20.dp, horizontal = 16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
                 // Header: User Profile
-                Row(
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF24104D), Color(0xFF0F0B1A))
+                            )
+                        )
+                        .border(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.65f), RoundedCornerShape(24.dp))
+                        .padding(12.dp)
+                ) {
+                    Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
-                ) {
+                    ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -1015,12 +1030,13 @@ fun AppSideDrawer(
                         )
                     }
                 }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider(color = Color(0xFF2E204A).copy(alpha = 0.6f))
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Menu Items
+                Text("PRINCIPAL", color = LilacSoft, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
                 DrawerMenuItem(
                     icon = Icons.Default.Person,
                     title = "Meu Perfil & Metas",
@@ -1043,6 +1059,8 @@ fun AppSideDrawer(
                     }
                 )
 
+                Text("SAÚDE E PERFORMANCE", color = LilacSoft, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
+
                 DrawerMenuItem(
                     icon = Icons.Default.Watch,
                     title = "Saúde & Health Connect",
@@ -1054,6 +1072,8 @@ fun AppSideDrawer(
                     }
                 )
 
+                Text("FERRAMENTAS IA", color = LilacSoft, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
+
                 DrawerMenuItem(
                     icon = Icons.Default.Psychology,
                     title = "Coach IA PRL09",
@@ -1064,6 +1084,8 @@ fun AppSideDrawer(
                         onOpenCoach()
                     }
                 )
+
+                Text("OUTROS", color = LilacSoft, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
 
                 DrawerMenuItem(
                     icon = Icons.Default.Restaurant,
