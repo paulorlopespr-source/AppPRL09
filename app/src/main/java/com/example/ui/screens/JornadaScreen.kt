@@ -129,8 +129,14 @@ fun JornadaScreen(
     }
     val level = (completedJourneyLevels + 1).coerceAtMost(PintinhoJourneyCatalog.cards.size)
     val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.cards.size) "Frango • nova jornada" else "Pintinho • nível $level"
-    val currentXp = journeyProgress?.totalJourneyXp ?: 0
-    val targetXp = journeyProgress?.currentCard?.xpReward ?: currentXp.coerceAtLeast(1)
+    // XP exibido no cartão é o progresso do nível atual, não o total histórico.
+    // Assim a jornada começa de forma clara em "Nível 1 • 0 / 100 XP".
+    val totalJourneyXp = journeyProgress?.totalJourneyXp ?: 0
+    val xpFromCompletedLevels = PintinhoJourneyCatalog.cards
+        .take(completedJourneyLevels)
+        .sumOf { it.xpReward }
+    val currentXp = (totalJourneyXp - xpFromCompletedLevels).coerceAtLeast(0)
+    val targetXp = journeyProgress?.currentCard?.xpReward ?: 100
     val streakDays = data?.currentStreakDays ?: 0
     val totalAchievements = allMedals.count { it.isUnlocked }
     val onTimeGoalsPercent = ((data?.weeklyQuests?.firstOrNull()?.progress ?: 0f) * 100).toInt()

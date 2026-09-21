@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -25,6 +26,9 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.R
 
 /**
  * Ícones e ilustrações vetoriais 100% customizados em Canvas para a tela Jornada.
@@ -32,7 +36,7 @@ import androidx.compose.ui.unit.dp
  */
 
 // ==========================================
-// 1. Avatar de Lobo Geométrico com Glow Neon
+// 1. Avatar do Pintinho da jornada
 // ==========================================
 
 @Composable
@@ -40,22 +44,17 @@ fun WolfAvatar(
     modifier: Modifier = Modifier,
     size: Dp = 86.dp
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "wolf_glow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.55f,
-        targetValue = 0.95f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowAlpha"
-    )
-
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.journey_pintinho_avatar),
+            contentDescription = "Pintinho da jornada",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        /* Canvas(modifier = Modifier.fillMaxSize()) {
             val w = this.size.width
             val h = this.size.height
             val center = Offset(w / 2f, h / 2f)
@@ -269,7 +268,7 @@ fun WolfAvatar(
             // Brilho da pupila
             drawCircle(Color.White, radius = 1.2f * sx, center = Offset(41.5f * sx, 51.5f * sy))
             drawCircle(Color.White, radius = 1.2f * sx, center = Offset(58.5f * sx, 51.5f * sy))
-        }
+        } */
     }
 }
 

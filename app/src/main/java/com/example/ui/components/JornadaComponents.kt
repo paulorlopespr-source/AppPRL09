@@ -306,7 +306,7 @@ fun LevelCard(
             // Lado esquerdo: Avatar com Lobo e Glow Neon
             WolfAvatar(
                 size = 80.dp,
-                modifier = Modifier.testTag("wolf_avatar")
+                modifier = Modifier.testTag("journey_pintinho_avatar")
             )
 
             Spacer(modifier = Modifier.width(14.dp))
