@@ -24,6 +24,19 @@ object PintinhoJourneyCatalog {
     const val journeyTitle = "Jornada I • O Despertar"
     const val assetDirectory = "drawable-nodpi"
 
+    private val frangoAssetKeys = listOf(
+        "journey_frango_card_01_saiu_do_ninho", "journey_frango_card_02_hora_de_crescer",
+        "journey_frango_card_03_mais_peso_com_calma", "journey_frango_card_04_tecnica_primeiro",
+        "journey_frango_card_05_frango_em_construcao", "journey_frango_card_06_sentindo_a_evolucao",
+        "journey_frango_card_07_treino_de_verdade", "journey_frango_card_08_disciplina_tambem_no_prato",
+        "journey_frango_card_09_recarga_para_evoluir", "journey_frango_card_10_frango_nivel_up_especial_dourada",
+        "journey_frango_card_11_saude_em_movimento", "journey_frango_card_12_forca_em_progresso",
+        "journey_frango_card_13_habitos_de_campeao", "journey_frango_card_14_ver_o_progresso",
+        "journey_frango_card_15_progresso_sempre", "journey_frango_card_16_frango_forte",
+        "journey_frango_card_17_nutricao_em_acao", "journey_frango_card_18_movimento_sem_limites",
+        "journey_frango_card_19_habitos_em_dia", "journey_frango_card_20_evolucao_frango_para_lobo_lendaria"
+    )
+
     val cards: List<PintinhoJourneyCard> = listOf(
         card(1, "O Primeiro Sinal", "Conclua seu primeiro treino.", PintinhoObjectiveType.WORKOUTS_COMPLETED, 1, 100),
         card(2, "Nasceu um Frango", "Conclua 2 treinos.", PintinhoObjectiveType.WORKOUTS_COMPLETED, 2, 100),
@@ -58,7 +71,11 @@ object PintinhoJourneyCatalog {
             objectiveType = PintinhoObjectiveType.WORKOUTS_COMPLETED,
             target = targetFor(level),
             xpReward = 100 + ((level - 1) % 20) * 15,
-            assetKey = "journey_${rank.lowercase()}_card_${((level - 1) % 20 + 1).toString().padStart(2, '0')}",
+            assetKey = if (rank == "Frango") {
+                frangoAssetKeys[(level - 21).coerceIn(0, frangoAssetKeys.lastIndex)]
+            } else {
+                "journey_${rank.lowercase()}_card_${((level - 1) % 20 + 1).toString().padStart(2, '0')}"
+            },
             chest = when ((level - 1) % 20 + 1) { 5 -> PintinhoChest.COMUM; 10 -> PintinhoChest.RARO; 15 -> PintinhoChest.EPICO; 20 -> PintinhoChest.EVOLUCAO; else -> null },
             rank = rank
         )
