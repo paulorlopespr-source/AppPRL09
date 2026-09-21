@@ -34,6 +34,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,8 +59,8 @@ fun JourneyStartDialog(
     onFinish: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    var weight by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(currentWeightKg.toString()) }
-    var height by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(heightCm.toString()) }
+    var weight by remember { mutableStateOf(currentWeightKg.toString()) }
+    var height by remember { mutableStateOf(heightCm.toString()) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
