@@ -11,6 +11,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,7 +53,9 @@ fun WolfAvatar(
         Image(
             painter = painterResource(R.drawable.journey_pintinho_avatar),
             contentDescription = "Pintinho da jornada",
-            modifier = Modifier.fillMaxSize(),
+            // O asset possui moldura circular; o clip impede qualquer pixel externo
+            // (inclusive resíduos de fundo) de aparecer como um quadrado branco.
+            modifier = Modifier.fillMaxSize().clip(CircleShape),
             contentScale = ContentScale.Crop
         )
         /* Canvas(modifier = Modifier.fillMaxSize()) {
