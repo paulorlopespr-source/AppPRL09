@@ -1936,7 +1936,26 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun toggleCustomAppointmentStatus(id: String) {
         val updated = _customAppointments.value.map {
-            if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
+            if (it.id == id) {
+                val completed = !it.isCompleted
+                it.copy(isCompleted = completed, status = if (completed) com.example.data.model.AgendaAppointmentStatus.COMPLETED else com.example.data.model.AgendaAppointmentStatus.PLANNED)
+            } else it
+        }
+        _customAppointments.value = updated
+        persistCustomAppointments(updated)
+    }
+
+    fun cancelCustomAppointment(id: String) {
+        val updated = _customAppointments.value.map {
+            if (it.id == id) it.copy(isCompleted = false, status = com.example.data.model.AgendaAppointmentStatus.CANCELLED) else it
+        }
+        _customAppointments.value = updated
+        persistCustomAppointments(updated)
+    }
+
+    fun markCustomAppointmentRescheduled(id: String) {
+        val updated = _customAppointments.value.map {
+            if (it.id == id) it.copy(isCompleted = false, status = com.example.data.model.AgendaAppointmentStatus.RESCHEDULED) else it
         }
         _customAppointments.value = updated
         persistCustomAppointments(updated)

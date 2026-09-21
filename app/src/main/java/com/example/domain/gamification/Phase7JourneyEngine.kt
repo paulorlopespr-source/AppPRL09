@@ -2,6 +2,7 @@ package com.example.domain.gamification
 
 import com.example.data.model.CardioSession
 import com.example.data.model.AgendaCustomAppointment
+import com.example.data.model.AgendaAppointmentStatus
 import com.example.data.model.SessionStatus
 import com.example.data.model.UserMedal
 import com.example.data.model.WorkoutSession
@@ -112,6 +113,8 @@ object Phase7JourneyEngine {
         val weeklyVolumeTons = (weekWorkouts.sumOf { it.totalWeightLiftedKg } / 1000.0).toInt()
         val plannedStrength = agendaAppointments.filter { appointment ->
             appointment.typeName.equals("STRENGTH", ignoreCase = true) &&
+                appointment.status != AgendaAppointmentStatus.CANCELLED &&
+                appointment.status != AgendaAppointmentStatus.RESCHEDULED &&
                 appointment.epochDay in weekStart.toEpochDay()..weekEnd.toEpochDay()
         }
         val plannedCount = plannedStrength.size.takeIf { it > 0 } ?: weeklyGoalDays?.takeIf { it > 0 }
@@ -121,6 +124,8 @@ object Phase7JourneyEngine {
         val cycleStart = today.minusWeeks(3).with(DayOfWeek.MONDAY)
         val cycleAppointments = agendaAppointments.count { appointment ->
             appointment.typeName.equals("STRENGTH", ignoreCase = true) &&
+                appointment.status != AgendaAppointmentStatus.CANCELLED &&
+                appointment.status != AgendaAppointmentStatus.RESCHEDULED &&
                 appointment.epochDay in cycleStart.toEpochDay()..today.toEpochDay()
         }
         val cyclePlanned = cycleAppointments.takeIf { it > 0 } ?: weeklyGoalDays?.takeIf { it > 0 }?.times(4)
