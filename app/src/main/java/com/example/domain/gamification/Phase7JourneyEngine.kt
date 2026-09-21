@@ -1,6 +1,7 @@
 package com.example.domain.gamification
 
 import com.example.data.model.CardioSession
+import com.example.data.model.AgendaCustomAppointment
 import com.example.data.model.SessionStatus
 import com.example.data.model.UserMedal
 import com.example.data.model.WorkoutSession
@@ -77,7 +78,8 @@ object Phase7JourneyEngine {
         cardio: List<CardioSession>,
         medals: List<UserMedal>,
         today: LocalDate = LocalDate.now(),
-        weeklyGoalDays: Int? = null
+        weeklyGoalDays: Int? = null,
+        agendaAppointments: List<AgendaCustomAppointment> = emptyList()
     ): JourneySnapshot {
         val completedWorkouts = validWorkouts(workouts)
         val activityDays = (completedWorkouts.map { it.dateEpochDay } + cardio.map { it.dateEpochDay }).distinct().sorted()
@@ -108,11 +110,20 @@ object Phase7JourneyEngine {
         val weeklyActivities = weekWorkouts.size + weekCardio.size
         val weeklyCardioMinutes = weekCardio.sumOf { it.durationMinutes }
         val weeklyVolumeTons = (weekWorkouts.sumOf { it.totalWeightLiftedKg } / 1000.0).toInt()
-        val adherencePercent = weeklyGoalDays?.takeIf { it > 0 }?.let {
+        val plannedStrength = agendaAppointments.filter { appointment ->
+            appointment.typeName.equals("STRENGTH", ignoreCase = true) &&
+                appointment.epochDay in weekStart.toEpochDay()..weekEnd.toEpochDay()
+        }
+        val plannedCount = plannedStrength.size.takeIf { it > 0 } ?: weeklyGoalDays?.takeIf { it > 0 }
+        val adherencePercent = plannedCount?.let {
             ((weekWorkouts.size.toFloat() / it).coerceIn(0f, 1f) * 100).toInt()
         }
         val cycleStart = today.minusWeeks(3).with(DayOfWeek.MONDAY)
-        val cyclePlanned = weeklyGoalDays?.takeIf { it > 0 }?.times(4)
+        val cycleAppointments = agendaAppointments.count { appointment ->
+            appointment.typeName.equals("STRENGTH", ignoreCase = true) &&
+                appointment.epochDay in cycleStart.toEpochDay()..today.toEpochDay()
+        }
+        val cyclePlanned = cycleAppointments.takeIf { it > 0 } ?: weeklyGoalDays?.takeIf { it > 0 }?.times(4)
         val cycleCompleted = completedWorkouts.count { it.dateEpochDay in cycleStart.toEpochDay()..today.toEpochDay() }
         val cycleAdherencePercent = cyclePlanned?.let { ((cycleCompleted.toFloat() / it).coerceIn(0f, 1f) * 100).toInt() }
 

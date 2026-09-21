@@ -99,6 +99,10 @@ fun JornadaScreen(
     fitnessVm: FitnessViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
+    val agendaAppointments by fitnessVm.customAppointments.collectAsStateWithLifecycle()
+    LaunchedEffect(agendaAppointments) {
+        phase7Vm.updateAgendaAppointments(agendaAppointments)
+    }
     val journeySnapshot by phase7Vm.journey.collectAsStateWithLifecycle()
     val allMedals by fitnessVm.allMedals.collectAsStateWithLifecycle()
 
