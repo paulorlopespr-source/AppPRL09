@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +42,87 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+
+@Composable
+fun JourneyStartDialog(
+    journeyName: String,
+    userName: String,
+    currentWeightKg: Double,
+    heightCm: Double,
+    step: Int,
+    onProceed: () -> Unit,
+    onSaveMeasurements: (Double, Double) -> Unit,
+    onFinish: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var weight by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(currentWeightKg.toString()) }
+    var height by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(heightCm.toString()) }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFF15111F),
+            border = BorderStroke(1.dp, Color(0xFF8B5CF6)),
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(
+                    text = when (step) {
+                        0 -> "Parabéns, $userName!"
+                        1 -> "Atualize seus dados"
+                        else -> "Boa sorte, $userName!"
+                    },
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    text = when (step) {
+                        0 -> "Você está iniciando uma nova jornada: $journeyName.\nPrepare-se para evoluir um passo de cada vez."
+                        1 -> "Registre seu peso e altura atuais para acompanhar sua evolução desde o início."
+                        else -> "Sua jornada $journeyName começou. Mantenha a consistência e conquiste seu próximo nível!"
+                    },
+                    color = Color(0xFFD8CCF5),
+                    fontSize = 15.sp
+                )
+                if (step == 1) {
+                    OutlinedTextField(
+                        value = weight,
+                        onValueChange = { weight = it },
+                        label = { Text("Peso atual (kg)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = height,
+                        onValueChange = { height = it },
+                        label = { Text("Altura (cm)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Button(
+                    onClick = {
+                        when (step) {
+                            0 -> onProceed()
+                            1 -> {
+                                val parsedWeight = weight.replace(',', '.').toDoubleOrNull()
+                                val parsedHeight = height.replace(',', '.').toDoubleOrNull()
+                                if (parsedWeight != null && parsedWeight > 0 && parsedHeight != null && parsedHeight > 0) {
+                                    onSaveMeasurements(parsedWeight, parsedHeight)
+                                }
+                            }
+                            else -> onFinish()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                ) {
+                    Text(if (step == 2) "Começar jornada" else "Prosseguir", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun AllQuestsDialog(

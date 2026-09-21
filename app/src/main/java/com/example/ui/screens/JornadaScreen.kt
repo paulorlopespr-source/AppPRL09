@@ -64,6 +64,7 @@ import com.example.ui.components.HistoricalMilestoneData
 import com.example.ui.components.JornadaHeader
 import com.example.ui.components.JourneyCardCelebrationDialog
 import com.example.ui.components.JourneyCardDetailsDialog
+import com.example.ui.components.JourneyStartDialog
 import com.example.ui.components.JornadaTab
 import com.example.ui.components.JornadaUiState
 import com.example.ui.components.JourneyTrailCard
@@ -107,6 +108,7 @@ fun JornadaScreen(
     }
     val journeySnapshot by phase7Vm.journey.collectAsStateWithLifecycle()
     val allMedals by fitnessVm.allMedals.collectAsStateWithLifecycle()
+    val userProfile by fitnessVm.userProfile.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableStateOf(JornadaTab.VISAO_GERAL) }
     var activeTrailName by remember { mutableStateOf("Trilha Principal") }
@@ -121,6 +123,8 @@ fun JornadaScreen(
     var showRewardDialog by remember { mutableStateOf(false) }
     var selectedMilestoneForDetail by remember { mutableStateOf<TrailMilestoneData?>(null) }
     var unlockedCardForCelebration by remember { mutableStateOf<PintinhoJourneyCard?>(null) }
+    var journeyStartRank by remember { mutableStateOf<String?>(null) }
+    var journeyStartStep by remember { mutableStateOf(0) }
 
     // Mapeamento dinâmico e consolidação do JornadaUiState
     val data = journeySnapshot
@@ -137,6 +141,18 @@ fun JornadaScreen(
         }
     }
     val level = completedJourneyLevels + 1
+    val currentJourneyRank = PintinhoJourneyCatalog.rankFor(level)
+    LaunchedEffect(level) {
+        val startLevels = setOf(1, 21, 41, 61, 81, 101)
+        if (level in startLevels) {
+            val preferences = context.getSharedPreferences("journey_start_flow", android.content.Context.MODE_PRIVATE)
+            val lastStartedLevel = preferences.getInt("last_started_level", 0)
+            if (lastStartedLevel != level) {
+                journeyStartRank = currentJourneyRank
+                journeyStartStep = 0
+            }
+        }
+    }
     val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.allCards.size) "Frango • nova jornada" else "Pintinho • nível $level"
     val avatarRes = when {
         level >= 91 -> com.example.R.drawable.journey_avatar_dragao
@@ -750,6 +766,28 @@ fun JornadaScreen(
                     unlockedCardForCelebration = null
                 },
                 onDismiss = { unlockedCardForCelebration = null }
+            )
+        }
+
+        journeyStartRank?.let { rank ->
+            val profile = userProfile ?: com.example.data.model.UserProfile()
+            JourneyStartDialog(
+                journeyName = rank,
+                userName = profile.name.ifBlank { "Atleta" },
+                currentWeightKg = profile.currentWeightKg,
+                heightCm = profile.heightCm,
+                step = journeyStartStep,
+                onProceed = { journeyStartStep = 1 },
+                onSaveMeasurements = { weight, height ->
+                    fitnessVm.updateUserProfile(profile.copy(currentWeightKg = weight, heightCm = height))
+                    journeyStartStep = 2
+                },
+                onFinish = {
+                    context.getSharedPreferences("journey_start_flow", android.content.Context.MODE_PRIVATE)
+                        .edit().putInt("last_started_level", level).apply()
+                    journeyStartRank = null
+                },
+                onDismiss = { journeyStartRank = null }
             )
         }
     }
