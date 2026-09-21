@@ -420,6 +420,7 @@ fun StatsRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .height(330.dp)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -1089,12 +1090,12 @@ fun TwoColumnCardsRow2(
         ProximaRecompensaCard(
             reward = reward,
             onClick = onViewRewardDetails,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).fillMaxHeight()
         )
         MarcosJornadaCard(
             milestones = milestones,
             onViewAll = onViewAllMilestones,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).fillMaxHeight()
         )
     }
 }
@@ -1265,10 +1266,10 @@ fun MarcosJornadaCard(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Lista de marcos históricos
-                displayList.take(5).forEachIndexed { index, item ->
+                displayList.take(4).forEachIndexed { index, item ->
                     MarcoItem(item = item)
-                    if (index < 4) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                    if (index < 3) {
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -1337,7 +1338,10 @@ fun MarcoItem(
                 text = item.title,
                 fontSize = 13.sp,
                 fontWeight = if (item.status != MilestoneStatus.LOCKED) FontWeight.Medium else FontWeight.Normal,
-                color = if (item.status != MilestoneStatus.LOCKED) Color.White else Color(0xFF94A3B8)
+                color = if (item.status != MilestoneStatus.LOCKED) Color.White else Color(0xFF94A3B8),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
         }
 
@@ -1349,7 +1353,10 @@ fun MarcoItem(
                 MilestoneStatus.COMPLETED -> Color(0xFF10B981)
                 MilestoneStatus.CURRENT -> Color(0xFFA78BFA)
                 MilestoneStatus.LOCKED -> Color(0xFF64748B)
-            }
+            },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.width(58.dp)
         )
     }
 }
