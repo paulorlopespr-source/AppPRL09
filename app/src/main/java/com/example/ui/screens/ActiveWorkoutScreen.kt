@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -32,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -59,6 +61,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -72,6 +75,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -134,6 +138,7 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,6 +172,9 @@ fun ActiveWorkoutScreen(
     var plateCalculatorExerciseName by remember { mutableStateOf("") }
     var warmupGeneratorExerciseIndex by remember { mutableStateOf<Int?>(null) }
     var completedSessionForStory by remember { mutableStateOf<WorkoutSession?>(null) }
+    var focusedExerciseIndex by remember { mutableStateOf(0) }
+    val workoutListState = rememberLazyListState()
+    val workoutScope = rememberCoroutineScope()
 
     var showAIExecutionModal by remember { mutableStateOf(false) }
     var selectedAIExerciseName by remember { mutableStateOf("") }
@@ -337,6 +345,7 @@ fun ActiveWorkoutScreen(
         ) { paddingValues ->
             val bottomNavPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
+                state = workoutListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
@@ -429,6 +438,41 @@ fun ActiveWorkoutScreen(
                 }
 
                 // Exercises in active workout
+                item {
+                    val hasExercises = activeState.exercises.isNotEmpty()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val previous = (focusedExerciseIndex - 1).coerceAtLeast(0)
+                                focusedExerciseIndex = previous
+                                workoutScope.launch { workoutListState.animateScrollToItem(3 + previous) }
+                            },
+                            enabled = hasExercises && focusedExerciseIndex > 0,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Exercício anterior")
+                            Spacer(Modifier.width(6.dp))
+                            Text("Anterior")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                val next = (focusedExerciseIndex + 1).coerceAtMost(activeState.exercises.lastIndex)
+                                focusedExerciseIndex = next
+                                workoutScope.launch { workoutListState.animateScrollToItem(3 + next) }
+                            },
+                            enabled = hasExercises && focusedExerciseIndex < activeState.exercises.lastIndex,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Próximo")
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Default.ArrowForward, contentDescription = "Próximo exercício")
+                        }
+                    }
+                }
                 itemsIndexed(activeState.exercises) { exIndex, plan ->
                     val lastExecution = remember(plan.exerciseName, activeState.exercises.size) {
                         viewModel.getLastExerciseExecution(plan.exerciseName, plan.exerciseId)
