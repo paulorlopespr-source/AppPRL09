@@ -709,8 +709,10 @@ fun AgendaMotivationCard(
             Image(
                 painter = painterResource(R.drawable.img_agenda_mountain),
                 contentDescription = null,
-                contentScale = ContentScale.FillWidth,
-                alignment = Alignment.BottomCenter,
+                // O asset oficial é vertical; o recorte central evita exibir
+                // apenas a área escura inferior da paisagem.
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center,
                 modifier = Modifier.fillMaxSize()
             )
 

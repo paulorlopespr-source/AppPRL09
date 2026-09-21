@@ -205,8 +205,10 @@ fun GreetingCard(
             Image(
                 painter = painterResource(R.drawable.img_painel_mountain),
                 contentDescription = null,
-                contentScale = ContentScale.FillWidth,
-                alignment = Alignment.BottomCenter,
+                // O asset oficial é vertical; o recorte central mantém a
+                // montanha e a lua visíveis no banner horizontal.
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center,
                 modifier = Modifier.fillMaxSize()
             )
 
