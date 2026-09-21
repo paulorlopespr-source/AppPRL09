@@ -357,6 +357,7 @@ fun ActiveWorkoutScreen(
                 // drawable-name lookups so final PNG/WebP assets can be added without
                 // another UI rewrite.
                 item {
+                    if (false) return@item
                     val currentPlan = activeState.exercises.firstOrNull { plan ->
                         plan.sets.any { !it.isCompleted }
                     } ?: activeState.exercises.firstOrNull()
@@ -379,6 +380,7 @@ fun ActiveWorkoutScreen(
 
                 // Location & Gym Switcher Banner
                 item {
+                    if (false) return@item
                     LiquidGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -590,6 +592,7 @@ fun ActiveWorkoutScreen(
                     val nextExercise = activeState.exercises.firstOrNull { ex -> ex.sets.any { !it.isCompleted } }
                     if (nextExercise != null) {
                         item {
+                            if (false) return@item
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
                                 color = PurpleDarkSurface,
@@ -638,6 +641,7 @@ fun ActiveWorkoutScreen(
 
                 // Add exercise to active workout button
                 item {
+                    if (false) return@item
                     SecondaryButton(
                         text = "+ Adicionar Mais Um Exercício",
                         icon = Icons.Default.Add,
@@ -650,6 +654,7 @@ fun ActiveWorkoutScreen(
 
                 // Perceived Exertion (RPE 1-10)
                 item {
+                    if (false) return@item
                     BentoCard(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1554,20 +1559,20 @@ fun ActiveExerciseCard(
         Spacer(modifier = Modifier.height(12.dp))
 
         // 1. AUTOMATIC LAST EXECUTION DISPLAY
-        AutomaticLastExecutionCard(
+        if (false) AutomaticLastExecutionCard(
             lastExecution = lastExecution,
             onViewFullHistory = onViewFullHistory
         )
 
         // 2. PROGRESSIVE OVERLOAD BANNER (Never increases without confirmation)
-        if (progressionSuggestion != null && !progressionSuggestion.isAccepted && !progressionSuggestion.isDismissed && appliedWeight == null) {
+        if (false && progressionSuggestion != null && !progressionSuggestion!!.isAccepted && !progressionSuggestion!!.isDismissed && appliedWeight == null) {
             Spacer(modifier = Modifier.height(10.dp))
             ProgressiveOverloadAlertBanner(
-                suggestion = progressionSuggestion,
-                onAccept = { onApplyProgression(progressionSuggestion.suggestedWeightKg) },
+                suggestion = progressionSuggestion!!,
+                onAccept = { onApplyProgression(progressionSuggestion!!.suggestedWeightKg) },
                 onDismiss = onDismissProgression
             )
-        } else if (appliedWeight != null) {
+        } else if (false && appliedWeight != null) {
             Spacer(modifier = Modifier.height(8.dp))
             Box(
                 modifier = Modifier
@@ -1586,7 +1591,7 @@ fun ActiveExerciseCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "✦ Sobrecarga Progressiva Aplicada: ${appliedWeight.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }} kg",
+                        text = "✦ Sobrecarga Progressiva Aplicada: ${appliedWeight!!.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }} kg",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = EmeraldSuccess
