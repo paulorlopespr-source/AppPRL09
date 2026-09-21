@@ -19,8 +19,9 @@ class Phase7ViewModel(application: Application) : AndroidViewModel(application) 
     val journey: StateFlow<JourneySnapshot?> = combine(
         repository.allWorkoutSessions,
         repository.allCardioSessions,
-        repository.allMedals
-    ) { workouts, cardio, medals ->
-        Phase7JourneyEngine.build(workouts, cardio, medals)
+        repository.allMedals,
+        repository.userProfile
+    ) { workouts, cardio, medals, profile ->
+        Phase7JourneyEngine.build(workouts, cardio, medals, weeklyGoalDays = profile?.weeklyGoalDays)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }

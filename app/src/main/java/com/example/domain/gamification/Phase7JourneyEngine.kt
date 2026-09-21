@@ -43,6 +43,7 @@ data class JourneySnapshot(
     val adherencePercent: Int? = null,
     val evolutionReady: Boolean = false,
     val evolutionMessage: String = ""
+    ,val cycleAdherencePercent: Int? = null
 )
 
 data class PintinhoJourneyProgress(
@@ -75,7 +76,8 @@ object Phase7JourneyEngine {
         workouts: List<WorkoutSession>,
         cardio: List<CardioSession>,
         medals: List<UserMedal>,
-        today: LocalDate = LocalDate.now()
+        today: LocalDate = LocalDate.now(),
+        weeklyGoalDays: Int? = null
     ): JourneySnapshot {
         val completedWorkouts = validWorkouts(workouts)
         val activityDays = (completedWorkouts.map { it.dateEpochDay } + cardio.map { it.dateEpochDay }).distinct().sorted()
@@ -106,6 +108,13 @@ object Phase7JourneyEngine {
         val weeklyActivities = weekWorkouts.size + weekCardio.size
         val weeklyCardioMinutes = weekCardio.sumOf { it.durationMinutes }
         val weeklyVolumeTons = (weekWorkouts.sumOf { it.totalWeightLiftedKg } / 1000.0).toInt()
+        val adherencePercent = weeklyGoalDays?.takeIf { it > 0 }?.let {
+            ((weekWorkouts.size.toFloat() / it).coerceIn(0f, 1f) * 100).toInt()
+        }
+        val cycleStart = today.minusWeeks(3).with(DayOfWeek.MONDAY)
+        val cyclePlanned = weeklyGoalDays?.takeIf { it > 0 }?.times(4)
+        val cycleCompleted = completedWorkouts.count { it.dateEpochDay in cycleStart.toEpochDay()..today.toEpochDay() }
+        val cycleAdherencePercent = cyclePlanned?.let { ((cycleCompleted.toFloat() / it).coerceIn(0f, 1f) * 100).toInt() }
 
         val quests = listOf(
             JourneyQuest("weekly_consistency", "3 atividades na semana", "Construa consistência sem depender de motivação.", weeklyActivities, 3, 150),
@@ -127,7 +136,8 @@ object Phase7JourneyEngine {
         val currentCard = PintinhoJourneyCatalog.allCards.getOrNull(completedCards.size)
         val rank = PintinhoJourneyCatalog.rankFor(completedCards.size + 1)
         val requiredTrainings = when (rank) { "Pintinho" -> 10; "Frango" -> 18; "Lobo" -> 28; "Gorila" -> 38; "Leão" -> 48; else -> 65 }
-        val evolutionReady = strengthSessions >= requiredTrainings && performanceProgressions >= when (rank) { "Pintinho" -> 1; "Frango" -> 2; "Lobo" -> 4; "Gorila" -> 6; else -> 8 }
+        val adherenceRequired = when (rank) { "Pintinho", "Frango" -> 80; "Lobo", "Gorila" -> 85; else -> 90 }
+        val evolutionReady = strengthSessions >= requiredTrainings && performanceProgressions >= when (rank) { "Pintinho" -> 1; "Frango" -> 2; "Lobo" -> 4; "Gorila" -> 6; else -> 8 } && (cycleAdherencePercent == null || cycleAdherencePercent >= adherenceRequired)
         val journeyProgress = PintinhoJourneyProgress(
             completedLevels = completedCards.size,
             currentCard = currentCard,
@@ -158,6 +168,8 @@ object Phase7JourneyEngine {
             performanceProgressions = performanceProgressions,
             evolutionReady = evolutionReady,
             evolutionMessage = if (evolutionReady) "Requisitos de evolução concluídos." else "XP suficiente não substitui os requisitos de evolução."
+            ,adherencePercent = adherencePercent,
+            cycleAdherencePercent = cycleAdherencePercent
         )
     }
 
