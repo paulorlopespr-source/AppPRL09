@@ -249,7 +249,7 @@ fun TabsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        items(JornadaTab.values()) { tab ->
+        items(JornadaTab.values().filterNot { it == JornadaTab.RECOMPENSAS }) { tab ->
             val isSelected = tab == selectedTab
             Surface(
                 modifier = Modifier

@@ -113,3 +113,44 @@ fun JourneyCardCelebrationDialog(
         }
     }
 }
+
+@Composable
+fun JourneyCardDetailsDialog(
+    card: PintinhoJourneyCard,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val artworkResId = context.resources.getIdentifier(card.assetKey, "drawable", context.packageName)
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            modifier = Modifier.fillMaxSize(0.94f),
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFF0F0A1D),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF7C3AED))
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Nível ${card.level} • ${card.rank}", color = Color(0xFFC4B5FD), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(14.dp))
+                if (artworkResId != 0) {
+                    Image(
+                        painter = painterResource(artworkResId),
+                        contentDescription = card.title,
+                        modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(card.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(card.description, color = Color(0xFFB8A9D8), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
+                Text("Objetivo: ${card.target} • Recompensa: ${card.xpReward} XP${card.chest?.let { " • ${it.label}" } ?: ""}", color = Color(0xFFC4B5FD), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 10.dp))
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C3AED))) { Text("Fechar", color = Color.White) }
+            }
+        }
+    }
+}

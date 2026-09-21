@@ -63,6 +63,7 @@ import com.example.ui.components.AllQuestsDialog
 import com.example.ui.components.HistoricalMilestoneData
 import com.example.ui.components.JornadaHeader
 import com.example.ui.components.JourneyCardCelebrationDialog
+import com.example.ui.components.JourneyCardDetailsDialog
 import com.example.ui.components.JornadaTab
 import com.example.ui.components.JornadaUiState
 import com.example.ui.components.JourneyTrailCard
@@ -116,6 +117,7 @@ fun JornadaScreen(
     var showAchievementsDialog by remember { mutableStateOf(false) }
     var selectedQuest by remember { mutableStateOf<QuestData?>(null) }
     var selectedAchievement by remember { mutableStateOf<AchievementData?>(null) }
+    var selectedJourneyCard by remember { mutableStateOf<PintinhoJourneyCard?>(null) }
     var showRewardDialog by remember { mutableStateOf(false) }
     var selectedMilestoneForDetail by remember { mutableStateOf<TrailMilestoneData?>(null) }
     var unlockedCardForCelebration by remember { mutableStateOf<PintinhoJourneyCard?>(null) }
@@ -587,6 +589,8 @@ fun JornadaScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clickable { selectedJourneyCard = card }
+                                .testTag("journey_level_${card.level}")
                         ) {
                             Row(
                                 modifier = Modifier.padding(14.dp),
@@ -621,15 +625,16 @@ fun JornadaScreen(
                     item(key = "collection_header") {
                         Text("Coleção Pintinho • $completedJourneyLevels / ${PintinhoJourneyCatalog.allCards.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                     }
-                    items(PintinhoJourneyCatalog.allCards) { card ->
-                        val unlocked = card.level <= completedJourneyLevels
+                    val unlockedCards = PintinhoJourneyCatalog.allCards.filter { it.level <= completedJourneyLevels }
+                    items(unlockedCards) { card ->
+                        val unlocked = true
                         val context = LocalContext.current
                         val artworkResId = context.resources.getIdentifier(card.assetKey, "drawable", context.packageName)
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = if (unlocked) Color(0xFF21163A) else Color(0xFF15111F),
                             border = androidx.compose.foundation.BorderStroke(1.dp, if (unlocked) Color(0xFF7C3AED) else Color(0xFF261D3B)),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("journey_card_${card.level}")
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clickable { selectedJourneyCard = card }.testTag("journey_card_${card.level}")
                         ) {
                             Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 if (artworkResId != 0) {
@@ -653,7 +658,7 @@ fun JornadaScreen(
                             }
                         }
                     }
-                    item(key = "collection_assets_note") { Text("Os 20 espaços de arte já estão preparados: journey_pintinho_card_01 a journey_pintinho_card_20.", color = Color(0xFF94A3B8), fontSize = 12.sp, modifier = Modifier.padding(16.dp)) }
+                    item(key = "collection_assets_note") { Text("Toque em um card para abrir em tela cheia.", color = Color(0xFF94A3B8), fontSize = 12.sp, modifier = Modifier.padding(16.dp)) }
                 }
 
                 JornadaTab.RECOMPENSAS -> {
@@ -717,6 +722,10 @@ fun JornadaScreen(
                 achievements = listOf(achievement),
                 onDismiss = { selectedAchievement = null }
             )
+        }
+
+        selectedJourneyCard?.let { card ->
+            JourneyCardDetailsDialog(card = card, onDismiss = { selectedJourneyCard = null })
         }
 
         if (showRewardDialog) {
