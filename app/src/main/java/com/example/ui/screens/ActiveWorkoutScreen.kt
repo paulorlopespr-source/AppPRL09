@@ -440,6 +440,28 @@ fun ActiveWorkoutScreen(
                 // Exercises in active workout
                 item {
                     val hasExercises = activeState.exercises.isNotEmpty()
+                    val totalExercises = activeState.exercises.size
+                    val progress = if (totalExercises == 0) 0f else (focusedExerciseIndex + 1).toFloat() / totalExercises
+                    val exerciseGroups = activeState.exercises.map { it.muscleGroup }.distinct().joinToString(" • ")
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = exerciseGroups.ifBlank { "Treino em execução" },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = LilacSoft,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier.weight(1f).height(5.dp),
+                                color = LilacAccent,
+                                trackColor = PurpleDarkSurface
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text("Exercício ${if (hasExercises) focusedExerciseIndex + 1 else 0} de $totalExercises", color = TextSecondary, fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -473,7 +495,9 @@ fun ActiveWorkoutScreen(
                         }
                     }
                 }
-                itemsIndexed(activeState.exercises) { exIndex, plan ->
+                item {
+                    val exIndex = focusedExerciseIndex.coerceIn(0, (activeState.exercises.lastIndex).coerceAtLeast(0))
+                    val plan = activeState.exercises.getOrNull(exIndex) ?: return@item
                     val lastExecution = remember(plan.exerciseName, activeState.exercises.size) {
                         viewModel.getLastExerciseExecution(plan.exerciseName, plan.exerciseId)
                     }
