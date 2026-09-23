@@ -36,6 +36,30 @@ object PintinhoJourneyCatalog {
         "journey_frango_card_17_nutricao_em_acao", "journey_frango_card_18_movimento_sem_limites",
         "journey_frango_card_19_habitos_em_dia", "journey_frango_card_20_evolucao_frango_para_lobo_lendaria"
     )
+    private val loboAssetKeys = listOf(
+        "journey_lobo_card_01_o_chamado_da_matilha", "journey_lobo_card_02_pegadas_no_caminho",
+        "journey_lobo_card_03_cacador_disciplinado", "journey_lobo_card_04_mais_forte_na_cacada",
+        "journey_lobo_card_05_coracao_de_guerreiro", "journey_lobo_card_06_escolhas_inteligentes",
+        "journey_lobo_card_07_carga_e_progresso", "journey_lobo_card_08_flexibilidade_e_longevidade",
+        "journey_lobo_card_09_a_forca_do_descanso", "journey_lobo_card_10_topo_da_jornada_especial",
+        "journey_lobo_card_11_persistencia", "journey_lobo_card_12_resistencia_em_acao",
+        "journey_lobo_card_13_hidratacao_e_forca", "journey_lobo_card_14_pernas_fortes",
+        "journey_lobo_card_15_forca_da_matilha", "journey_lobo_card_16_evolucao_constante",
+        "journey_lobo_card_17_descanso_inteligente", "journey_lobo_card_18_nutricao_e_poder",
+        "journey_lobo_card_19_movimento_liberta", "journey_lobo_card_20_matilha_vencedora_especial"
+    )
+    private val gorilaAssetKeys = listOf(
+        "jornada_gorila_card_61_a_fera_despertou", "jornada_gorila_card_62_forca_em_construcao",
+        "jornada_gorila_card_63_peso_sob_controle", "jornada_gorila_card_64_forca_com_tecnica",
+        "jornada_gorila_card_65_punhos_de_aco", "jornada_gorila_card_66_carga_constante",
+        "jornada_gorila_card_67_intensidade_em_alta", "jornada_gorila_card_68_resistencia_em_acao",
+        "jornada_gorila_card_69_mente_e_musculo", "jornada_gorila_card_70_especial",
+        "jornada_gorila_card_71_supere_seus_limites", "jornada_gorila_card_72_movimento_gera_progresso",
+        "jornada_gorila_card_73_novos_horizontes", "jornada_gorila_card_74_execucao_gera_resultado",
+        "jornada_gorila_card_75_base_solida_grandes_conquistas", "jornada_gorila_card_76_costas_mais_fortes",
+        "jornada_gorila_card_77_peito_mais_forte", "jornada_gorila_card_78_pernas_mais_fortes",
+        "jornada_gorila_card_79_biceps_mais_fortes", "jornada_gorila_card_80_evolucao_especial"
+    )
 
     val cards: List<PintinhoJourneyCard> = listOf(
         card(1, "O Primeiro Sinal", "Conclua seu primeiro treino.", PintinhoObjectiveType.WORKOUTS_COMPLETED, 1, 100),
@@ -73,6 +97,10 @@ object PintinhoJourneyCatalog {
             xpReward = 100 + ((level - 1) % 20) * 15,
             assetKey = if (rank == "Frango") {
                 frangoAssetKeys[(level - 21).coerceIn(0, frangoAssetKeys.lastIndex)]
+            } else if (rank == "Lobo") {
+                loboAssetKeys[(level - 41).coerceIn(0, loboAssetKeys.lastIndex)]
+            } else if (rank == "Gorila") {
+                gorilaAssetKeys[(level - 61).coerceIn(0, gorilaAssetKeys.lastIndex)]
             } else {
                 "journey_${rank.lowercase()}_card_${((level - 1) % 20 + 1).toString().padStart(2, '0')}"
             },
