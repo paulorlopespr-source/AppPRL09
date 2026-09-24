@@ -92,6 +92,8 @@ object Phase7JourneyEngine {
     /** Fonte única para todos os cálculos da Jornada. */
     fun validWorkouts(workouts: List<WorkoutSession>): List<WorkoutSession> = workouts
         .asSequence()
+        // Sessões demonstrativas inseridas pelo seed inicial não contam para uma jornada nova.
+        .filterNot { it.id in 1L..2L && it.title.startsWith("Iniciante -") }
         .filter { it.status == SessionStatus.COMPLETED && it.dateEpochDay > 0 && (it.durationSeconds > 0 || it.exercisesDoneJson != "[]" || it.totalWeightLiftedKg > 0.0) }
         .distinctBy { "${it.dateEpochDay}|${it.title.trim().lowercase()}" }
         .toList()

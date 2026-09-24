@@ -187,8 +187,10 @@ fun AgendaScreen(
                 AgendaAppointment(
                     id = "workout_${session.id}",
                     type = AppointmentType.STRENGTH,
-                    startTime = "06:00",
-                    endTime = if (session.durationSeconds > 0) "07:00" else null,
+                    startTime = java.time.Instant.ofEpochMilli(session.startTimeMillis)
+                        .atZone(java.time.ZoneId.systemDefault()).toLocalTime().toString().substring(0, 5),
+                    endTime = if (session.durationSeconds > 0) java.time.Instant.ofEpochMilli(session.endTimeMillis)
+                        .atZone(java.time.ZoneId.systemDefault()).toLocalTime().toString().substring(0, 5) else null,
                     title = session.title.ifBlank { "Treino de Força" },
                     subtitle = when {
                         session.notes.isNotBlank() -> session.notes
