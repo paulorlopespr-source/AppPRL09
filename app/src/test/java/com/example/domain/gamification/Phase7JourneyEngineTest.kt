@@ -49,4 +49,15 @@ class Phase7JourneyEngineTest {
         assertEquals(2, result.pintinhoProgress.completedLevels)
         assertEquals(3, result.pintinhoProgress.currentCard?.level)
     }
+
+    @Test
+    fun evaluatesFreeWorkoutAgainstJourneyProgress() {
+        val today = LocalDate.of(2026, 9, 16)
+        val first = WorkoutSession(title = "Livre", dateEpochDay = today.toEpochDay(), status = SessionStatus.COMPLETED, durationSeconds = 1800, totalWeightLiftedKg = 100.0)
+        val impact = Phase7JourneyEngine.evaluateWorkout(first, emptyList(), today = today)
+
+        assertEquals(first.id, impact.sessionId)
+        assertTrue(impact.xpEarned >= 0)
+        assertTrue(impact.objectiveProgress <= impact.objectiveTarget || impact.objectiveTarget == 0)
+    }
 }

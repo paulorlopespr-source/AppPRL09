@@ -103,8 +103,19 @@ object PintinhoJourneyCatalog {
         PintinhoJourneyCard(
             level = level,
             title = when (level % 20) { 0 -> "Desafio de Evolução" else -> "${rank} em evolução" },
-            description = "Mantenha consistência e cumpra o objetivo do estágio.",
-            objectiveType = PintinhoObjectiveType.WORKOUTS_COMPLETED,
+            description = when ((level - 1) % 5) {
+                1 -> "Registre séries e cargas no treino."
+                2 -> "Complete treinos planejados nesta semana."
+                3 -> "Supere sua carga ou duração anterior."
+                4 -> "Mantenha a sequência de treinos."
+                else -> "Conclua treinos para avançar na jornada."
+            },
+            objectiveType = when ((level - 1) % 5) {
+                1 -> PintinhoObjectiveType.SETS_RECORDED
+                2, 4 -> PintinhoObjectiveType.WEEKLY_WORKOUTS
+                3 -> PintinhoObjectiveType.PROGRESSION
+                else -> PintinhoObjectiveType.WORKOUTS_COMPLETED
+            },
             target = targetFor(level),
             xpReward = 100 + ((level - 1) % 20) * 15,
             assetKey = if (rank == "Frango") {

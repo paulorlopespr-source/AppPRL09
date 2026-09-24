@@ -155,10 +155,10 @@ fun JornadaScreen(
     }
     val levelTitle = if (completedJourneyLevels >= PintinhoJourneyCatalog.allCards.size) "Frango • nova jornada" else "Pintinho • nível $level"
     val avatarRes = when {
-        level >= 91 -> com.example.R.drawable.journey_avatar_dragao
-        level >= 71 -> com.example.R.drawable.journey_avatar_gorila
-        level >= 51 -> com.example.R.drawable.journey_avatar_leao
-        level >= 36 -> com.example.R.drawable.journey_avatar_lobo
+        level >= 101 -> com.example.R.drawable.journey_avatar_dragao
+        level >= 81 -> com.example.R.drawable.journey_avatar_leao
+        level >= 61 -> com.example.R.drawable.journey_avatar_gorila
+        level >= 41 -> com.example.R.drawable.journey_avatar_lobo
         level >= 21 -> com.example.R.drawable.journey_avatar_frango
         else -> com.example.R.drawable.journey_avatar_pintinho
     }

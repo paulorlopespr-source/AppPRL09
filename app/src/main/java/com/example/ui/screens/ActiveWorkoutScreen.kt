@@ -151,6 +151,7 @@ fun ActiveWorkoutScreen(
     val dismissedProgressions by viewModel.dismissedProgressions.collectAsStateWithLifecycle()
     val activeMedalUnlocked by viewModel.activeMedalUnlocked.collectAsStateWithLifecycle()
     val activePRCelebration by viewModel.activePRCelebration.collectAsStateWithLifecycle()
+    val journeyImpact by viewModel.lastWorkoutJourneyImpact.collectAsStateWithLifecycle()
     val isTtsVoiceEnabled by viewModel.isTtsVoiceEnabled.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -169,6 +170,7 @@ fun ActiveWorkoutScreen(
     var plateCalculatorExerciseName by remember { mutableStateOf("") }
     var warmupGeneratorExerciseIndex by remember { mutableStateOf<Int?>(null) }
     var completedSessionForStory by remember { mutableStateOf<WorkoutSession?>(null) }
+    var showJourneyImpact by remember { mutableStateOf(false) }
     var focusedExerciseIndex by remember { mutableStateOf(0) }
 
     var showAIExecutionModal by remember { mutableStateOf(false) }
@@ -790,6 +792,7 @@ fun ActiveWorkoutScreen(
                         showFinishDialog = false
                         viewModel.finishActiveWorkout { savedSession ->
                             completedSessionForStory = savedSession
+                            showJourneyImpact = true
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
@@ -809,8 +812,34 @@ fun ActiveWorkoutScreen(
         )
     }
 
+    if (showJourneyImpact && journeyImpact != null) {
+        val impact = journeyImpact!!
+        AlertDialog(
+            onDismissRequest = { showJourneyImpact = false },
+            title = { Text("Impacto na Jornada", fontWeight = FontWeight.Black, color = TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("+${impact.xpEarned} XP de Jornada", color = LilacSoft, fontWeight = FontWeight.Bold)
+                    Text("Progresso do objetivo: ${impact.objectiveProgress}/${impact.objectiveTarget}", color = TextSecondary)
+                    if (impact.completedLevels.isNotEmpty()) {
+                        Text("Card(s) desbloqueado(s): ${impact.completedLevels.joinToString()}", color = EmeraldSuccess)
+                    } else {
+                        Text("Continue treinando para desbloquear o próximo card.", color = TextSecondary)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showJourneyImpact = false }, colors = ButtonDefaults.buttonColors(containerColor = PurpleVibrant)) {
+                    Text("Continuar", color = Color.White)
+                }
+            },
+            containerColor = PurpleDarkSurface,
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+
     // Story Share Dialog upon workout completion
-    if (completedSessionForStory != null) {
+    if (completedSessionForStory != null && !showJourneyImpact) {
         val profile by viewModel.userProfile.collectAsStateWithLifecycle()
         WorkoutShareStoryDialog(
             session = completedSessionForStory!!,
