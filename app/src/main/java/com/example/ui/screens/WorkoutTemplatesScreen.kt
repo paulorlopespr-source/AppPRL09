@@ -1034,6 +1034,7 @@ fun CreateCustomWorkoutDialog(
     var creationMode by remember { mutableStateOf("Rápido") }
     val selectedExerciseIds = remember { mutableStateOf(mutableSetOf<Long>()) }
     var selectedMuscleGroupFilter by remember { mutableStateOf<MuscleGroup?>(null) }
+    var editingExercise by remember { mutableStateOf<Exercise?>(null) }
     val context = LocalContext.current
     LaunchedEffect(allExercises) {
         if (selectedExerciseIds.value.isEmpty() && allExercises.isNotEmpty()) {
@@ -1202,7 +1203,7 @@ fun CreateCustomWorkoutDialog(
                             shape = RoundedCornerShape(10.dp),
                             color = PurpleDeepCard,
                             border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().clickable { editingExercise = ex }
                         ) {
                             Row(
                                 modifier = Modifier.padding(10.dp),
@@ -1308,6 +1309,29 @@ fun CreateCustomWorkoutDialog(
         containerColor = PurpleDarkSurface,
         shape = RoundedCornerShape(24.dp)
     )
+
+    editingExercise?.let { exercise ->
+        AlertDialog(
+            onDismissRequest = { editingExercise = null },
+            title = { Text(exercise.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${exercise.muscleGroup.displayName} · ${exercise.equipment.displayName}", color = LilacAccent)
+                    Text("3 séries · 10 repetições", color = TextSecondary)
+                    Text("Toque em remover para retirar este exercício do treino.", color = TextSecondary, fontSize = 12.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedExerciseIds.value = selectedExerciseIds.value.toMutableSet().apply { remove(exercise.id) }
+                    editingExercise = null
+                }) { Text("Remover", color = RedDestructive) }
+            },
+            dismissButton = { TextButton(onClick = { editingExercise = null }) { Text("Fechar", color = LilacAccent) } },
+            containerColor = PurpleDarkSurface,
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
 }
 
 @Composable
