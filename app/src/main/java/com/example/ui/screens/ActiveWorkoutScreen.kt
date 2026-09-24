@@ -72,6 +72,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -814,6 +816,8 @@ fun ActiveWorkoutScreen(
 
     if (showJourneyImpact && journeyImpact != null) {
         val impact = journeyImpact!!
+        val progressTarget = if (impact.objectiveTarget > 0) (impact.objectiveProgress.toFloat() / impact.objectiveTarget).coerceIn(0f, 1f) else 0f
+        val animatedProgress by animateFloatAsState(progressTarget, animationSpec = tween(700), label = "journey_progress")
         AlertDialog(
             onDismissRequest = { showJourneyImpact = false },
             title = { Text("Impacto na Jornada", fontWeight = FontWeight.Black, color = TextPrimary) },
@@ -821,8 +825,14 @@ fun ActiveWorkoutScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("+${impact.xpEarned} XP de Jornada", color = LilacSoft, fontWeight = FontWeight.Bold)
                     Text("Progresso do objetivo: ${impact.objectiveProgress}/${impact.objectiveTarget}", color = TextSecondary)
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier.fillMaxWidth().height(8.dp),
+                        color = PurpleVibrant,
+                        trackColor = PurpleDeepCard
+                    )
                     if (impact.completedLevels.isNotEmpty()) {
-                        Text("Card(s) desbloqueado(s): ${impact.completedLevels.joinToString()}", color = EmeraldSuccess)
+                        Text("✨ Card(s) desbloqueado(s): ${impact.completedLevels.joinToString()}", color = EmeraldSuccess, fontWeight = FontWeight.Bold)
                     } else {
                         Text("Continue treinando para desbloquear o próximo card.", color = TextSecondary)
                     }
