@@ -108,6 +108,7 @@ fun JornadaScreen(
     }
     val journeySnapshot by phase7Vm.journey.collectAsStateWithLifecycle()
     val allMedals by fitnessVm.allMedals.collectAsStateWithLifecycle()
+    val journeyUnlocks by fitnessVm.journeyUnlocks.collectAsStateWithLifecycle()
     val userProfile by fitnessVm.userProfile.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableStateOf(JornadaTab.VISAO_GERAL) }
@@ -644,6 +645,7 @@ fun JornadaScreen(
                     val unlockedCards = PintinhoJourneyCatalog.allCards.filter { it.level <= completedJourneyLevels }
                     items(unlockedCards) { card ->
                         val unlocked = true
+                        val unlockRecord = journeyUnlocks.firstOrNull { it.cardLevel == card.level }
                         val context = LocalContext.current
                         val artworkResId = context.resources.getIdentifier(card.assetKey, "drawable", context.packageName)
                         Surface(
@@ -670,6 +672,10 @@ fun JornadaScreen(
                                     Text(card.title, color = Color.White, fontWeight = FontWeight.Bold)
                                     Text(card.description, color = Color(0xFFB8A9D8), fontSize = 12.sp)
                                     Text("+${card.xpReward} XP${card.chest?.let { " • ${it.label}" } ?: ""}", color = Color(0xFFC4B5FD), fontSize = 12.sp)
+                                    unlockRecord?.let {
+                                        val date = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.unlockedAtMillis))
+                                        Text("Conquistado em $date", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                                    }
                                 }
                             }
                         }
