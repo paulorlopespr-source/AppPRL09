@@ -77,6 +77,8 @@ import com.example.data.model.MuscleGroup
 import com.example.data.model.SetTag
 import com.example.ui.components.MuscleWeeklyVolume
 import com.example.utils.TTSVoiceManager
+import com.example.domain.gamification.Phase7JourneyEngine
+import com.example.domain.gamification.WorkoutJourneyImpact
 
 data class ProgressiveOverloadSuggestion(
     val exerciseName: String,
@@ -576,6 +578,10 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     // --- Active Workout State ---
     private val _activeWorkout = MutableStateFlow(ActiveWorkoutState())
     val activeWorkout: StateFlow<ActiveWorkoutState> = _activeWorkout.asStateFlow()
+
+    /** Último cálculo gerado automaticamente ao concluir um treino livre ou agendado. */
+    private val _lastWorkoutJourneyImpact = MutableStateFlow<WorkoutJourneyImpact?>(null)
+    val lastWorkoutJourneyImpact: StateFlow<WorkoutJourneyImpact?> = _lastWorkoutJourneyImpact.asStateFlow()
 
     private var workoutTimerJob: Job? = null
     private var restTimerJob: Job? = null
@@ -1344,6 +1350,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
             // Check consistency medals (10 workouts, 3-day streak, 10-ton volume)
             val allSessions = repository.allWorkoutSessions.firstOrNull() ?: emptyList()
+            val previousSessions = allSessions.filter { it.id != savedSession.id }
+            _lastWorkoutJourneyImpact.value = Phase7JourneyEngine.evaluateWorkout(
+                session = savedSession,
+                sessionsBefore = previousSessions,
+                cardio = repository.allCardioSessions.firstOrNull() ?: emptyList(),
+                medals = repository.allMedals.firstOrNull() ?: emptyList()
+            )
             if (allSessions.size >= 10) {
                 unlockMedalIfNotUnlocked("legend_10workouts")
             }

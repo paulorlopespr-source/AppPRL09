@@ -55,8 +55,39 @@ data class PintinhoJourneyProgress(
     val totalJourneyXp: Int
 )
 
+/** Resultado do vínculo entre uma sessão concluída e a Jornada. */
+data class WorkoutJourneyImpact(
+    val sessionId: Long,
+    val completedLevels: List<Int>,
+    val xpEarned: Int,
+    val journeyLevel: Int,
+    val objectiveProgress: Int,
+    val objectiveTarget: Int
+)
+
 object Phase7JourneyEngine {
     data class ValidTraining(val dateEpochDay: Long, val title: String)
+
+    fun evaluateWorkout(
+        session: WorkoutSession,
+        sessionsBefore: List<WorkoutSession>,
+        cardio: List<CardioSession> = emptyList(),
+        medals: List<UserMedal> = emptyList(),
+        today: LocalDate = LocalDate.now()
+    ): WorkoutJourneyImpact {
+        val before = build(sessionsBefore, cardio, medals, today)
+        val after = build(sessionsBefore + session, cardio, medals, today)
+        val first = before.pintinhoProgress.completedLevels
+        val last = after.pintinhoProgress.completedLevels
+        return WorkoutJourneyImpact(
+            sessionId = session.id,
+            completedLevels = (first until last).map { it + 1 },
+            xpEarned = after.pintinhoProgress.totalJourneyXp - before.pintinhoProgress.totalJourneyXp,
+            journeyLevel = after.level,
+            objectiveProgress = after.pintinhoProgress.objectiveCurrent,
+            objectiveTarget = after.pintinhoProgress.currentCard?.target ?: 0
+        )
+    }
 
     /** Fonte única para todos os cálculos da Jornada. */
     fun validWorkouts(workouts: List<WorkoutSession>): List<WorkoutSession> = workouts
