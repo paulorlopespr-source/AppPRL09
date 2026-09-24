@@ -1,0 +1,3079 @@
+{
+  "schemaVersion": "1.0.0",
+  "language": "pt-BR",
+  "generatedAt": "2026-09-24T12:34:14.884Z",
+  "groups": [
+    {
+      "id": "peito",
+      "name": "Peito",
+      "asset": "assets/groups/muscle_peito.webp"
+    },
+    {
+      "id": "costas",
+      "name": "Costas",
+      "asset": "assets/groups/muscle_costas.webp"
+    },
+    {
+      "id": "ombros",
+      "name": "Ombros",
+      "asset": "assets/groups/muscle_ombros.webp"
+    },
+    {
+      "id": "biceps",
+      "name": "Bíceps",
+      "asset": "assets/groups/muscle_biceps.webp"
+    },
+    {
+      "id": "triceps",
+      "name": "Tríceps",
+      "asset": "assets/groups/muscle_triceps.webp"
+    },
+    {
+      "id": "quadriceps",
+      "name": "Quadríceps",
+      "asset": "assets/groups/muscle_quadriceps.webp"
+    },
+    {
+      "id": "posterior_gluteos",
+      "name": "Posterior e glúteos",
+      "asset": "assets/groups/muscle_posterior_gluteos.webp"
+    },
+    {
+      "id": "panturrilhas",
+      "name": "Panturrilhas",
+      "asset": "assets/groups/muscle_panturrilhas.webp"
+    },
+    {
+      "id": "core",
+      "name": "Abdômen e core",
+      "asset": "assets/groups/muscle_core.webp"
+    },
+    {
+      "id": "antebracos_funcional",
+      "name": "Antebraços e funcional",
+      "asset": "assets/groups/muscle_antebracos_funcional.webp"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex_001",
+      "slug": "supino_reto_com_barra",
+      "name": "Supino reto com barra",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/01_supino_reto_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_002",
+      "slug": "supino_inclinado_com_barra",
+      "name": "Supino inclinado com barra",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/02_supino_inclinado_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_003",
+      "slug": "supino_reto_com_halteres",
+      "name": "Supino reto com halteres",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/03_supino_reto_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_004",
+      "slug": "supino_inclinado_com_halteres",
+      "name": "Supino inclinado com halteres",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/04_supino_inclinado_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_005",
+      "slug": "crucifixo_com_halteres",
+      "name": "Crucifixo com halteres",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/05_crucifixo_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_006",
+      "slug": "crossover_no_cabo",
+      "name": "Crossover no cabo",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/06_crossover_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_007",
+      "slug": "flexao_de_bracos",
+      "name": "Flexão de braços",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/07_flexao_de_bracos.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_008",
+      "slug": "flexao_inclinada",
+      "name": "Flexão inclinada",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/08_flexao_inclinada.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_009",
+      "slug": "flexao_declinada",
+      "name": "Flexão declinada",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/09_flexao_declinada.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_010",
+      "slug": "chest_press_na_maquina",
+      "name": "Chest press na máquina",
+      "groupId": "peito",
+      "groupName": "Peito",
+      "primaryMuscles": [
+        "Peito"
+      ],
+      "secondaryMuscles": [
+        "Tríceps",
+        "Ombros"
+      ],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/peito/10_chest_press_na_maquina.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_011",
+      "slug": "barra_fixa_pronada",
+      "name": "Barra fixa pronada",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/01_barra_fixa_pronada.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_012",
+      "slug": "barra_fixa_supinada",
+      "name": "Barra fixa supinada",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/02_barra_fixa_supinada.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_013",
+      "slug": "puxada_frontal_aberta",
+      "name": "Puxada frontal aberta",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/03_puxada_frontal_aberta.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_014",
+      "slug": "remada_baixa_no_cabo",
+      "name": "Remada baixa no cabo",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/04_remada_baixa_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_015",
+      "slug": "remada_curvada_com_barra",
+      "name": "Remada curvada com barra",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/05_remada_curvada_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_016",
+      "slug": "remada_unilateral_com_halter",
+      "name": "Remada unilateral com halter",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/06_remada_unilateral_com_halter.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_017",
+      "slug": "remada_apoiada_com_halteres",
+      "name": "Remada apoiada com halteres",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/07_remada_apoiada_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_018",
+      "slug": "pullover_no_cabo",
+      "name": "Pullover no cabo",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/08_pullover_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_019",
+      "slug": "remada_invertida",
+      "name": "Remada invertida",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/09_remada_invertida.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_020",
+      "slug": "levantamento_terra",
+      "name": "Levantamento terra",
+      "groupId": "costas",
+      "groupName": "Costas",
+      "primaryMuscles": [
+        "Costas"
+      ],
+      "secondaryMuscles": [
+        "Bíceps",
+        "Ombros posteriores"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/costas/10_levantamento_terra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_021",
+      "slug": "desenvolvimento_militar_com_barra",
+      "name": "Desenvolvimento militar com barra",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/01_desenvolvimento_militar_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_022",
+      "slug": "desenvolvimento_sentado_com_halteres",
+      "name": "Desenvolvimento sentado com halteres",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/02_desenvolvimento_sentado_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_023",
+      "slug": "elevacao_lateral_com_halteres",
+      "name": "Elevação lateral com halteres",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/03_elevacao_lateral_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_024",
+      "slug": "elevacao_lateral_no_cabo",
+      "name": "Elevação lateral no cabo",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/04_elevacao_lateral_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_025",
+      "slug": "elevacao_frontal_com_halteres",
+      "name": "Elevação frontal com halteres",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/05_elevacao_frontal_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_026",
+      "slug": "crucifixo_inverso_com_halteres",
+      "name": "Crucifixo inverso com halteres",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/06_crucifixo_inverso_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_027",
+      "slug": "face_pull_no_cabo",
+      "name": "Face pull no cabo",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/07_face_pull_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_028",
+      "slug": "arnold_press",
+      "name": "Arnold press",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/08_arnold_press.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_029",
+      "slug": "remada_alta_com_barra_ez",
+      "name": "Remada alta com barra EZ",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/09_remada_alta_com_barra_ez.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_030",
+      "slug": "desenvolvimento_na_maquina",
+      "name": "Desenvolvimento na máquina",
+      "groupId": "ombros",
+      "groupName": "Ombros",
+      "primaryMuscles": [
+        "Ombros"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/ombros/10_desenvolvimento_na_maquina.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_031",
+      "slug": "rosca_direta_com_barra",
+      "name": "Rosca direta com barra",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/01_rosca_direta_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_032",
+      "slug": "rosca_alternada_com_halteres",
+      "name": "Rosca alternada com halteres",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/02_rosca_alternada_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_033",
+      "slug": "rosca_martelo",
+      "name": "Rosca martelo",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/03_rosca_martelo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_034",
+      "slug": "rosca_scott_com_barra_ez",
+      "name": "Rosca Scott com barra EZ",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/04_rosca_scott_com_barra_ez.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_035",
+      "slug": "rosca_concentrada",
+      "name": "Rosca concentrada",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/05_rosca_concentrada.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_036",
+      "slug": "rosca_inclinada_com_halteres",
+      "name": "Rosca inclinada com halteres",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/06_rosca_inclinada_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_037",
+      "slug": "rosca_no_cabo",
+      "name": "Rosca no cabo",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/07_rosca_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_038",
+      "slug": "rosca_inversa_com_barra",
+      "name": "Rosca inversa com barra",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/08_rosca_inversa_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_039",
+      "slug": "rosca_zottman",
+      "name": "Rosca Zottman",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/09_rosca_zottman.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_040",
+      "slug": "rosca_scott_na_maquina",
+      "name": "Rosca Scott na máquina",
+      "groupId": "biceps",
+      "groupName": "Bíceps",
+      "primaryMuscles": [
+        "Bíceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/biceps/10_rosca_scott_na_maquina.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_041",
+      "slug": "triceps_testa_com_barra_ez",
+      "name": "Tríceps testa com barra EZ",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/01_triceps_testa_com_barra_ez.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_042",
+      "slug": "triceps_frances_com_halter",
+      "name": "Tríceps francês com halter",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/02_triceps_frances_com_halter.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_043",
+      "slug": "triceps_corda_no_cabo",
+      "name": "Tríceps corda no cabo",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/03_triceps_corda_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_044",
+      "slug": "triceps_barra_no_cabo",
+      "name": "Tríceps barra no cabo",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/04_triceps_barra_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_045",
+      "slug": "mergulho_no_banco",
+      "name": "Mergulho no banco",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/05_mergulho_no_banco.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_046",
+      "slug": "mergulho_em_paralelas",
+      "name": "Mergulho em paralelas",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/06_mergulho_em_paralelas.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_047",
+      "slug": "supino_fechado_com_barra",
+      "name": "Supino fechado com barra",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/07_supino_fechado_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_048",
+      "slug": "triceps_coice_com_halter",
+      "name": "Tríceps coice com halter",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/08_triceps_coice_com_halter.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_049",
+      "slug": "extensao_unilateral_no_cabo",
+      "name": "Extensão unilateral no cabo",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/09_extensao_unilateral_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_050",
+      "slug": "flexao_diamante",
+      "name": "Flexão diamante",
+      "groupId": "triceps",
+      "groupName": "Tríceps",
+      "primaryMuscles": [
+        "Tríceps"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/triceps/10_flexao_diamante.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_051",
+      "slug": "agachamento_livre_com_barra",
+      "name": "Agachamento livre com barra",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/01_agachamento_livre_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_052",
+      "slug": "agachamento_goblet",
+      "name": "Agachamento goblet",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/02_agachamento_goblet.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_053",
+      "slug": "leg_press_45_graus",
+      "name": "Leg press 45 graus",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/03_leg_press_45_graus.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_054",
+      "slug": "cadeira_extensora",
+      "name": "Cadeira extensora",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/04_cadeira_extensora.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_055",
+      "slug": "agachamento_bulgaro",
+      "name": "Agachamento búlgaro",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/05_agachamento_bulgaro.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_056",
+      "slug": "avanco_com_halteres",
+      "name": "Avanço com halteres",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/06_avanco_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_057",
+      "slug": "passada_caminhando",
+      "name": "Passada caminhando",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/07_passada_caminhando.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_058",
+      "slug": "hack_squat",
+      "name": "Hack squat",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/08_hack_squat.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_059",
+      "slug": "agachamento_frontal_com_barra",
+      "name": "Agachamento frontal com barra",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/09_agachamento_frontal_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_060",
+      "slug": "step_up_com_halteres",
+      "name": "Step-up com halteres",
+      "groupId": "quadriceps",
+      "groupName": "Quadríceps",
+      "primaryMuscles": [
+        "Quadríceps"
+      ],
+      "secondaryMuscles": [
+        "Glúteos"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/quadriceps/10_step_up_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_061",
+      "slug": "levantamento_terra_romeno",
+      "name": "Levantamento terra romeno",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/01_levantamento_terra_romeno.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_062",
+      "slug": "stiff_com_halteres",
+      "name": "Stiff com halteres",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/02_stiff_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_063",
+      "slug": "mesa_flexora",
+      "name": "Mesa flexora",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/03_mesa_flexora.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_064",
+      "slug": "cadeira_flexora",
+      "name": "Cadeira flexora",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/04_cadeira_flexora.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_065",
+      "slug": "hip_thrust_com_barra",
+      "name": "Hip thrust com barra",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/05_hip_thrust_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_066",
+      "slug": "ponte_de_gluteos",
+      "name": "Ponte de glúteos",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/06_ponte_de_gluteos.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_067",
+      "slug": "coice_no_cabo",
+      "name": "Coice no cabo",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/07_coice_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_068",
+      "slug": "abducao_na_maquina",
+      "name": "Abdução na máquina",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/08_abducao_na_maquina.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_069",
+      "slug": "bom_dia_com_barra",
+      "name": "Bom dia com barra",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/09_bom_dia_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_070",
+      "slug": "pull_through_no_cabo",
+      "name": "Pull-through no cabo",
+      "groupId": "posterior_gluteos",
+      "groupName": "Posterior e glúteos",
+      "primaryMuscles": [
+        "Posterior e glúteos"
+      ],
+      "secondaryMuscles": [
+        "Lombar"
+      ],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/posterior_gluteos/10_pull_through_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_071",
+      "slug": "elevacao_de_panturrilha_em_pe",
+      "name": "Elevação de panturrilha em pé",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/01_elevacao_de_panturrilha_em_pe.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_072",
+      "slug": "panturrilha_sentado",
+      "name": "Panturrilha sentado",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/02_panturrilha_sentado.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_073",
+      "slug": "panturrilha_no_leg_press",
+      "name": "Panturrilha no leg press",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/03_panturrilha_no_leg_press.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_074",
+      "slug": "panturrilha_unilateral_em_pe",
+      "name": "Panturrilha unilateral em pé",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/04_panturrilha_unilateral_em_pe.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_075",
+      "slug": "panturrilha_no_smith",
+      "name": "Panturrilha no Smith",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/05_panturrilha_no_smith.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_076",
+      "slug": "elevacao_de_tibial",
+      "name": "Elevação de tibial",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/06_elevacao_de_tibial.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_077",
+      "slug": "panturrilha_no_hack_machine",
+      "name": "Panturrilha no hack machine",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Máquina"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/07_panturrilha_no_hack_machine.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_078",
+      "slug": "panturrilha_com_halteres",
+      "name": "Panturrilha com halteres",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/08_panturrilha_com_halteres.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_079",
+      "slug": "panturrilha_em_degrau",
+      "name": "Panturrilha em degrau",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/09_panturrilha_em_degrau.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_080",
+      "slug": "saltos_na_ponta_dos_pes",
+      "name": "Saltos na ponta dos pés",
+      "groupId": "panturrilhas",
+      "groupName": "Panturrilhas",
+      "primaryMuscles": [
+        "Panturrilhas"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Força",
+      "asset": "assets/exercises/panturrilhas/10_saltos_na_ponta_dos_pes.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_081",
+      "slug": "abdominal_tradicional",
+      "name": "Abdominal tradicional",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Core",
+      "asset": "assets/exercises/core/01_abdominal_tradicional.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_082",
+      "slug": "abdominal_bicicleta",
+      "name": "Abdominal bicicleta",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Core",
+      "asset": "assets/exercises/core/02_abdominal_bicicleta.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_083",
+      "slug": "elevacao_de_pernas",
+      "name": "Elevação de pernas",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Core",
+      "asset": "assets/exercises/core/03_elevacao_de_pernas.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_084",
+      "slug": "prancha_frontal",
+      "name": "Prancha frontal",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Core",
+      "asset": "assets/exercises/core/04_prancha_frontal.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Mantenha a posição sem perder o alinhamento.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_085",
+      "slug": "prancha_lateral",
+      "name": "Prancha lateral",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Core",
+      "asset": "assets/exercises/core/05_prancha_lateral.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Mantenha a posição sem perder o alinhamento.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_086",
+      "slug": "dead_bug",
+      "name": "Dead bug",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Core",
+      "asset": "assets/exercises/core/06_dead_bug.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_087",
+      "slug": "russian_twist_com_halter",
+      "name": "Russian twist com halter",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Core",
+      "asset": "assets/exercises/core/07_russian_twist_com_halter.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_088",
+      "slug": "abdominal_no_cabo",
+      "name": "Abdominal no cabo",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Polia/cabo"
+      ],
+      "level": "Intermediário",
+      "movement": "Core",
+      "asset": "assets/exercises/core/08_abdominal_no_cabo.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_089",
+      "slug": "roda_abdominal",
+      "name": "Roda abdominal",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Core",
+      "asset": "assets/exercises/core/09_roda_abdominal.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_090",
+      "slug": "mountain_climber",
+      "name": "Mountain climber",
+      "groupId": "core",
+      "groupName": "Abdômen e core",
+      "primaryMuscles": [
+        "Abdômen e core"
+      ],
+      "secondaryMuscles": [
+        "Flexores do quadril"
+      ],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Core",
+      "asset": "assets/exercises/core/10_mountain_climber.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_091",
+      "slug": "rosca_de_punho_com_barra",
+      "name": "Rosca de punho com barra",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Iniciante",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/01_rosca_de_punho_com_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_092",
+      "slug": "rosca_de_punho_inversa",
+      "name": "Rosca de punho inversa",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/02_rosca_de_punho_inversa.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_093",
+      "slug": "caminhada_do_fazendeiro",
+      "name": "Caminhada do fazendeiro",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Iniciante",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/03_caminhada_do_fazendeiro.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_094",
+      "slug": "pronacao_com_halter",
+      "name": "Pronação com halter",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Iniciante",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/04_pronacao_com_halter.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_095",
+      "slug": "supinacao_com_halter",
+      "name": "Supinação com halter",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Halteres"
+      ],
+      "level": "Intermediário",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/05_supinacao_com_halter.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_096",
+      "slug": "aperto_de_hand_gripper",
+      "name": "Aperto de hand gripper",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/06_aperto_de_hand_gripper.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_097",
+      "slug": "sustentacao_na_barra",
+      "name": "Sustentação na barra",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Barra e anilhas"
+      ],
+      "level": "Intermediário",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/07_sustentacao_na_barra.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Mantenha a posição sem perder o alinhamento.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_098",
+      "slug": "kettlebell_swing",
+      "name": "Kettlebell swing",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Intermediário",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/08_kettlebell_swing.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_099",
+      "slug": "burpee",
+      "name": "Burpee",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/09_burpee.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    },
+    {
+      "id": "ex_100",
+      "slug": "puxada_de_treno",
+      "name": "Puxada de trenó",
+      "groupId": "antebracos_funcional",
+      "groupName": "Antebraços e funcional",
+      "primaryMuscles": [
+        "Antebraços e funcional"
+      ],
+      "secondaryMuscles": [],
+      "equipment": [
+        "Peso corporal"
+      ],
+      "level": "Avançado",
+      "movement": "Funcional",
+      "asset": "assets/exercises/antebracos_funcional/10_puxada_de_treno.webp",
+      "execution": [
+        "Prepare o equipamento e estabilize o tronco.",
+        "Inicie o movimento com amplitude confortável e técnica controlada.",
+        "Execute de forma controlada, sem usar impulso.",
+        "Retorne devagar à posição inicial, mantendo a respiração regular."
+      ],
+      "cues": [
+        "Coluna neutra.",
+        "Movimento controlado.",
+        "Pare se houver dor aguda."
+      ],
+      "safety": "Use carga compatível com seu nível; peça orientação profissional se não dominar a técnica."
+    }
+  ]
+}

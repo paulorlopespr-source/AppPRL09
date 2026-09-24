@@ -80,6 +80,7 @@ import com.example.utils.TTSVoiceManager
 import com.example.domain.gamification.Phase7JourneyEngine
 import com.example.domain.gamification.WorkoutJourneyImpact
 import com.example.data.model.JourneyUnlock
+import org.json.JSONObject
 
 data class ProgressiveOverloadSuggestion(
     val exerciseName: String,
@@ -180,6 +181,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             val exercises = DefaultFitnessData.getDefaultExercises()
             db.fitnessDao().insertExercises(exercises)
+            importExerciseLibraryFromAssets(db.fitnessDao())
             val templates = DefaultFitnessData.getDefaultWorkoutTemplates(exercises)
             templates.forEach { db.fitnessDao().insertWorkoutTemplate(it) }
 
@@ -1295,6 +1297,36 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 _activeWorkout.value = _activeWorkout.value.copy(scheduledSessionId = savedId)
             }
         }
+    }
+
+    private suspend fun importExerciseLibraryFromAssets(dao: com.example.data.local.FitnessDao) {
+        try {
+            val existing = dao.getAllExercises().firstOrNull()?.map { it.name.lowercase() }?.toSet() ?: emptySet()
+            val root = JSONObject(getApplication<Application>().assets.open("exercise_library/exercises.pt-BR.json").bufferedReader().use { it.readText() })
+            val items = root.optJSONArray("exercises") ?: return
+            val additions = buildList {
+                for (i in 0 until items.length()) {
+                    val item = items.getJSONObject(i)
+                    val name = item.optString("name").trim()
+                    if (name.isBlank() || name.lowercase() in existing) continue
+                    val group = when (item.optString("groupId")) {
+                        "costas" -> MuscleGroup.COSTAS; "ombros" -> MuscleGroup.OMBROS; "biceps" -> MuscleGroup.BICEPS
+                        "triceps" -> MuscleGroup.TRICEPS; "quadriceps" -> MuscleGroup.QUADRICEPS; "posterior_gluteos" -> MuscleGroup.POSTERIOR_GLUTEOS
+                        "panturrilhas" -> MuscleGroup.PANTURRILHA; "core" -> MuscleGroup.ABDOMEN; "antebracos_funcional" -> MuscleGroup.BICEPS
+                        else -> MuscleGroup.PEITO
+                    }
+                    val equipment = when (item.optJSONArray("equipment")?.optString(0)?.lowercase()) {
+                        "halteres" -> com.example.data.model.Equipment.HALTERES
+                        "máquina", "maquina" -> com.example.data.model.Equipment.MAQUINA
+                        "polia", "cabo" -> com.example.data.model.Equipment.POLIA
+                        "peso corporal" -> com.example.data.model.Equipment.PESO_CORPO
+                        else -> com.example.data.model.Equipment.BARRA
+                    }
+                    add(com.example.data.model.Exercise(name = name, muscleGroup = group, equipment = equipment, instructions = item.optString("instructions"), executionTips = item.optString("tips")))
+                }
+            }
+            if (additions.isNotEmpty()) dao.insertExercises(additions)
+        } catch (_: Exception) { }
     }
 
     fun finishActiveWorkout(onSaved: (WorkoutSession) -> Unit = {}) {
