@@ -146,6 +146,7 @@ private enum class PainelTab(val label: String) { OVERVIEW("Visão Geral"), WORK
 @Composable
 fun PainelScreen(
     onStartTodayWorkout: () -> Unit = {},
+    onOpenExerciseLibrary: () -> Unit = {},
     phase45Vm: Phase45ViewModel = viewModel(),
     fitnessVm: FitnessViewModel = viewModel(),
     modifier: Modifier = Modifier
@@ -340,7 +341,7 @@ fun PainelScreen(
                 onOpenCoach = { Toast.makeText(context, "Acesse a aba Coach no menu principal", Toast.LENGTH_SHORT).show() },
                 onOpenNutrition = { showNutritionDialog = true },
                 onOpenWorkoutGenerator = { showWorkoutGeneratorDialog = true },
-                onOpenExerciseLibrary = onStartTodayWorkout,
+                onOpenExerciseLibrary = onOpenExerciseLibrary,
                 onOpenReminders = { showWorkoutReminderDialog = true },
                 onOpenDataExport = { showDataExportDialog = true },
                 onOpenAbout = { showAboutDialog = true }

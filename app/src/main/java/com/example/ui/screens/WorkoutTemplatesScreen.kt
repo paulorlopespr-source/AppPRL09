@@ -67,6 +67,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -124,7 +125,9 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 fun WorkoutTemplatesScreen(
     viewModel: FitnessViewModel,
     onStartWorkout: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    openExerciseLibrary: Boolean = false,
+    onExerciseLibraryOpened: () -> Unit = {}
 ) {
     val templates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
@@ -136,11 +139,19 @@ fun WorkoutTemplatesScreen(
     var filterOnlyFavorites by remember { mutableStateOf(false) }
     var filterOnlyCustom by remember { mutableStateOf(false) }
     var showCreateCustomDialog by remember { mutableStateOf(false) }
+    var showExerciseLibrary by remember { mutableStateOf(false) }
     var showQuickWorkoutSheet by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var templateToStart by remember { mutableStateOf<WorkoutTemplate?>(null) }
     var selectedLocation by remember {
         mutableStateOf(userProfile?.defaultGymLocation ?: "Smart Fit Paulista")
+    }
+
+    LaunchedEffect(openExerciseLibrary) {
+        if (openExerciseLibrary) {
+            showExerciseLibrary = true
+            onExerciseLibraryOpened()
+        }
     }
 
     val filteredTemplates = templates.filter { template ->
@@ -570,6 +581,87 @@ fun WorkoutTemplatesScreen(
             }
         )
     }
+
+    if (showExerciseLibrary) {
+        ExerciseLibraryDialog(
+            allExercises = allExercises,
+            onDismiss = { showExerciseLibrary = false }
+        )
+    }
+}
+
+@Composable
+private fun ExerciseLibraryDialog(
+    allExercises: List<Exercise>,
+    onDismiss: () -> Unit
+) {
+    var selectedGroup by remember { mutableStateOf<MuscleGroup?>(null) }
+    val filteredExercises = allExercises.filter { selectedGroup == null || it.muscleGroup == selectedGroup }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Biblioteca de Exercícios", color = TextPrimary, fontWeight = FontWeight.Black)
+        },
+        text = {
+            Column(Modifier.fillMaxWidth().height(520.dp)) {
+                Text("${filteredExercises.size} exercícios disponíveis", color = TextSecondary, fontSize = 12.sp)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedGroup == null,
+                        onClick = { selectedGroup = null },
+                        label = { Text("Todos") },
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = PurplePrimary)
+                    )
+                    MuscleGroup.values().forEach { muscle ->
+                        FilterChip(
+                            selected = selectedGroup == muscle,
+                            onClick = { selectedGroup = muscle },
+                            label = { Text(muscle.displayName) },
+                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = PurplePrimary)
+                        )
+                    }
+                }
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filteredExercises, key = { it.id }) { exercise ->
+                        Surface(
+                            color = PurpleDarkSurface,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, GlassBorderSubtle)
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                exerciseLibraryImage(exercise.name)?.let { resId ->
+                                    Image(
+                                        painter = painterResource(resId),
+                                        contentDescription = exercise.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(62.dp).clip(RoundedCornerShape(8.dp))
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                }
+                                Column {
+                                    Text(exercise.name, color = TextPrimary, fontWeight = FontWeight.Bold)
+                                    Text(exercise.muscleGroup.displayName, color = LilacAccent, fontSize = 12.sp)
+                                    Text(exercise.equipment.displayName, color = TextSecondary, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fechar", color = LilacAccent) }
+        },
+        containerColor = PurpleDarkSurface,
+        shape = RoundedCornerShape(24.dp)
+    )
 }
 
 @Composable
@@ -1044,6 +1136,10 @@ fun CreateCustomWorkoutDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                exerciseLibraryImage(ex.name)?.let { resId ->
+                                    Image(painter = painterResource(resId), contentDescription = ex.name, contentScale = ContentScale.Crop, modifier = Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)))
+                                    Spacer(Modifier.width(10.dp))
+                                }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = ex.name,
@@ -1071,6 +1167,10 @@ fun CreateCustomWorkoutDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                exerciseLibraryImage(ex.name)?.let { resId ->
+                                    Image(painter = painterResource(resId), contentDescription = ex.name, contentScale = ContentScale.Crop, modifier = Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)))
+                                    Spacer(Modifier.width(10.dp))
+                                }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(ex.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                                     Text("${ex.muscleGroup.displayName} · ${ex.equipment.displayName}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
@@ -1135,4 +1235,14 @@ fun CreateCustomWorkoutDialog(
         containerColor = PurpleDarkSurface,
         shape = RoundedCornerShape(24.dp)
     )
+}
+
+@Composable
+private fun exerciseLibraryImage(name: String): Int? {
+    val slug = java.text.Normalizer.normalize(name.lowercase(), java.text.Normalizer.Form.NFD)
+        .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+        .replace("[^a-z0-9]+".toRegex(), "_")
+        .trim('_')
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return context.resources.getIdentifier("exercise_$slug", "drawable", context.packageName).takeIf { it != 0 }
 }

@@ -83,6 +83,7 @@ fun HomeScreen(
     onNavigateToEvolution: () -> Unit,
     onNavigateToCoach: () -> Unit = {},
     onNavigateToDashboard: () -> Unit = {},
+    onOpenExerciseLibrary: () -> Unit = {},
     phase45Vm: Phase45ViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -258,7 +259,7 @@ fun HomeScreen(
                 onOpenCoach = onNavigateToCoach,
                 onOpenNutrition = { showNutritionDialog = true },
                 onOpenWorkoutGenerator = { showWorkoutGeneratorDialog = true },
-                onOpenExerciseLibrary = onNavigateToWorkouts,
+                onOpenExerciseLibrary = onOpenExerciseLibrary,
                 onOpenReminders = { showWorkoutReminderDialog = true },
                 onOpenDataExport = { showDataExportDialog = true },
                 onOpenAbout = { showAboutDialog = true }

@@ -134,6 +134,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppScreen(viewModel: FitnessViewModel) {
     var currentDestination by remember { mutableStateOf(AppDestination.HOME) }
+    var openExerciseLibrary by remember { mutableStateOf(false) }
     val activeWorkoutState by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val activeCardioState by viewModel.activeCardio.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
@@ -164,14 +165,18 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                         onNavigateToAgenda = { currentDestination = AppDestination.AGENDA },
                         onNavigateToEvolution = { currentDestination = AppDestination.EVOLUTION },
                         onNavigateToCoach = { currentDestination = AppDestination.COACH },
-                        onNavigateToDashboard = { currentDestination = AppDestination.DASHBOARD }
+                        onNavigateToDashboard = { currentDestination = AppDestination.DASHBOARD },
+                        onOpenExerciseLibrary = { openExerciseLibrary = true; currentDestination = AppDestination.WORKOUTS }
                     )
                     AppDestination.WORKOUTS -> WorkoutTemplatesScreen(
                         viewModel = viewModel,
-                        onStartWorkout = { currentDestination = AppDestination.ACTIVE_WORKOUT }
+                        onStartWorkout = { currentDestination = AppDestination.ACTIVE_WORKOUT },
+                        openExerciseLibrary = openExerciseLibrary,
+                        onExerciseLibraryOpened = { openExerciseLibrary = false }
                     )
                     AppDestination.DASHBOARD -> PainelScreen(
                         onStartTodayWorkout = { currentDestination = AppDestination.WORKOUTS },
+                        onOpenExerciseLibrary = { openExerciseLibrary = true; currentDestination = AppDestination.WORKOUTS },
                         fitnessVm = viewModel
                     )
                     AppDestination.JOURNEY -> JornadaScreen(
@@ -188,7 +193,7 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                             viewModel.startWorkoutFromTemplate(template, location, scheduledId, dateEpoch, appointmentId)
                             currentDestination = AppDestination.ACTIVE_WORKOUT
                         },
-                        onOpenExerciseLibrary = { currentDestination = AppDestination.WORKOUTS }
+                        onOpenExerciseLibrary = { openExerciseLibrary = true; currentDestination = AppDestination.WORKOUTS }
                     )
                     AppDestination.EVOLUTION -> EvolutionScreen(viewModel = viewModel)
                     AppDestination.ACTIVE_WORKOUT -> ActiveWorkoutScreen(
