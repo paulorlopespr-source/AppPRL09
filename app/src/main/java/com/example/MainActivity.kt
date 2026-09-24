@@ -184,8 +184,8 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     AppDestination.CARDIO -> CardioScreen(viewModel = viewModel)
                     AppDestination.AGENDA -> AgendaScreen(
                         viewModel = viewModel,
-                        onStartScheduledWorkout = { template, location, scheduledId, dateEpoch ->
-                            viewModel.startWorkoutFromTemplate(template, location, scheduledId, dateEpoch)
+                        onStartScheduledWorkout = { template, location, scheduledId, dateEpoch, appointmentId ->
+                            viewModel.startWorkoutFromTemplate(template, location, scheduledId, dateEpoch, appointmentId)
                             currentDestination = AppDestination.ACTIVE_WORKOUT
                         }
                     )

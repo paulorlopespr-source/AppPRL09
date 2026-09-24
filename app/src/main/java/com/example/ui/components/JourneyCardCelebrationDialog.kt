@@ -117,7 +117,8 @@ fun JourneyCardCelebrationDialog(
 @Composable
 fun JourneyCardDetailsDialog(
     card: PintinhoJourneyCard,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    unlockInfo: String? = null
 ) {
     val context = LocalContext.current
     val artworkResId = context.resources.getIdentifier(card.assetKey, "drawable", context.packageName)
@@ -148,6 +149,7 @@ fun JourneyCardDetailsDialog(
                 Text(card.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Text(card.description, color = Color(0xFFB8A9D8), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
                 Text("Objetivo: ${card.target} • Recompensa: ${card.xpReward} XP${card.chest?.let { " • ${it.label}" } ?: ""}", color = Color(0xFFC4B5FD), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 10.dp))
+                unlockInfo?.let { Text(it, color = Color(0xFF34D399), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp)) }
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C3AED))) { Text("Fechar", color = Color.White) }
             }

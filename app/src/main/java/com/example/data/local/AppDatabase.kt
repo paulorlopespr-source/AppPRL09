@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
         com.example.data.model.UserMedal::class,
         com.example.data.model.JourneyUnlock::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -215,6 +215,11 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_journey_unlocks_cardLevel` ON `journey_unlocks` (`cardLevel`)")
             }
         }
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `agendaAppointmentId` TEXT")
+            }
+        }
 
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -232,7 +237,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_6_7,
                         MIGRATION_7_8,
                         MIGRATION_8_9,
-                        MIGRATION_9_10
+                        MIGRATION_9_10,
+                        MIGRATION_10_11
                     )
                     .addCallback(DatabaseCallback(scope))
                     .build()

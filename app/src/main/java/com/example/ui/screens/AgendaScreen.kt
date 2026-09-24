@@ -76,7 +76,7 @@ import java.util.Locale
 @Composable
 fun AgendaScreen(
     viewModel: FitnessViewModel,
-    onStartScheduledWorkout: (WorkoutTemplate, String, Long?, Long?) -> Unit,
+    onStartScheduledWorkout: (WorkoutTemplate, String, Long?, Long?, String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -593,7 +593,8 @@ fun AgendaScreen(
                         matchingTemplate,
                         matchingSession?.location ?: "Smart Fit Paulista",
                         matchingSession?.id,
-                        selectedEpochDay
+                        selectedEpochDay,
+                        appointment.customAppointmentId
                     )
                 }
             } else null,
@@ -651,7 +652,7 @@ fun AgendaScreen(
                 showGeneratorDialog = false
                 val template = templates.find { it.title == plan.title } ?: templates.firstOrNull()
                 if (template != null) {
-                    onStartScheduledWorkout(template, "Smart Fit Paulista", null, selectedEpochDay)
+                    onStartScheduledWorkout(template, "Smart Fit Paulista", null, selectedEpochDay, null)
                 }
             },
             onDismiss = { showGeneratorDialog = false }

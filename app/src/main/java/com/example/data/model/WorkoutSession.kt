@@ -22,6 +22,7 @@ enum class SessionStatus(val label: String) {
 data class WorkoutSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val templateId: Long? = null,
+    val agendaAppointmentId: String? = null,
     val title: String,
     val dateEpochDay: Long, // LocalDate.toEpochDay()
     val startTimeMillis: Long = System.currentTimeMillis(),

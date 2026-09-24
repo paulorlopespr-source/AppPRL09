@@ -747,7 +747,12 @@ fun JornadaScreen(
         }
 
         selectedJourneyCard?.let { card ->
-            JourneyCardDetailsDialog(card = card, onDismiss = { selectedJourneyCard = null })
+            val unlock = journeyUnlocks.firstOrNull { it.cardLevel == card.level }
+            JourneyCardDetailsDialog(
+                card = card,
+                unlockInfo = unlock?.let { "Conquistado em ${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.unlockedAtMillis))} • Sessão #${it.sessionId}" },
+                onDismiss = { selectedJourneyCard = null }
+            )
         }
 
         if (showRewardDialog) {

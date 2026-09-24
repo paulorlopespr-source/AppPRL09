@@ -96,6 +96,7 @@ data class ActiveWorkoutState(
     val isActive: Boolean = false,
     val templateId: Long? = null,
     val scheduledSessionId: Long? = null,
+    val agendaAppointmentId: String? = null,
     val scheduledDateEpochDay: Long? = null,
     val title: String = "",
     val location: String = "Academia Smart Fit",
@@ -675,7 +676,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         template: WorkoutTemplate,
         location: String = "Academia Smart Fit",
         scheduledSessionId: Long? = null,
-        scheduledDateEpochDay: Long? = null
+        scheduledDateEpochDay: Long? = null,
+        agendaAppointmentId: String? = null
     ) {
         val parsedPlans = try {
             plansAdapter.fromJson(template.exercisesJson) ?: emptyList()
@@ -696,6 +698,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             isActive = true,
             templateId = template.id,
             scheduledSessionId = scheduledSessionId,
+            agendaAppointmentId = agendaAppointmentId,
             scheduledDateEpochDay = scheduledDateEpochDay,
             title = template.title,
             location = location,
@@ -1271,6 +1274,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         val draft = WorkoutSession(
             id = current.scheduledSessionId ?: 0L,
             templateId = current.templateId,
+            agendaAppointmentId = current.agendaAppointmentId,
             title = current.title.ifBlank { "Treino de Musculação" },
             dateEpochDay = current.scheduledDateEpochDay ?: DateUtils.todayEpochDay(),
             startTimeMillis = System.currentTimeMillis() - (current.durationSeconds * 1000L),
@@ -1323,6 +1327,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         val session = WorkoutSession(
             id = current.scheduledSessionId ?: 0L,
             templateId = current.templateId,
+            agendaAppointmentId = current.agendaAppointmentId,
             title = current.title.ifBlank { "Treino de Musculação" },
             dateEpochDay = current.scheduledDateEpochDay ?: DateUtils.todayEpochDay(),
             startTimeMillis = System.currentTimeMillis() - (current.durationSeconds * 1000L),
