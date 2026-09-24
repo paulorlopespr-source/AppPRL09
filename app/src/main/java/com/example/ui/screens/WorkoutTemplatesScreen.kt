@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -596,7 +597,10 @@ private fun ExerciseLibraryDialog(
     onDismiss: () -> Unit
 ) {
     var selectedGroup by remember { mutableStateOf<MuscleGroup?>(null) }
-    val filteredExercises = allExercises.filter { selectedGroup == null || it.muscleGroup == selectedGroup }
+    val context = LocalContext.current
+    val filteredExercises = allExercises.filter {
+        (selectedGroup == null || it.muscleGroup == selectedGroup) && exerciseAssetId(it.name, context) != null
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1025,12 +1029,15 @@ fun CreateCustomWorkoutDialog(
     ) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
     val selectedExerciseIds = remember { mutableStateOf(mutableSetOf<Long>()) }
     var selectedMuscleGroupFilter by remember { mutableStateOf<MuscleGroup?>(null) }
+    val context = LocalContext.current
     val selectedExercises = allExercises.filter { selectedExerciseIds.value.contains(it.id) }
     val availableExercises = allExercises.filter { exercise ->
         !selectedExerciseIds.value.contains(exercise.id) &&
-            (selectedMuscleGroupFilter == null || exercise.muscleGroup == selectedMuscleGroupFilter)
+            (selectedMuscleGroupFilter == null || exercise.muscleGroup == selectedMuscleGroupFilter) &&
+            exercise.name.contains(searchQuery, ignoreCase = true) && exerciseAssetId(exercise.name, context) != null
     }
 
     AlertDialog(
@@ -1109,10 +1116,28 @@ fun CreateCustomWorkoutDialog(
                 }
 
                 Text(
-                    text = "2. Adicione exercícios",
+                    text = "2. Busque e adicione exercícios",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = LilacAccent
+                )
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Buscar exercício") },
+                    placeholder = { Text("Ex.: supino, remada, agachamento") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = LilacAccent, unfocusedBorderColor = GlassBorder,
+                        focusedLabelColor = LilacAccent, unfocusedLabelColor = TextSecondary
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("input_exercise_search")
+                )
+                Text(
+                    text = if (searchQuery.isBlank()) "Digite para encontrar um exercício com imagem" else "${availableExercises.size} resultado(s)",
+                    style = MaterialTheme.typography.labelSmall, color = TextSecondary
                 )
 
                 if (selectedExercises.isNotEmpty()) {
@@ -1160,7 +1185,7 @@ fun CreateCustomWorkoutDialog(
                             }
                         }
                     }
-                    availableExercises.forEach { ex ->
+                    availableExercises.take(20).forEach { ex ->
                         Surface(
                             shape = RoundedCornerShape(10.dp), color = PurpleDarkSurface,
                             border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle),
@@ -1239,10 +1264,13 @@ fun CreateCustomWorkoutDialog(
 
 @Composable
 private fun exerciseLibraryImage(name: String): Int? {
+    return exerciseAssetId(name, LocalContext.current)
+}
+
+private fun exerciseAssetId(name: String, context: android.content.Context): Int? {
     val slug = java.text.Normalizer.normalize(name.lowercase(), java.text.Normalizer.Form.NFD)
         .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
         .replace("[^a-z0-9]+".toRegex(), "_")
         .trim('_')
-    val context = androidx.compose.ui.platform.LocalContext.current
     return context.resources.getIdentifier("exercise_$slug", "drawable", context.packageName).takeIf { it != 0 }
 }
