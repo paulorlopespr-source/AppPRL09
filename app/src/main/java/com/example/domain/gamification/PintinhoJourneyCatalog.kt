@@ -60,6 +60,18 @@ object PintinhoJourneyCatalog {
         "jornada_gorila_card_77_peito_mais_forte", "jornada_gorila_card_78_pernas_mais_fortes",
         "jornada_gorila_card_79_biceps_mais_fortes", "jornada_gorila_card_80_evolucao_especial"
     )
+    private val leaoAssetKeys = listOf(
+        "jornada_leao_card_81_o_leao_despertou", "jornada_leao_card_82_forca_sob_comando",
+        "jornada_leao_card_83_precisao_de_cacador", "jornada_leao_card_84_instinto_e_tecnica",
+        "jornada_leao_card_85_marcando_territorio", "jornada_leao_card_86_ritmo_do_predador",
+        "jornada_leao_card_87_sempre_evoluindo", "jornada_leao_card_88_controle_absoluto",
+        "jornada_leao_card_89", "jornada_leao_card_90_especial_diamante",
+        "jornada_leao_card_91", "jornada_leao_card_92", "jornada_leao_card_93",
+        "jornada_leao_card_94", "jornada_leao_card_95", "jornada_leao_card_96",
+        "jornada_leao_card_97", "jornada_leao_card_98_rei_por_merecimento",
+        "jornada_leao_card_99", "jornada_leao_card_100_especial_diamante"
+    )
+    private val dragaoAssetKeys = (101..120).map { "journey_dragao_card_$it" }
 
     val cards: List<PintinhoJourneyCard> = listOf(
         card(1, "O Primeiro Sinal", "Conclua seu primeiro treino.", PintinhoObjectiveType.WORKOUTS_COMPLETED, 1, 100),
@@ -101,6 +113,10 @@ object PintinhoJourneyCatalog {
                 loboAssetKeys[(level - 41).coerceIn(0, loboAssetKeys.lastIndex)]
             } else if (rank == "Gorila") {
                 gorilaAssetKeys[(level - 61).coerceIn(0, gorilaAssetKeys.lastIndex)]
+            } else if (rank == "Leão") {
+                leaoAssetKeys[(level - 81).coerceIn(0, leaoAssetKeys.lastIndex)]
+            } else if (rank == "Dragão") {
+                dragaoAssetKeys[(level - 101).coerceIn(0, dragaoAssetKeys.lastIndex)]
             } else {
                 "journey_${rank.lowercase()}_card_${((level - 1) % 20 + 1).toString().padStart(2, '0')}"
             },
