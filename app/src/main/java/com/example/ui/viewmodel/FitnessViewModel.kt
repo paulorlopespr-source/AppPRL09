@@ -79,6 +79,7 @@ import com.example.ui.components.MuscleWeeklyVolume
 import com.example.utils.TTSVoiceManager
 import com.example.domain.gamification.Phase7JourneyEngine
 import com.example.domain.gamification.WorkoutJourneyImpact
+import com.example.data.model.JourneyUnlock
 
 data class ProgressiveOverloadSuggestion(
     val exerciseName: String,
@@ -582,6 +583,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     /** Último cálculo gerado automaticamente ao concluir um treino livre ou agendado. */
     private val _lastWorkoutJourneyImpact = MutableStateFlow<WorkoutJourneyImpact?>(null)
     val lastWorkoutJourneyImpact: StateFlow<WorkoutJourneyImpact?> = _lastWorkoutJourneyImpact.asStateFlow()
+    val journeyUnlocks: StateFlow<List<JourneyUnlock>> = repository.journeyUnlocks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var workoutTimerJob: Job? = null
     private var restTimerJob: Job? = null
@@ -1351,12 +1354,22 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             // Check consistency medals (10 workouts, 3-day streak, 10-ton volume)
             val allSessions = repository.allWorkoutSessions.firstOrNull() ?: emptyList()
             val previousSessions = allSessions.filter { it.id != savedSession.id }
-            _lastWorkoutJourneyImpact.value = Phase7JourneyEngine.evaluateWorkout(
+            val journeyImpact = Phase7JourneyEngine.evaluateWorkout(
                 session = savedSession,
                 sessionsBefore = previousSessions,
                 cardio = repository.allCardioSessions.firstOrNull() ?: emptyList(),
                 medals = repository.allMedals.firstOrNull() ?: emptyList()
             )
+            _lastWorkoutJourneyImpact.value = journeyImpact
+            journeyImpact.completedLevels.forEach { cardLevel ->
+                repository.saveJourneyUnlock(
+                    JourneyUnlock(
+                        cardLevel = cardLevel,
+                        journeyRank = com.example.domain.gamification.PintinhoJourneyCatalog.rankFor(cardLevel),
+                        sessionId = savedSession.id
+                    )
+                )
+            }
             if (allSessions.size >= 10) {
                 unlockMedalIfNotUnlocked("legend_10workouts")
             }

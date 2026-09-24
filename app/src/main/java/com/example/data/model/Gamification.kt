@@ -2,6 +2,7 @@ package com.example.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.Index
 import com.squareup.moshi.JsonClass
 
 enum class MedalRarity(val displayName: String, val badgeLabel: String, val defaultXp: Int) {
@@ -80,6 +81,15 @@ data class GamificationOverview(
     val prataCount: Int,
     val ouroCount: Int,
     val masterCount: Int
+)
+
+@Entity(tableName = "journey_unlocks", indices = [Index(value = ["cardLevel"], unique = true)])
+data class JourneyUnlock(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val cardLevel: Int,
+    val journeyRank: String,
+    val sessionId: Long,
+    val unlockedAtMillis: Long = System.currentTimeMillis()
 )
 
 @JsonClass(generateAdapter = true)

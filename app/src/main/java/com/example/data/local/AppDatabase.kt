@@ -30,9 +30,10 @@ import kotlinx.coroutines.launch
         ProgressPhoto::class,
         ExercisePerformanceTarget::class,
         com.example.data.model.MealLog::class,
-        com.example.data.model.UserMedal::class
+        com.example.data.model.UserMedal::class,
+        com.example.data.model.JourneyUnlock::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -200,6 +201,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `journey_unlocks` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `cardLevel` INTEGER NOT NULL,
+                        `journeyRank` TEXT NOT NULL,
+                        `sessionId` INTEGER NOT NULL,
+                        `unlockedAtMillis` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_journey_unlocks_cardLevel` ON `journey_unlocks` (`cardLevel`)")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -215,7 +231,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7,
                         MIGRATION_7_8,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10
                     )
                     .addCallback(DatabaseCallback(scope))
                     .build()

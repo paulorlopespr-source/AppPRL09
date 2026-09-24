@@ -166,4 +166,10 @@ interface FitnessDao {
 
     @Query("UPDATE user_medals SET progressCurrent = :current, isUnlocked = CASE WHEN :current >= progressMax THEN 1 ELSE isUnlocked END, unlockedDateEpochDay = CASE WHEN :current >= progressMax AND isUnlocked = 0 THEN :epochDay ELSE unlockedDateEpochDay END WHERE id = :medalId")
     suspend fun updateMedalProgress(medalId: String, current: Int, epochDay: Long)
+
+    @Query("SELECT * FROM journey_unlocks ORDER BY unlockedAtMillis DESC")
+    fun getJourneyUnlocks(): Flow<List<com.example.data.model.JourneyUnlock>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertJourneyUnlock(unlock: com.example.data.model.JourneyUnlock): Long
 }

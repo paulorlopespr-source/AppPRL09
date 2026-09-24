@@ -64,6 +64,9 @@ class FitnessRepository(
 
     suspend fun deleteWorkoutSessionById(id: Long) = dao.deleteWorkoutSessionById(id)
 
+    val journeyUnlocks: Flow<List<com.example.data.model.JourneyUnlock>> = dao.getJourneyUnlocks()
+    suspend fun saveJourneyUnlock(unlock: com.example.data.model.JourneyUnlock): Long = dao.insertJourneyUnlock(unlock)
+
     // --- Cardio Sessions ---
     val allCardioSessions: Flow<List<CardioSession>> = dao.getAllCardioSessions()
 
