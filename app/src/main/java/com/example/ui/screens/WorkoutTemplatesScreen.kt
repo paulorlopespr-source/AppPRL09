@@ -76,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -1034,6 +1035,14 @@ fun CreateCustomWorkoutDialog(
     val selectedExerciseIds = remember { mutableStateOf(mutableSetOf<Long>()) }
     var selectedMuscleGroupFilter by remember { mutableStateOf<MuscleGroup?>(null) }
     val context = LocalContext.current
+    LaunchedEffect(allExercises) {
+        if (selectedExerciseIds.value.isEmpty() && allExercises.isNotEmpty()) {
+            val suggested = allExercises.filter { exercise ->
+                listOf("supino", "crucifixo", "paralelas").any { key -> exercise.name.contains(key, ignoreCase = true) }
+            }.take(4)
+            if (suggested.isNotEmpty()) selectedExerciseIds.value = suggested.map { it.id }.toMutableSet()
+        }
+    }
     val selectedExercises = allExercises.filter { selectedExerciseIds.value.contains(it.id) }
     val availableExercises = allExercises.filter { exercise ->
         !selectedExerciseIds.value.contains(exercise.id) &&
@@ -1044,11 +1053,13 @@ fun CreateCustomWorkoutDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Criar treino",
-                fontWeight = FontWeight.Black,
-                color = TextPrimary
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.ChevronRight, "Voltar", tint = LilacAccent, modifier = Modifier.rotate(180f))
+                }
+                Text("Criar treino", modifier = Modifier.weight(1f), fontWeight = FontWeight.Black, color = TextPrimary, fontSize = 24.sp)
+                Icon(Icons.Default.StarBorder, "Salvar modelo", tint = LilacAccent)
+            }
         },
         text = {
             Column(
@@ -1153,6 +1164,11 @@ fun CreateCustomWorkoutDialog(
                     fontWeight = FontWeight.Bold,
                     color = LilacAccent
                 )
+
+                TextButton(
+                    onClick = { searchQuery = "" },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("+ Adicionar exercício", color = LilacAccent, fontWeight = FontWeight.Bold) }
 
                 OutlinedTextField(
                     value = searchQuery,
