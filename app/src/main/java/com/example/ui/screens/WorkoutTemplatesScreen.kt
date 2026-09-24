@@ -1030,6 +1030,7 @@ fun CreateCustomWorkoutDialog(
 ) {
     var title by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
+    var creationMode by remember { mutableStateOf("Rápido") }
     val selectedExerciseIds = remember { mutableStateOf(mutableSetOf<Long>()) }
     var selectedMuscleGroupFilter by remember { mutableStateOf<MuscleGroup?>(null) }
     val context = LocalContext.current
@@ -1056,6 +1057,37 @@ fun CreateCustomWorkoutDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(PurpleDarkest).padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf("Rápido", "Personalizado").forEach { mode ->
+                        Surface(
+                            modifier = Modifier.weight(1f).clickable { creationMode = mode },
+                            shape = RoundedCornerShape(11.dp),
+                            color = if (creationMode == mode) PurplePrimary else Color.Transparent
+                        ) {
+                            Text(mode, modifier = Modifier.padding(vertical = 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                color = if (creationMode == mode) Color.White else TextSecondary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Text("Qual é o foco de hoje?", fontSize = 18.sp, fontWeight = FontWeight.Black, color = TextPrimary)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(MuscleGroup.PEITO, MuscleGroup.COSTAS, MuscleGroup.QUADRICEPS, MuscleGroup.OMBROS, MuscleGroup.BICEPS, MuscleGroup.TRICEPS, MuscleGroup.ABDOMEN).forEach { group ->
+                        FilterChip(
+                            selected = selectedMuscleGroupFilter == group,
+                            onClick = { selectedMuscleGroupFilter = if (selectedMuscleGroupFilter == group) null else group },
+                            label = { Text(group.displayName) },
+                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = PurplePrimary)
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -1076,7 +1108,7 @@ fun CreateCustomWorkoutDialog(
                 )
 
                 Text(
-                    text = "1. Escolha o grupo muscular",
+                    text = "Nome do seu treino",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -1116,7 +1148,7 @@ fun CreateCustomWorkoutDialog(
                 }
 
                 Text(
-                    text = "2. Busque e adicione exercícios",
+                    text = "Exercícios do treino · ${selectedExercises.size}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = LilacAccent
