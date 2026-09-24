@@ -77,6 +77,7 @@ import java.util.Locale
 fun AgendaScreen(
     viewModel: FitnessViewModel,
     onStartScheduledWorkout: (WorkoutTemplate, String, Long?, Long?, String?) -> Unit,
+    onOpenExerciseLibrary: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -357,6 +358,7 @@ fun AgendaScreen(
                     coroutineScope.launch { drawerState.close() }
                     showGeneratorDialog = true
                 },
+                onOpenExerciseLibrary = onOpenExerciseLibrary,
                 onOpenReminders = {
                     coroutineScope.launch { drawerState.close() }
                     showReminderDialog = true

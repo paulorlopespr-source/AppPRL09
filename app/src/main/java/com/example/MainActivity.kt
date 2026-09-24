@@ -187,7 +187,8 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                         onStartScheduledWorkout = { template, location, scheduledId, dateEpoch, appointmentId ->
                             viewModel.startWorkoutFromTemplate(template, location, scheduledId, dateEpoch, appointmentId)
                             currentDestination = AppDestination.ACTIVE_WORKOUT
-                        }
+                        },
+                        onOpenExerciseLibrary = { currentDestination = AppDestination.WORKOUTS }
                     )
                     AppDestination.EVOLUTION -> EvolutionScreen(viewModel = viewModel)
                     AppDestination.ACTIVE_WORKOUT -> ActiveWorkoutScreen(

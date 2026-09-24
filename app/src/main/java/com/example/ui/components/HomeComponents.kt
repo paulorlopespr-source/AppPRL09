@@ -951,6 +951,7 @@ fun AppSideDrawer(
     onOpenCoach: () -> Unit,
     onOpenNutrition: () -> Unit,
     onOpenWorkoutGenerator: () -> Unit,
+    onOpenExerciseLibrary: () -> Unit = {},
     onOpenReminders: () -> Unit,
     onOpenDataExport: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -1106,6 +1107,17 @@ fun AppSideDrawer(
                     onClick = {
                         onCloseDrawer()
                         onOpenWorkoutGenerator()
+                    }
+                )
+
+                DrawerMenuItem(
+                    icon = Icons.Default.FitnessCenter,
+                    title = "Biblioteca de Exercícios",
+                    subtitle = "Escolha exercícios por grupo muscular",
+                    tint = Color(0xFF22D3EE),
+                    onClick = {
+                        onCloseDrawer()
+                        onOpenExerciseLibrary()
                     }
                 )
 

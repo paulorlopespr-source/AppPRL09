@@ -258,6 +258,7 @@ fun HomeScreen(
                 onOpenCoach = onNavigateToCoach,
                 onOpenNutrition = { showNutritionDialog = true },
                 onOpenWorkoutGenerator = { showWorkoutGeneratorDialog = true },
+                onOpenExerciseLibrary = onNavigateToWorkouts,
                 onOpenReminders = { showWorkoutReminderDialog = true },
                 onOpenDataExport = { showDataExportDialog = true },
                 onOpenAbout = { showAboutDialog = true }

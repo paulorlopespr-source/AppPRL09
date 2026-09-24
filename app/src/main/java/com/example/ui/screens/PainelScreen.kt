@@ -340,6 +340,7 @@ fun PainelScreen(
                 onOpenCoach = { Toast.makeText(context, "Acesse a aba Coach no menu principal", Toast.LENGTH_SHORT).show() },
                 onOpenNutrition = { showNutritionDialog = true },
                 onOpenWorkoutGenerator = { showWorkoutGeneratorDialog = true },
+                onOpenExerciseLibrary = onStartTodayWorkout,
                 onOpenReminders = { showWorkoutReminderDialog = true },
                 onOpenDataExport = { showDataExportDialog = true },
                 onOpenAbout = { showAboutDialog = true }
