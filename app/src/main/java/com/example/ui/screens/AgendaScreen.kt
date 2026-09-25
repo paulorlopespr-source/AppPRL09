@@ -264,50 +264,6 @@ fun AgendaScreen(
             )
         }
 
-        // Se não houver nenhum item nesta data e for hoje, exibe o padrão visual com 4 cards idênticos à imagem
-        if (list.isEmpty() && selectedDate == LocalDate.now()) {
-            list.addAll(
-                listOf(
-                    AgendaAppointment(
-                        id = "default_1",
-                        type = AppointmentType.STRENGTH,
-                        startTime = "06:00",
-                        endTime = "07:00",
-                        title = "Treino de Força",
-                        subtitle = "Peito e Tríceps",
-                        isCompleted = true
-                    ),
-                    AgendaAppointment(
-                        id = "default_2",
-                        type = AppointmentType.CARDIO,
-                        startTime = "12:00",
-                        endTime = "12:30",
-                        title = "Cardio",
-                        subtitle = "30 minutos",
-                        isCompleted = false
-                    ),
-                    AgendaAppointment(
-                        id = "default_3",
-                        type = AppointmentType.MEAL,
-                        startTime = "19:00",
-                        endTime = "19:30",
-                        title = "Refeição",
-                        subtitle = "Pós-treino",
-                        isCompleted = false
-                    ),
-                    AgendaAppointment(
-                        id = "default_4",
-                        type = AppointmentType.REST,
-                        startTime = "21:00",
-                        endTime = null,
-                        title = "Descanso",
-                        subtitle = "Hora de recuperar",
-                        isCompleted = false
-                    )
-                )
-            )
-        }
-
         list.sortedBy { it.startTime }
     }
 

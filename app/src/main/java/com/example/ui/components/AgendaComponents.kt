@@ -478,6 +478,20 @@ fun AppointmentsList(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (appointments.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF15111F)),
+                border = BorderStroke(1.dp, Color(0xFF2E204A))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Nenhum compromisso", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text("Adicione um treino ou compromisso para este dia.", color = Color(0xFFB9ACD4), fontSize = 13.sp)
+                }
+            }
+        }
         appointments.forEach { item ->
             AppointmentCard(
                 appointment = item,
