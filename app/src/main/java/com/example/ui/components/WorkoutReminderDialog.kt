@@ -1,6 +1,11 @@
 package com.example.ui.components
 
 import android.app.TimePickerDialog
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -91,6 +96,12 @@ fun WorkoutReminderDialog(
     var customMessage by remember { mutableStateOf(initialSettings.customMessage) }
     var testSentMessage by remember { mutableStateOf<String?>(null) }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) testSentMessage = "Permita notificações nas configurações do Android para receber lembretes."
+    }
+
     val formattedTime = String.format(java.util.Locale.getDefault(), "%02d:%02d", selectedHour, selectedMinute)
 
     ModalBottomSheet(
@@ -180,7 +191,14 @@ fun WorkoutReminderDialog(
                     }
                     Switch(
                         checked = isEnabled,
-                        onCheckedChange = { isEnabled = it },
+                        onCheckedChange = { enabled ->
+                            isEnabled = enabled
+                            if (enabled && Build.VERSION.SDK_INT >= 33 &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MaterialTheme.colorScheme.primary,
                             checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
