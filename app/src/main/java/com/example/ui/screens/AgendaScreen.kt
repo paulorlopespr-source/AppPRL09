@@ -105,6 +105,7 @@ fun AgendaScreen(
     // Estados de diálogos e modais
     var showMonthPickerDialog by remember { mutableStateOf(false) }
     var showAddAppointmentDialog by remember { mutableStateOf(false) }
+    var appointmentToReschedule by remember { mutableStateOf<AgendaAppointment?>(null) }
     var selectedAppointmentForDetail by remember { mutableStateOf<AgendaAppointment?>(null) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var showFullHistorySheet by remember { mutableStateOf(false) }
@@ -462,7 +463,9 @@ fun AgendaScreen(
                         title = title,
                         epochDay = selectedEpochDay,
                         location = subtitle.ifBlank { "Smart Fit Paulista" },
-                        templateId = matchingTemplate?.id
+                        templateId = matchingTemplate?.id,
+                        startTime = startTime,
+                        endTime = endTime
                     )
                 } else {
                     viewModel.addCustomAppointment(
@@ -548,6 +551,9 @@ fun AgendaScreen(
                 }
                 Toast.makeText(context, "Compromisso removido.", Toast.LENGTH_SHORT).show()
             },
+            onReschedule = {
+                appointmentToReschedule = appointment
+            },
             onStartWorkout = if (appointment.type == AppointmentType.STRENGTH && matchingTemplate != null) {
                 {
                     onStartScheduledWorkout(
@@ -565,6 +571,46 @@ fun AgendaScreen(
                     showAiEvaluationDialog = true
                 }
             } else null
+        )
+    }
+
+    appointmentToReschedule?.let { appointment ->
+        AddAppointmentDialog(
+            selectedDate = selectedDate,
+            initialType = appointment.type,
+            initialStartTime = appointment.startTime,
+            initialEndTime = appointment.endTime,
+            initialTitle = appointment.title,
+            initialSubtitle = appointment.subtitle,
+            confirmLabel = "Salvar reagendamento",
+            onDismiss = { appointmentToReschedule = null },
+            onConfirm = { type, startTime, endTime, title, subtitle ->
+                val newEpochDay = selectedEpochDay
+                when {
+                    appointment.workoutSessionId != null -> {
+                        workoutSessions.find { it.id == appointment.workoutSessionId }?.let { session ->
+                            val start = runCatching {
+                                java.time.LocalDate.ofEpochDay(newEpochDay).atTime(java.time.LocalTime.parse(startTime))
+                                    .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                            }.getOrDefault(session.startTimeMillis)
+                            val end = endTime?.let {
+                                runCatching {
+                                    java.time.LocalDate.ofEpochDay(newEpochDay).atTime(java.time.LocalTime.parse(it))
+                                        .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                }.getOrNull()
+                            } ?: (start + 60 * 60 * 1000L)
+                            viewModel.updateWorkoutSession(session.copy(dateEpochDay = newEpochDay, startTimeMillis = start, endTimeMillis = end, status = SessionStatus.SCHEDULED))
+                        }
+                    }
+                    appointment.customAppointmentId != null -> {
+                        customAppointments.find { it.id == appointment.customAppointmentId }?.let { custom ->
+                            viewModel.updateCustomAppointment(custom.copy(epochDay = newEpochDay, typeName = type.name, startTime = startTime, endTime = endTime, title = title, subtitle = subtitle, isCompleted = false, status = com.example.data.model.AgendaAppointmentStatus.PLANNED))
+                        }
+                    }
+                }
+                appointmentToReschedule = null
+                Toast.makeText(context, "Compromisso reagendado para ${selectedDate.dayOfMonth}/${selectedDate.monthValue} às $startTime.", Toast.LENGTH_SHORT).show()
+            }
         )
     }
 

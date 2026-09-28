@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -870,13 +871,19 @@ fun AgendaMountainSunsetCanvas(modifier: Modifier = Modifier) {
 fun AddAppointmentDialog(
     selectedDate: LocalDate,
     onDismiss: () -> Unit,
-    onConfirm: (type: AppointmentType, startTime: String, endTime: String?, title: String, subtitle: String) -> Unit
+    onConfirm: (type: AppointmentType, startTime: String, endTime: String?, title: String, subtitle: String) -> Unit,
+    initialType: AppointmentType = AppointmentType.STRENGTH,
+    initialStartTime: String = "06:00",
+    initialEndTime: String? = "07:00",
+    initialTitle: String = "Treino de Força",
+    initialSubtitle: String = "Peito e Tríceps",
+    confirmLabel: String = "Adicionar"
 ) {
-    var selectedType by remember { mutableStateOf(AppointmentType.STRENGTH) }
-    var startTime by remember { mutableStateOf("06:00") }
-    var endTime by remember { mutableStateOf("07:00") }
-    var title by remember { mutableStateOf("Treino de Força") }
-    var subtitle by remember { mutableStateOf("Peito e Tríceps") }
+    var selectedType by remember { mutableStateOf(initialType) }
+    var startTime by remember { mutableStateOf(initialStartTime) }
+    var endTime by remember { mutableStateOf(initialEndTime ?: "") }
+    var title by remember { mutableStateOf(initialTitle) }
+    var subtitle by remember { mutableStateOf(initialSubtitle) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1016,7 +1023,7 @@ fun AddAppointmentDialog(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.testTag("btn_confirm_add_appointment")
             ) {
-                Text("Adicionar", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(confirmLabel, fontWeight = FontWeight.Bold, color = Color.White)
             }
         },
         dismissButton = {
@@ -1164,6 +1171,7 @@ fun AppointmentDetailDialog(
     onDismiss: () -> Unit,
     onToggleStatus: () -> Unit,
     onDelete: () -> Unit,
+    onReschedule: (() -> Unit)? = null,
     onStartWorkout: (() -> Unit)? = null,
     onViewAiEvaluation: (() -> Unit)? = null
 ) {
@@ -1261,6 +1269,19 @@ fun AppointmentDetailDialog(
 
                 // Ações
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onReschedule != null) {
+                        OutlinedButton(
+                            onClick = {
+                                onDismiss()
+                                onReschedule()
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC084FC))
+                        ) {
+                            Text("Reagendar", fontWeight = FontWeight.Bold)
+                        }
+                    }
                     if (onStartWorkout != null) {
                         Button(
                             onClick = {

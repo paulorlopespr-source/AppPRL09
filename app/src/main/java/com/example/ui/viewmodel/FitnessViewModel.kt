@@ -61,6 +61,10 @@ import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.io.File
 import java.io.FileOutputStream
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -74,6 +78,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import com.example.data.model.MuscleGroup
+
 import com.example.data.model.SetTag
 import com.example.ui.components.MuscleWeeklyVolume
 import com.example.utils.TTSVoiceManager
@@ -81,6 +86,12 @@ import com.example.domain.gamification.Phase7JourneyEngine
 import com.example.domain.gamification.WorkoutJourneyImpact
 import com.example.data.model.JourneyUnlock
 import org.json.JSONObject
+
+private fun String?.toAgendaMillis(epochDay: Long): Long? = runCatching {
+    if (this.isNullOrBlank()) return null
+    LocalDate.ofEpochDay(epochDay).atTime(LocalTime.parse(this))
+        .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+}.getOrNull()
 
 data class ProgressiveOverloadSuggestion(
     val exerciseName: String,
@@ -1670,15 +1681,21 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         epochDay: Long,
         location: String,
         templateId: Long? = null,
+        startTime: String? = null,
+        endTime: String? = null,
         latitude: Double? = null,
         longitude: Double? = null,
         locationAddress: String? = null
     ) {
         viewModelScope.launch {
+            val startMillis = startTime.toAgendaMillis(epochDay) ?: System.currentTimeMillis()
+            val endMillis = endTime.toAgendaMillis(epochDay) ?: (startMillis + 60 * 60 * 1000L)
             val session = WorkoutSession(
                 templateId = templateId,
                 title = title,
                 dateEpochDay = epochDay,
+                startTimeMillis = startMillis,
+                endTimeMillis = endMillis,
                 location = location,
                 latitude = latitude,
                 longitude = longitude,
@@ -2042,6 +2059,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 it.copy(isCompleted = completed, status = if (completed) com.example.data.model.AgendaAppointmentStatus.COMPLETED else com.example.data.model.AgendaAppointmentStatus.PLANNED)
             } else it
         }
+        _customAppointments.value = updated
+        persistCustomAppointments(updated)
+    }
+
+    fun updateCustomAppointment(appointment: AgendaCustomAppointment) {
+        val updated = _customAppointments.value.map { if (it.id == appointment.id) appointment else it }
         _customAppointments.value = updated
         persistCustomAppointments(updated)
     }
