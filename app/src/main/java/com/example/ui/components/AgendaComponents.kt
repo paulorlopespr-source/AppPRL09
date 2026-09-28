@@ -1033,6 +1033,7 @@ fun AddAppointmentDialog(
 fun AgendaMonthPickerDialog(
     currentMonth: YearMonth,
     selectedDate: LocalDate,
+    trainedDays: Set<Long> = emptySet(),
     onMonthChange: (YearMonth) -> Unit,
     onDateSelect: (LocalDate) -> Unit,
     onDismiss: () -> Unit
@@ -1119,12 +1120,17 @@ fun AgendaMonthPickerDialog(
                                                 onDismiss()
                                             }
                                     ) {
-                                        Text(
-                                            text = "$dayNumber",
-                                            fontSize = 13.sp,
-                                            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) Color.White else Color(0xFFF1F5F9)
-                                        )
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("$dayNumber", fontSize = 13.sp,
+                                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) Color.White else Color(0xFFF1F5F9))
+                                            Box(
+                                                Modifier.size(5.dp).clip(CircleShape).background(
+                                                    if (trainedDays.contains(cellDate.toEpochDay())) Color(0xFF22C55E)
+                                                    else Color(0xFF64748B).copy(alpha = 0.55f)
+                                                )
+                                            )
+                                        }
                                     }
                                 } else {
                                     Spacer(modifier = Modifier.size(36.dp))
@@ -1132,6 +1138,13 @@ fun AgendaMonthPickerDialog(
                             }
                         }
                     }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF22C55E)))
+                    Text("Treino concluído", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF64748B)))
+                    Text("Sem treino registrado", color = Color(0xFFCBD5E1), fontSize = 11.sp)
                 }
             }
         },

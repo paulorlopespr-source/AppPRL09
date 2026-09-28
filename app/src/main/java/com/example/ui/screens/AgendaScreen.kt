@@ -487,6 +487,7 @@ fun AgendaScreen(
         AgendaMonthPickerDialog(
             currentMonth = selectedMonth,
             selectedDate = selectedDate,
+            trainedDays = workoutSessions.filter { it.status == SessionStatus.COMPLETED }.map { it.dateEpochDay }.toSet(),
             onMonthChange = { selectedMonth = it },
             onDateSelect = { newDate ->
                 selectedDate = newDate
