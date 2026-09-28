@@ -503,6 +503,33 @@ fun ActiveWorkoutScreen(
                         viewModel.getProgressionSuggestion(plan.exerciseName, plan)
                     }
 
+                    // Resumo simplificado do exercício atual: foco, imagem e métricas essenciais.
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color(0xFFF9F9FB),
+                        shape = RoundedCornerShape(22.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDD8E8))
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("${exIndex + 1}/${activeState.exercises.size} ${plan.muscleGroup}", color = Color(0xFF16121D), fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+                                Text("Atual", color = Color(0xFF6F4AA8), fontWeight = FontWeight.Bold)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                WorkoutVisualAssetSlot(plan.exerciseName, plan.muscleGroup, Modifier.size(128.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(plan.exerciseName, color = Color(0xFF16121D), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                    Text("${plan.sets.size} séries planejadas", color = Color(0xFF6E667B), fontSize = 13.sp)
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                ActiveMetric("${plan.sets.firstOrNull()?.reps ?: 0}", "Repetições")
+                                ActiveMetric("${plan.targetRestSeconds / 60}:${(plan.targetRestSeconds % 60).toString().padStart(2, '0')}", "Descanso")
+                                ActiveMetric("${plan.sets.count { it.isCompleted }}/${plan.sets.size}", "Conjuntos feitos")
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
                     ActiveExerciseCard(
                         exerciseIndex = exIndex,
                         plan = plan,
@@ -1289,6 +1316,18 @@ private fun normalizeWorkoutAssetToken(value: String): String =
         .lowercase()
         .replace("[^a-z0-9]+".toRegex(), "_")
         .trim('_')
+
+@Composable
+private fun ActiveMetric(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier.size(58.dp).clip(CircleShape).border(3.dp, Color(0xFF17B9C4), CircleShape),
+            contentAlignment = Alignment.Center
+        ) { Text(value, color = Color(0xFF16121D), fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = Color(0xFF5F586A), fontSize = 11.sp)
+    }
+}
 
 @Composable
 fun ActiveExerciseCard(
