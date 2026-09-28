@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,6 +90,8 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.Locale
+import java.time.LocalDate
+import java.time.temporal.WeekFields
 
 private enum class HistoryFilterType(val label: String) {
     ALL("Todos"),
@@ -96,6 +99,8 @@ private enum class HistoryFilterType(val label: String) {
     CARDIO("Cardio"),
     AI_EVALUATED("Com IA")
 }
+
+private enum class HistoryChartPeriod(val label: String) { DAY("Dias"), WEEK("Semanas"), MONTH("Meses"), YEAR("Anos") }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,6 +118,7 @@ fun FullWorkoutHistorySheet(
     var searchQuery by remember { mutableStateOf("") }
     var sessionToDeleteId by remember { mutableStateOf<Long?>(null) }
     var cardioToDeleteId by remember { mutableStateOf<Long?>(null) }
+    var chartPeriod by remember { mutableStateOf(HistoryChartPeriod.WEEK) }
 
     val completedStrength = remember(workoutSessions) {
         workoutSessions.filter { it.status == SessionStatus.COMPLETED }
@@ -211,6 +217,27 @@ fun FullWorkoutHistorySheet(
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            Spacer(modifier = Modifier.height(14.dp))
+            Text("Evolução dos treinos", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                HistoryChartPeriod.values().forEach { period ->
+                    FilterChip(
+                        selected = chartPeriod == period,
+                        onClick = { chartPeriod = period },
+                        label = { Text(period.label, fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PurplePrimary,
+                            selectedLabelColor = Color.White,
+                            containerColor = PurpleDarkSurface,
+                            labelColor = TextSecondary
+                        )
+                    )
+                }
+            }
+            HistorySessionsChart(sessions = completedStrength, period = chartPeriod)
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -396,6 +423,52 @@ fun FullWorkoutHistorySheet(
             containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(20.dp)
         )
+    }
+}
+
+@Composable
+private fun HistorySessionsChart(sessions: List<WorkoutSession>, period: HistoryChartPeriod) {
+    val values = remember(sessions, period) {
+        val today = LocalDate.now()
+        val buckets = linkedMapOf<String, Int>()
+        when (period) {
+            HistoryChartPeriod.DAY -> (6 downTo 0).forEach { offset -> buckets[today.minusDays(offset.toLong()).dayOfMonth.toString()] = 0 }
+            HistoryChartPeriod.WEEK -> (5 downTo 0).forEach { offset -> buckets["S${today.minusWeeks(offset.toLong()).get(WeekFields.ISO.weekOfWeekBasedYear())}"] = 0 }
+            HistoryChartPeriod.MONTH -> (5 downTo 0).forEach { offset -> buckets[today.minusMonths(offset.toLong()).monthValue.toString()] = 0 }
+            HistoryChartPeriod.YEAR -> (4 downTo 0).forEach { offset -> buckets[(today.year - offset).toString()] = 0 }
+        }
+        sessions.forEach { session ->
+            val date = LocalDate.ofEpochDay(session.dateEpochDay)
+            val key = when (period) {
+                HistoryChartPeriod.DAY -> if (date.year == today.year && date.month == today.month && date.dayOfMonth in today.minusDays(6).dayOfMonth..today.dayOfMonth) date.dayOfMonth.toString() else null
+                HistoryChartPeriod.WEEK -> "S${date.get(WeekFields.ISO.weekOfWeekBasedYear())}"
+                HistoryChartPeriod.MONTH -> date.monthValue.toString()
+                HistoryChartPeriod.YEAR -> date.year.toString()
+            }
+            if (key != null && buckets.containsKey(key)) buckets[key] = buckets.getValue(key) + 1
+        }
+        buckets.toList()
+    }
+    val max = (values.maxOfOrNull { it.second } ?: 0).coerceAtLeast(1)
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Canvas(modifier = Modifier.fillMaxWidth().height(130.dp)) {
+            val barWidth = size.width / (values.size * 1.7f)
+            values.forEachIndexed { index, entry ->
+                val height = size.height * (entry.second.toFloat() / max)
+                val left = index * (size.width / values.size) + (size.width / values.size - barWidth) / 2
+                drawRoundRect(
+                    color = LilacAccent,
+                    topLeft = androidx.compose.ui.geometry.Offset(left, size.height - height),
+                    size = androidx.compose.ui.geometry.Size(barWidth, height.coerceAtLeast(4f)),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f)
+                )
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            values.forEach { (label, count) ->
+                Text("$label\n$count", color = TextMuted, fontSize = 10.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        }
     }
 }
 
