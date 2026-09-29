@@ -33,7 +33,7 @@ android {
         if (propsFile.exists()) propsFile.inputStream().use(::load)
       }
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: signingProperties.getProperty("storeFile") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
+      storeFile = rootProject.file(keystorePath)
       storePassword = System.getenv("STORE_PASSWORD") ?: signingProperties.getProperty("storePassword")
       keyAlias = System.getenv("KEY_ALIAS") ?: signingProperties.getProperty("keyAlias") ?: "upload"
       keyPassword = System.getenv("KEY_PASSWORD") ?: signingProperties.getProperty("keyPassword")
@@ -78,7 +78,9 @@ secrets {
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
 }
 
-googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
+// Firebase configuration is optional for the standalone beta build.
+// When google-services.json is added for production, the plugin will process it.
+googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.IGNORE }
 
 ksp {
   arg("room.schemaLocation", "$projectDir/schemas")
