@@ -120,6 +120,7 @@ fun EvolutionScreen(
     val aiCoachAdvice by viewModel.aiCoachAdvice.collectAsStateWithLifecycle()
     val exerciseTargets by viewModel.allExerciseTargets.collectAsStateWithLifecycle()
     val allWorkoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
+    val activeCycle by viewModel.activeTrainingCycle.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val allUserMedals by viewModel.allMedals.collectAsStateWithLifecycle()
     val gamificationOverview by viewModel.gamificationOverview.collectAsStateWithLifecycle()
@@ -169,6 +170,29 @@ fun EvolutionScreen(
             contentPadding = PaddingValues(top = topInset + 16.dp, bottom = bottomInset + 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                val cycleId = activeCycle?.id
+                val cycleMeasurements = measurements.filter { cycleId != null && it.cycleId == cycleId }
+                val cycleSessions = allWorkoutSessions.filter { it.status == com.example.data.model.SessionStatus.COMPLETED }
+                val cyclePhotos = progressPhotos.filter { !it.isInitial }
+                val latest = cycleMeasurements.maxByOrNull { it.timestampMillis }
+                BentoCard(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Resumo do ciclo", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Text(if (activeCycle != null) "Ciclo ${activeCycle!!.id} • ${cycleSessions.size} treinos concluídos" else "Histórico consolidado", color = LilacSoft, fontSize = 12.sp)
+                        Text("Treinos: ${cycleSessions.size}   •   Fotos: ${cyclePhotos.size}", color = TextSecondary, fontSize = 13.sp)
+                        Text("Peso mais recente: ${latest?.weightKg?.let { "%.1f kg".format(it) } ?: "—"}", color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Medidas: peito ${latest?.chestCm?.let { "%.1f cm".format(it) } ?: "—"}  •  cintura ${latest?.waistCm?.let { "%.1f cm".format(it) } ?: "—"}  •  braço ${latest?.armCm?.let { "%.1f cm".format(it) } ?: "—"}",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Text("Os dados permanecem vinculados ao ciclo e podem ser consultados junto às fotos.", color = LilacSoft, fontSize = 11.sp)
+                    }
+                }
+            }
             // Header
             item {
                 Row(
