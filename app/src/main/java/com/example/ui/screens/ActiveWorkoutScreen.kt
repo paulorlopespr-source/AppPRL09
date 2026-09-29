@@ -850,6 +850,11 @@ fun ActiveWorkoutScreen(
             title = { Text("Impacto na Jornada", fontWeight = FontWeight.Black, color = TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    completedSessionForStory?.let { session ->
+                        Text("Treino concluído: ${session.title}", color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text("Séries e exercícios registrados no histórico", color = TextSecondary)
+                        Text("Carga acumulada: ${session.totalWeightLiftedKg.toInt()} kg", color = TextSecondary)
+                    }
                     Text("+${impact.xpEarned} XP de Jornada", color = LilacSoft, fontWeight = FontWeight.Bold)
                     Text("Progresso do objetivo: ${impact.objectiveProgress}/${impact.objectiveTarget}", color = TextSecondary)
                     androidx.compose.material3.LinearProgressIndicator(
@@ -867,7 +872,7 @@ fun ActiveWorkoutScreen(
             },
             confirmButton = {
                 Button(onClick = { showJourneyImpact = false }, colors = ButtonDefaults.buttonColors(containerColor = PurpleVibrant)) {
-                    Text("Continuar", color = Color.White)
+                    Text("Compartilhar treino", color = Color.White)
                 }
             },
             containerColor = PurpleDarkSurface,
