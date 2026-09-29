@@ -23,6 +23,7 @@ fun CycleReassessmentDialog(
     var goal by remember { mutableStateOf(FitnessGoal.CONDICIONAMENTO_GERAL) }
     var notes by remember { mutableStateOf("") }
     val parsedWeight = weight.toDoubleOrNull()
+    val weightDelta = parsedWeight?.minus(initialWeight)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Reavaliação do ciclo") },
@@ -30,6 +31,17 @@ fun CycleReassessmentDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Compare seus resultados e prepare o próximo plano de 12 semanas.", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(weight, { weight = it }, label = { Text("Peso atual (kg)") }, modifier = Modifier.fillMaxWidth())
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Comparação com a avaliação inicial", style = MaterialTheme.typography.titleSmall)
+                        Text("Inicial: ${"%.1f".format(initialWeight)} kg   •   Atual: ${parsedWeight?.let { "%.1f".format(it) } ?: "—"} kg")
+                        if (weightDelta != null) {
+                            val progress = (parsedWeight / initialWeight).toFloat().coerceIn(0.1f, 2f) / 2f
+                            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                            Text(if (weightDelta >= 0) "Variação: +${"%.1f".format(weightDelta)} kg" else "Variação: ${"%.1f".format(weightDelta)} kg", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(chest, { chest = it }, label = { Text("Peito") }, modifier = Modifier.weight(1f))
                     OutlinedTextField(waist, { waist = it }, label = { Text("Cintura") }, modifier = Modifier.weight(1f))
