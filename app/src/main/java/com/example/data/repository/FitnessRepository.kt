@@ -20,6 +20,7 @@ class FitnessRepository(
     val activeTrainingCycle: Flow<TrainingCycle?> = dao.getActiveTrainingCycle()
     val initialAssessments: Flow<List<InitialAssessment>> = dao.getInitialAssessments()
     fun getPlannedWorkouts(cycleId: Long): Flow<List<PlannedWorkout>> = dao.getPlannedWorkouts(cycleId)
+    val allPlannedWorkouts: Flow<List<PlannedWorkout>> = dao.getAllPlannedWorkouts()
     suspend fun saveTrainingCycle(cycle: TrainingCycle): Long = dao.insertTrainingCycle(cycle)
     suspend fun saveInitialAssessment(assessment: InitialAssessment): Long = dao.insertInitialAssessment(assessment)
     suspend fun savePlannedWorkout(workout: PlannedWorkout): Long = dao.insertPlannedWorkout(workout)

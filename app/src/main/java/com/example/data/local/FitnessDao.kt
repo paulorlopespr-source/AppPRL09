@@ -31,6 +31,8 @@ interface FitnessDao {
     suspend fun insertPlannedWorkout(workout: PlannedWorkout): Long
     @Query("SELECT * FROM planned_workouts WHERE cycleId = :cycleId ORDER BY weekNumber, dayOfWeek")
     fun getPlannedWorkouts(cycleId: Long): Flow<List<PlannedWorkout>>
+    @Query("SELECT * FROM planned_workouts ORDER BY cycleId, weekNumber, dayOfWeek")
+    fun getAllPlannedWorkouts(): Flow<List<PlannedWorkout>>
 
     // --- Workout Templates ---
     @Query("SELECT * FROM workout_templates ORDER BY isFavorite DESC, isPreset DESC, id ASC")

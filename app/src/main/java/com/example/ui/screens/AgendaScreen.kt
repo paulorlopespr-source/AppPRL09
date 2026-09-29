@@ -90,6 +90,8 @@ fun AgendaScreen(
     val mealLogs by viewModel.allMealLogs.collectAsStateWithLifecycle()
     val customAppointments by viewModel.customAppointments.collectAsStateWithLifecycle()
     val templates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
+    val activeCycle by viewModel.activeTrainingCycle.collectAsStateWithLifecycle()
+    val plannedWorkouts by viewModel.allPlannedWorkouts.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
     val bodyMeasurements by viewModel.allBodyMeasurements.collectAsStateWithLifecycle()
@@ -198,7 +200,7 @@ fun AgendaScreen(
                         session.notes.isNotBlank() -> session.notes
                         session.location.isNotBlank() -> session.location
                         else -> "Peito e Tríceps"
-                    },
+                    } + plannedWorkouts.firstOrNull { "planned_${it.id}" == session.agendaAppointmentId }?.let { " • Ciclo 12 semanas • Semana ${it.weekNumber}" }.orEmpty(),
                     isCompleted = isCompleted,
                     workoutSessionId = session.id,
                     rawNotes = session.notes
@@ -388,6 +390,12 @@ fun AgendaScreen(
                             daySubtitle = daySubtitle,
                             onViewWeek = { showMonthPickerDialog = true }
                         )
+                        val cyclePlans = plannedWorkouts.filter { it.cycleId == activeCycle?.id }
+                        if (cyclePlans.isNotEmpty()) {
+                            val completed = cyclePlans.count { plan -> workoutSessions.any { it.agendaAppointmentId == "planned_${plan.id}" && it.status == SessionStatus.COMPLETED } }
+                            val adherence = ((completed.toDouble() / cyclePlans.size) * 100).toInt().coerceIn(0, 100)
+                            Text("Ciclo atual • Aderência ${adherence}%", color = LilacAccent, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                        }
                     }
                 }
 

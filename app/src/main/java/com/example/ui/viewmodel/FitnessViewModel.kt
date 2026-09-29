@@ -325,6 +325,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         .map { it ?: loadCachedProfile() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), loadCachedProfile())
     val activeTrainingCycle: StateFlow<TrainingCycle?> = repository.activeTrainingCycle.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val allPlannedWorkouts: StateFlow<List<PlannedWorkout>> = repository.allPlannedWorkouts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun createInitialAssessment(assessment: InitialAssessment) {
         viewModelScope.launch(Dispatchers.IO) {
