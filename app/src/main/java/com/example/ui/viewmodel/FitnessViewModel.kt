@@ -335,9 +335,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             val templateIds = workoutTemplates.value.map { it.id }
             val plans = TrainingPlanGenerator.generate(cycle.copy(id = cycleId), templateIds)
             plans.forEach { plan ->
-                repository.savePlannedWorkout(plan)
+                val plannedId = repository.savePlannedWorkout(plan)
                 val day = cycle.startedAtEpochDay + ((plan.weekNumber - 1) * 7L) + (plan.dayOfWeek - 1)
-                scheduleWorkout(title = plan.title, epochDay = day, location = "Plano de 12 semanas", templateId = plan.templateId)
+                scheduleWorkout(title = plan.title, epochDay = day, location = "Plano de 12 semanas", templateId = plan.templateId, agendaAppointmentId = "planned_$plannedId")
             }
         }
     }
@@ -1707,13 +1707,15 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         endTime: String? = null,
         latitude: Double? = null,
         longitude: Double? = null,
-        locationAddress: String? = null
+        locationAddress: String? = null,
+        agendaAppointmentId: String? = null
     ) {
         viewModelScope.launch {
             val startMillis = startTime.toAgendaMillis(epochDay) ?: System.currentTimeMillis()
             val endMillis = endTime.toAgendaMillis(epochDay) ?: (startMillis + 60 * 60 * 1000L)
             val session = WorkoutSession(
                 templateId = templateId,
+                agendaAppointmentId = agendaAppointmentId,
                 title = title,
                 dateEpochDay = epochDay,
                 startTimeMillis = startMillis,
