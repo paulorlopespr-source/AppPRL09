@@ -354,6 +354,30 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun startSecondCycle(reassessment: CycleReassessment) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (repository.activeTrainingCycle.firstOrNull() != null) return@launch
+            val cycle = TrainingCycle(
+                startedAtEpochDay = DateUtils.todayEpochDay(),
+                durationWeeks = 12,
+                currentWeek = 1,
+                fitnessLevel = reassessment.fitnessLevel,
+                goal = reassessment.goal,
+                availableDays = 3,
+                isActive = true
+            )
+            val cycleId = repository.saveTrainingCycle(cycle)
+            val templateIds = workoutTemplates.value.map { it.id }
+            val plans = TrainingPlanGenerator.generate(cycle.copy(id = cycleId), templateIds)
+            plans.forEach { plan ->
+                val progressed = plan.copy(title = "Progressão • ${plan.title}")
+                val plannedId = repository.savePlannedWorkout(progressed)
+                val day = cycle.startedAtEpochDay + ((progressed.weekNumber - 1) * 7L) + (progressed.dayOfWeek - 1)
+                scheduleWorkout(title = progressed.title, epochDay = day, location = "Plano avançado de 12 semanas", templateId = progressed.templateId, agendaAppointmentId = "planned_$plannedId")
+            }
+        }
+    }
+
     // --- Daily Workout Suggestion (Intelligent muscle recovery rotation) ---
     private val _manualSuggestedTemplate = MutableStateFlow<WorkoutTemplate?>(null)
 
