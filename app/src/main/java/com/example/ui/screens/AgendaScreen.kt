@@ -41,6 +41,7 @@ import com.example.ui.components.AINutritionDialog
 import com.example.ui.components.AIWorkoutGeneratorDialog
 import com.example.ui.components.AddAppointmentButton
 import com.example.ui.components.AddAppointmentDialog
+import com.example.ui.components.AddProgressPhotoDialog
 import com.example.ui.components.AgendaAppointment
 import com.example.ui.components.AgendaHeader
 import com.example.ui.components.AgendaMonthPickerDialog
@@ -59,6 +60,7 @@ import com.example.ui.components.RetroactiveWorkoutDialog
 import com.example.ui.components.UserProfileDialog
 import com.example.ui.components.WeekCalendarStrip
 import com.example.ui.components.WorkoutReminderDialog
+import com.example.ui.components.ProgressPhotosSection
 import com.example.ui.theme.LilacAccent
 import com.example.ui.theme.PurpleDarkest
 import com.example.ui.viewmodel.FitnessViewModel
@@ -96,6 +98,7 @@ fun AgendaScreen(
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
     val bodyMeasurements by viewModel.allBodyMeasurements.collectAsStateWithLifecycle()
+    val progressPhotos by viewModel.allProgressPhotos.collectAsStateWithLifecycle()
     val isGeneratingAIWorkout by viewModel.isGeneratingAIWorkout.collectAsStateWithLifecycle()
     val generatedAIWorkout by viewModel.generatedAIWorkout.collectAsStateWithLifecycle()
     val isAiEvaluating by viewModel.isAIEvaluating.collectAsStateWithLifecycle()
@@ -123,6 +126,7 @@ fun AgendaScreen(
     var showGeneratorDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showProgressPhotoDialog by remember { mutableStateOf(false) }
 
     val ptLocale = remember { Locale("pt", "BR") }
 
@@ -398,6 +402,19 @@ fun AgendaScreen(
                             Text("Ciclo atual • Aderência ${adherence}%", color = LilacAccent, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
+                }
+
+                // Fotos de evolução ficam acessíveis diretamente na Agenda, com data/mês persistidos.
+                item {
+                    ProgressPhotosSection(
+                        photos = progressPhotos,
+                        initialPhoto = progressPhotos.firstOrNull { it.isInitial },
+                        onAddPhotoClick = { showProgressPhotoDialog = true },
+                        onPhotoClick = { photo ->
+                            Toast.makeText(context, "Foto de ${photo.monthLabel}", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
 
                 // 4. AppointmentsList (Cards com barra vertical colorida, horário, ícone, título, status e chevron)
@@ -777,6 +794,19 @@ fun AgendaScreen(
             },
             containerColor = Color(0xFF15111F),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (showProgressPhotoDialog) {
+        AddProgressPhotoDialog(
+            initialWeight = userProfile?.currentWeightKg ?: userProfile?.startingWeightKg ?: 0.0,
+            onDismiss = { showProgressPhotoDialog = false },
+            onSave = { uri, weight, month, isInitial, fat, notes ->
+                viewModel.saveProgressPhoto(uri, weight, month, isInitial, fat, notes) {
+                    showProgressPhotoDialog = false
+                    Toast.makeText(context, "Foto salva na Agenda com data e horário.", Toast.LENGTH_SHORT).show()
+                }
+            }
         )
     }
 }
