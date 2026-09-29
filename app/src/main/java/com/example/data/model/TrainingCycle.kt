@@ -16,4 +16,9 @@ data class TrainingCycle(
     val availableDays: Int = 3,
     val isActive: Boolean = true,
     val completedAtEpochDay: Long? = null
-)
+) {
+    /** Semana do ciclo calculada a partir da data de início (1..durationWeeks). */
+    fun elapsedWeek(todayEpochDay: Long): Int =
+        (((todayEpochDay - startedAtEpochDay) / 7L).toInt() + 1)
+            .coerceIn(1, durationWeeks)
+}

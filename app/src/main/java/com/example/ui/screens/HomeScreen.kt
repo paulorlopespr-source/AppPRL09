@@ -98,8 +98,12 @@ fun HomeScreen(
     var showInitialAssessment by remember { mutableStateOf(activeTrainingCycle == null) }
     var assessmentDismissed by remember { mutableStateOf(false) }
     var showCycleReassessment by remember { mutableStateOf(false) }
-    LaunchedEffect(activeTrainingCycle?.id, activeTrainingCycle?.currentWeek) {
-        if (activeTrainingCycle?.currentWeek ?: 0 >= 12) showCycleReassessment = true
+    // O ciclo é de 12 semanas. A reavaliação só é liberada ao completar
+    // a semana 12 (nunca a cada duas semanas).
+    LaunchedEffect(activeTrainingCycle?.id, activeTrainingCycle?.startedAtEpochDay) {
+        val cycle = activeTrainingCycle ?: return@LaunchedEffect
+        val elapsedWeek = cycle.elapsedWeek(DateUtils.todayEpochDay())
+        if (elapsedWeek >= cycle.durationWeeks) showCycleReassessment = true
     }
     val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val activeCardio by viewModel.activeCardio.collectAsStateWithLifecycle()
