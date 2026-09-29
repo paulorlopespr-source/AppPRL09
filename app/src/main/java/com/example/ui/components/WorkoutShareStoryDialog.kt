@@ -39,6 +39,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,7 +90,7 @@ fun WorkoutShareStoryDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var bronzeFrameEnabled by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+    var bronzeFrameEnabled by remember { mutableStateOf(true) }
     val durationFormatted = DateUtils.formatSecondsToTime(session.durationSeconds)
     val tonsLifted = (session.totalWeightLiftedKg / 1000.0)
     val tonsFormatted = if (tonsLifted >= 1.0) "%.1f TONELADAS".format(tonsLifted) else "${session.totalWeightLiftedKg.toInt()} KG"
