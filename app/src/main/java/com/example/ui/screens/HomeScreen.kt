@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +62,8 @@ import com.example.ui.components.WeeklyProgressCard
 import com.example.ui.components.WorkoutReminderDialog
 import com.example.ui.components.WorkoutSubstitutionDialog
 import com.example.ui.components.InitialAssessmentDialog
+import com.example.ui.components.CycleReassessmentDialog
+import com.example.data.model.CycleReassessment
 import com.example.data.model.InitialAssessment
 import com.example.data.model.FitnessGoal
 import com.example.ui.theme.LilacAccent
@@ -94,6 +97,10 @@ fun HomeScreen(
     val activeTrainingCycle by viewModel.activeTrainingCycle.collectAsStateWithLifecycle()
     var showInitialAssessment by remember { mutableStateOf(activeTrainingCycle == null) }
     var assessmentDismissed by remember { mutableStateOf(false) }
+    var showCycleReassessment by remember { mutableStateOf(false) }
+    LaunchedEffect(activeTrainingCycle?.id, activeTrainingCycle?.currentWeek) {
+        if (activeTrainingCycle?.currentWeek ?: 0 >= 12) showCycleReassessment = true
+    }
     val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val activeCardio by viewModel.activeCardio.collectAsStateWithLifecycle()
     val workoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
@@ -615,6 +622,17 @@ fun HomeScreen(
                 viewModel.createInitialAssessment(InitialAssessment(age = age, sex = sex, heightCm = height, weightKg = weight, goal = goal, fitnessLevel = level, availableDays = days))
                 assessmentDismissed = true
                 showInitialAssessment = false
+            }
+        )
+    }
+    if (showCycleReassessment && activeTrainingCycle != null) {
+        CycleReassessmentDialog(
+            initialWeight = userProfile?.currentWeightKg ?: 0.0,
+            onDismiss = { showCycleReassessment = false },
+            onStartSecondCycle = { weight, level, goal, notes ->
+                viewModel.saveCycleReassessment(CycleReassessment(cycleId = activeTrainingCycle!!.id, weightKg = weight, fitnessLevel = level, goal = goal, notes = notes))
+                viewModel.archiveActiveCycle()
+                showCycleReassessment = false
             }
         )
     }
