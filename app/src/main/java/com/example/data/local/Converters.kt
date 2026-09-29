@@ -4,12 +4,15 @@ import androidx.room.TypeConverter
 import com.example.data.model.CardioType
 import com.example.data.model.Equipment
 import com.example.data.model.FitnessGoal
+import com.example.data.model.FitnessLevel
 import com.example.data.model.IntensityLevel
 import com.example.data.model.MuscleGroup
 import com.example.data.model.SessionStatus
 import com.example.data.model.WorkoutCategory
 
 class Converters {
+    @androidx.room.TypeConverter fun fromFitnessLevel(value: FitnessLevel): String = value.name
+    @androidx.room.TypeConverter fun toFitnessLevel(value: String): FitnessLevel = runCatching { FitnessLevel.valueOf(value) }.getOrDefault(FitnessLevel.BEGINNER)
     @TypeConverter
     fun fromMuscleGroup(value: MuscleGroup): String = value.name
 

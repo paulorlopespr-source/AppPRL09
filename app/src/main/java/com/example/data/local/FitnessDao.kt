@@ -11,10 +11,26 @@ import com.example.data.model.Exercise
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
+import com.example.data.model.TrainingCycle
+import com.example.data.model.InitialAssessment
+import com.example.data.model.PlannedWorkout
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FitnessDao {
+    @Query("SELECT * FROM training_cycles WHERE isActive = 1 ORDER BY id DESC LIMIT 1")
+    fun getActiveTrainingCycle(): Flow<TrainingCycle?>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrainingCycle(cycle: TrainingCycle): Long
+    @Update suspend fun updateTrainingCycle(cycle: TrainingCycle)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertInitialAssessment(assessment: InitialAssessment): Long
+    @Query("SELECT * FROM initial_assessments ORDER BY createdAtMillis DESC")
+    fun getInitialAssessments(): Flow<List<InitialAssessment>>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlannedWorkout(workout: PlannedWorkout): Long
+    @Query("SELECT * FROM planned_workouts WHERE cycleId = :cycleId ORDER BY weekNumber, dayOfWeek")
+    fun getPlannedWorkouts(cycleId: Long): Flow<List<PlannedWorkout>>
 
     // --- Workout Templates ---
     @Query("SELECT * FROM workout_templates ORDER BY isFavorite DESC, isPreset DESC, id ASC")

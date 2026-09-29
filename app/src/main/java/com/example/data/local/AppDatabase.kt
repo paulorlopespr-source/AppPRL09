@@ -32,8 +32,11 @@ import kotlinx.coroutines.launch
         com.example.data.model.MealLog::class,
         com.example.data.model.UserMedal::class,
         com.example.data.model.JourneyUnlock::class
+        , com.example.data.model.TrainingCycle::class,
+        com.example.data.model.InitialAssessment::class,
+        com.example.data.model.PlannedWorkout::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -201,6 +204,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS training_cycles (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, startedAtEpochDay INTEGER NOT NULL, durationWeeks INTEGER NOT NULL, currentWeek INTEGER NOT NULL, fitnessLevel TEXT NOT NULL, goal TEXT NOT NULL, availableDays INTEGER NOT NULL, isActive INTEGER NOT NULL, completedAtEpochDay INTEGER)")
+                database.execSQL("CREATE TABLE IF NOT EXISTS initial_assessments (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, createdAtMillis INTEGER NOT NULL, age INTEGER NOT NULL, sex TEXT NOT NULL, heightCm REAL NOT NULL, weightKg REAL NOT NULL, chestCm REAL, waistCm REAL, armCm REAL, thighCm REAL, goal TEXT NOT NULL, fitnessLevel TEXT NOT NULL, availableDays INTEGER NOT NULL, cycleId INTEGER)")
+                database.execSQL("CREATE TABLE IF NOT EXISTS planned_workouts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, cycleId INTEGER NOT NULL, templateId INTEGER, agendaAppointmentId TEXT, workoutSessionId INTEGER, weekNumber INTEGER NOT NULL, dayOfWeek INTEGER NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL)")
+            }
+        }
+
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
@@ -238,7 +249,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_7_8,
                         MIGRATION_8_9,
                         MIGRATION_9_10,
-                        MIGRATION_10_11
+                        MIGRATION_10_11,
+                        MIGRATION_11_12
                     )
                     .addCallback(DatabaseCallback(scope))
                     .build()
