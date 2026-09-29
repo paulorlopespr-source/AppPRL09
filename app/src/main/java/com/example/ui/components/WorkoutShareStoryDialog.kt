@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -44,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.WorkoutSession
+import com.example.R
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.GlassBorder
@@ -83,6 +86,7 @@ fun WorkoutShareStoryDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    var bronzeFrameEnabled by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
     val durationFormatted = DateUtils.formatSecondsToTime(session.durationSeconds)
     val tonsLifted = (session.totalWeightLiftedKg / 1000.0)
     val tonsFormatted = if (tonsLifted >= 1.0) "%.1f TONELADAS".format(tonsLifted) else "${session.totalWeightLiftedKg.toInt()} KG"
@@ -136,6 +140,13 @@ fun WorkoutShareStoryDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Moldura Bronze", color = LilacAccent, fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { bronzeFrameEnabled = !bronzeFrameEnabled }) {
+                        Text(if (bronzeFrameEnabled) "Remover moldura" else "Usar moldura")
+                    }
+                }
+
                 // The 9:16 vertical Story Preview Card
                 Box(
                     modifier = Modifier
@@ -157,6 +168,14 @@ fun WorkoutShareStoryDialog(
                         )
                         .padding(20.dp)
                 ) {
+                    if (bronzeFrameEnabled) {
+                        Image(
+                            painter = painterResource(R.drawable.frame_bronze_pintinho),
+                            contentDescription = "Moldura Bronze",
+                            modifier = Modifier.matchParentSize(),
+                            alpha = 0.92f
+                        )
+                    }
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
