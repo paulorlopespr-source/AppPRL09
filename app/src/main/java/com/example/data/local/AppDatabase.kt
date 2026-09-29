@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
         com.example.data.model.PlannedWorkout::class
         , com.example.data.model.CycleReassessment::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -219,6 +219,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `body_measurements` ADD COLUMN `cycleId` INTEGER")
+            }
+        }
+
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
@@ -258,7 +264,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_9_10,
                         MIGRATION_10_11,
                         MIGRATION_11_12
-                        , MIGRATION_12_13
+                        , MIGRATION_12_13,
+                        MIGRATION_13_14
                     )
                     .addCallback(DatabaseCallback(scope))
                     .build()

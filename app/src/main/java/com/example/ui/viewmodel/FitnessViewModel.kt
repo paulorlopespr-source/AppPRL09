@@ -2196,18 +2196,23 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun addBodyMeasurement(measurement: BodyMeasurement) {
         viewModelScope.launch {
-            repository.saveBodyMeasurement(measurement)
+            // Novas medições ficam vinculadas ao ciclo ativo para permitir
+            // comparação consistente entre ciclos sem alterar registros legados.
+            val linkedMeasurement = if (measurement.cycleId == null) {
+                measurement.copy(cycleId = activeTrainingCycle.value?.id)
+            } else measurement
+            repository.saveBodyMeasurement(linkedMeasurement)
             backupBodyMeasurements()
             // Also update current weight on user profile
             val currentProf = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
-            val updatedProf = currentProf.copy(currentWeightKg = measurement.weightKg)
+            val updatedProf = currentProf.copy(currentWeightKg = linkedMeasurement.weightKg)
             repository.saveUserProfile(updatedProf)
             persistUserProfileBackup(updatedProf)
 
             // Sync weight to Health Connect
             try {
                 if (_healthPermissionsGranted.value) {
-                    healthConnectManager.writeWeight(measurement.weightKg, measurement.timestampMillis)
+                    healthConnectManager.writeWeight(linkedMeasurement.weightKg, linkedMeasurement.timestampMillis)
                     refreshHealthDailyMetrics()
                 }
             } catch (_: Exception) {}

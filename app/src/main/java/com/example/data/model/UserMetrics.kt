@@ -45,6 +45,8 @@ data class UserProfile(
 @Entity(tableName = "body_measurements")
 data class BodyMeasurement(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Ciclo ao qual esta medição pertence; nulo apenas para registros legados. */
+    val cycleId: Long? = null,
     val dateEpochDay: Long,
     val timestampMillis: Long = System.currentTimeMillis(),
     val weightKg: Double,
