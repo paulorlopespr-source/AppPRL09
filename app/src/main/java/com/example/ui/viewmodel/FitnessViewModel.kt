@@ -26,6 +26,11 @@ import com.example.data.model.WorkoutExercisePlan
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
 import com.example.data.model.AgendaCustomAppointment
+import com.example.data.model.TrainingCycle
+import com.example.data.model.InitialAssessment
+import com.example.data.model.FitnessLevel
+import com.example.data.model.PlannedWorkout
+import com.example.domain.training.TrainingPlanGenerator
 import com.example.data.model.AICoachMessage
 import com.example.data.model.AICoachSender
 import com.example.data.model.AIWorkoutPlanResult
@@ -319,6 +324,23 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     val userProfile: StateFlow<UserProfile?> = repository.userProfile
         .map { it ?: loadCachedProfile() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), loadCachedProfile())
+    val activeTrainingCycle: StateFlow<TrainingCycle?> = repository.activeTrainingCycle.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun createInitialAssessment(assessment: InitialAssessment) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (repository.activeTrainingCycle.firstOrNull() != null) return@launch
+            val cycle = TrainingCycle(startedAtEpochDay = DateUtils.todayEpochDay(), fitnessLevel = assessment.fitnessLevel, goal = assessment.goal, availableDays = assessment.availableDays)
+            val cycleId = repository.saveTrainingCycle(cycle)
+            repository.saveInitialAssessment(assessment.copy(cycleId = cycleId))
+            val templateIds = workoutTemplates.value.map { it.id }
+            val plans = TrainingPlanGenerator.generate(cycle.copy(id = cycleId), templateIds)
+            plans.forEach { plan ->
+                repository.savePlannedWorkout(plan)
+                val day = cycle.startedAtEpochDay + ((plan.weekNumber - 1) * 7L) + (plan.dayOfWeek - 1)
+                scheduleWorkout(title = plan.title, epochDay = day, location = "Plano de 12 semanas", templateId = plan.templateId)
+            }
+        }
+    }
 
     // --- Daily Workout Suggestion (Intelligent muscle recovery rotation) ---
     private val _manualSuggestedTemplate = MutableStateFlow<WorkoutTemplate?>(null)

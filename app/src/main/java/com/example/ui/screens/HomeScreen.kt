@@ -60,6 +60,9 @@ import com.example.ui.components.UserProfileDialog
 import com.example.ui.components.WeeklyProgressCard
 import com.example.ui.components.WorkoutReminderDialog
 import com.example.ui.components.WorkoutSubstitutionDialog
+import com.example.ui.components.InitialAssessmentDialog
+import com.example.data.model.InitialAssessment
+import com.example.data.model.FitnessGoal
 import com.example.ui.theme.LilacAccent
 import com.example.ui.theme.PurpleDarkest
 import com.example.ui.theme.TextPrimary
@@ -88,6 +91,9 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val activeTrainingCycle by viewModel.activeTrainingCycle.collectAsStateWithLifecycle()
+    var showInitialAssessment by remember { mutableStateOf(activeTrainingCycle == null) }
+    var assessmentDismissed by remember { mutableStateOf(false) }
     val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val activeCardio by viewModel.activeCardio.collectAsStateWithLifecycle()
     val workoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
@@ -598,6 +604,17 @@ fun HomeScreen(
             onViewAiFeedback = { aiFeedback ->
                 selectedSessionAiFeedback = aiFeedback
                 showAiDialog = true
+            }
+        )
+    }
+
+    if (showInitialAssessment && !assessmentDismissed && activeTrainingCycle == null) {
+        InitialAssessmentDialog(
+            onDismiss = { assessmentDismissed = true; showInitialAssessment = false },
+            onSubmit = { age, sex, height, weight, goal, level, days ->
+                viewModel.createInitialAssessment(InitialAssessment(age = age, sex = sex, heightCm = height, weightKg = weight, goal = goal, fitnessLevel = level, availableDays = days))
+                assessmentDismissed = true
+                showInitialAssessment = false
             }
         )
     }

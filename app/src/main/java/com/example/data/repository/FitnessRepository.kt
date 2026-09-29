@@ -8,12 +8,21 @@ import com.example.data.model.Exercise
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
+import com.example.data.model.TrainingCycle
+import com.example.data.model.InitialAssessment
+import com.example.data.model.PlannedWorkout
 import kotlinx.coroutines.flow.Flow
 
 class FitnessRepository(
     private val dao: FitnessDao,
     private val geminiService: GeminiCalorieService = GeminiCalorieService()
 ) {
+    val activeTrainingCycle: Flow<TrainingCycle?> = dao.getActiveTrainingCycle()
+    val initialAssessments: Flow<List<InitialAssessment>> = dao.getInitialAssessments()
+    fun getPlannedWorkouts(cycleId: Long): Flow<List<PlannedWorkout>> = dao.getPlannedWorkouts(cycleId)
+    suspend fun saveTrainingCycle(cycle: TrainingCycle): Long = dao.insertTrainingCycle(cycle)
+    suspend fun saveInitialAssessment(assessment: InitialAssessment): Long = dao.insertInitialAssessment(assessment)
+    suspend fun savePlannedWorkout(workout: PlannedWorkout): Long = dao.insertPlannedWorkout(workout)
 
     // --- Workout Templates (Favorites & Custom Routines) ---
     val allWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getAllWorkoutTemplates()
