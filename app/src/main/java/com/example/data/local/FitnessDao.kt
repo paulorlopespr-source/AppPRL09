@@ -14,6 +14,7 @@ import com.example.data.model.WorkoutTemplate
 import com.example.data.model.TrainingCycle
 import com.example.data.model.InitialAssessment
 import com.example.data.model.PlannedWorkout
+import com.example.data.model.CycleReassessment
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -33,6 +34,10 @@ interface FitnessDao {
     fun getPlannedWorkouts(cycleId: Long): Flow<List<PlannedWorkout>>
     @Query("SELECT * FROM planned_workouts ORDER BY cycleId, weekNumber, dayOfWeek")
     fun getAllPlannedWorkouts(): Flow<List<PlannedWorkout>>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCycleReassessment(reassessment: CycleReassessment): Long
+    @Query("SELECT * FROM cycle_reassessments WHERE cycleId = :cycleId ORDER BY createdAtMillis DESC")
+    fun getCycleReassessments(cycleId: Long): Flow<List<CycleReassessment>>
 
     // --- Workout Templates ---
     @Query("SELECT * FROM workout_templates ORDER BY isFavorite DESC, isPreset DESC, id ASC")

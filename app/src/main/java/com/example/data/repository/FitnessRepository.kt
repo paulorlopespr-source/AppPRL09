@@ -11,6 +11,7 @@ import com.example.data.model.WorkoutTemplate
 import com.example.data.model.TrainingCycle
 import com.example.data.model.InitialAssessment
 import com.example.data.model.PlannedWorkout
+import com.example.data.model.CycleReassessment
 import kotlinx.coroutines.flow.Flow
 
 class FitnessRepository(
@@ -22,8 +23,11 @@ class FitnessRepository(
     fun getPlannedWorkouts(cycleId: Long): Flow<List<PlannedWorkout>> = dao.getPlannedWorkouts(cycleId)
     val allPlannedWorkouts: Flow<List<PlannedWorkout>> = dao.getAllPlannedWorkouts()
     suspend fun saveTrainingCycle(cycle: TrainingCycle): Long = dao.insertTrainingCycle(cycle)
+    suspend fun updateTrainingCycle(cycle: TrainingCycle) = dao.updateTrainingCycle(cycle)
     suspend fun saveInitialAssessment(assessment: InitialAssessment): Long = dao.insertInitialAssessment(assessment)
     suspend fun savePlannedWorkout(workout: PlannedWorkout): Long = dao.insertPlannedWorkout(workout)
+    suspend fun saveCycleReassessment(item: CycleReassessment): Long = dao.insertCycleReassessment(item)
+    fun getCycleReassessments(cycleId: Long): Flow<List<CycleReassessment>> = dao.getCycleReassessments(cycleId)
 
     // --- Workout Templates (Favorites & Custom Routines) ---
     val allWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getAllWorkoutTemplates()

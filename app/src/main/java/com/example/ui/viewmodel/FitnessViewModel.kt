@@ -30,6 +30,7 @@ import com.example.data.model.TrainingCycle
 import com.example.data.model.InitialAssessment
 import com.example.data.model.FitnessLevel
 import com.example.data.model.PlannedWorkout
+import com.example.data.model.CycleReassessment
 import com.example.domain.training.TrainingPlanGenerator
 import com.example.data.model.AICoachMessage
 import com.example.data.model.AICoachSender
@@ -340,6 +341,16 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 val day = cycle.startedAtEpochDay + ((plan.weekNumber - 1) * 7L) + (plan.dayOfWeek - 1)
                 scheduleWorkout(title = plan.title, epochDay = day, location = "Plano de 12 semanas", templateId = plan.templateId, agendaAppointmentId = "planned_$plannedId")
             }
+        }
+    }
+
+    fun saveCycleReassessment(reassessment: CycleReassessment) {
+        viewModelScope.launch(Dispatchers.IO) { repository.saveCycleReassessment(reassessment) }
+    }
+
+    fun archiveActiveCycle() {
+        viewModelScope.launch(Dispatchers.IO) {
+            activeTrainingCycle.value?.let { repository.updateTrainingCycle(it.copy(isActive = false, completedAtEpochDay = DateUtils.todayEpochDay())) }
         }
     }
 
