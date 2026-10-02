@@ -69,6 +69,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.R
 
+private val JOURNEY_DASHBOARD_CARD_HEIGHT = 280.dp
+
 // ==========================================
 // Modelos de Dados da Tela Jornada
 // ==========================================
@@ -420,33 +422,33 @@ fun StatsRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(330.dp)
+            .height(136.dp)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         StatCard(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
             icon = { FlameIcon(size = 22.dp) },
             value = "$streakDays",
             label = "Dias seguidos",
             tag = "stat_streak"
         )
         StatCard(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
             icon = { TrophyIcon(size = 22.dp) },
             value = "$totalAchievements",
             label = "Conquistas",
             tag = "stat_achievements"
         )
         StatCard(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
             icon = { TrendingChartIcon(size = 22.dp) },
             value = "$onTimeGoalsPercent%",
             label = "Metas no prazo",
             tag = "stat_goals"
         )
         StatCard(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).fillMaxHeight(),
             icon = { StarIcon(size = 22.dp) },
             value = formatNumber(totalPoints),
             label = "Pontos totais",
@@ -492,10 +494,10 @@ fun StatCard(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = label,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 color = Color(0xFF94A3B8),
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
@@ -782,18 +784,19 @@ fun TwoColumnCardsRow1(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .height(JOURNEY_DASHBOARD_CARD_HEIGHT)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         MissaoAtualCard(
             quest = quest,
             onViewAll = onViewAllQuests,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).fillMaxHeight()
         )
         ConquistaProgressoCard(
             achievement = achievement,
             onViewAll = onViewAllAchievements,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).fillMaxHeight()
         )
     }
 }
@@ -952,7 +955,10 @@ fun ConquistaProgressoCard(
                         text = "Conquista em Progresso",
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8),
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -1084,6 +1090,7 @@ fun TwoColumnCardsRow2(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .height(JOURNEY_DASHBOARD_CARD_HEIGHT)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -1134,7 +1141,11 @@ fun ProximaRecompensaCard(
                         text = "Próxima Recompensa",
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8),
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 16.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -1161,7 +1172,9 @@ fun ProximaRecompensaCard(
                     text = reward.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(2.dp))
@@ -1170,7 +1183,9 @@ fun ProximaRecompensaCard(
                     text = reward.description,
                     fontSize = 12.sp,
                     color = Color(0xFF94A3B8),
-                    lineHeight = 16.sp
+                    lineHeight = 16.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -1227,49 +1242,50 @@ fun MarcosJornadaCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
-                // Header com Bandeira e Link "Ver todos"
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Cabeçalho dividido em duas linhas para não comprimir o título
+                // em telas estreitas ou com fonte ampliada.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Flag,
-                            contentDescription = "Marcos",
-                            tint = Color(0xFFA855F7),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Marcos da Jornada",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-
+                    Icon(
+                        imageVector = Icons.Outlined.Flag,
+                        contentDescription = "Marcos",
+                        tint = Color(0xFFA855F7),
+                        modifier = Modifier.size(18.dp)
+                    )
                     Text(
-                        text = "Ver todos",
-                        fontSize = 12.sp,
-                        color = Color(0xFFA78BFA),
+                        text = "Marcos da Jornada",
+                        fontSize = 13.sp,
+                        lineHeight = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clickable { onViewAll() }
-                            .testTag("link_view_all_milestones")
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = "Ver todos  ›",
+                    fontSize = 11.sp,
+                    color = Color(0xFFA78BFA),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .clickable { onViewAll() }
+                        .testTag("link_view_all_milestones")
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Lista de marcos históricos
                 displayList.take(4).forEachIndexed { index, item ->
                     MarcoItem(item = item)
-                    if (index < 3) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                    if (index < minOf(3, displayList.take(4).lastIndex)) {
+                        Spacer(modifier = Modifier.height(5.dp))
                     }
                 }
             }
@@ -1282,10 +1298,16 @@ fun MarcoItem(
     item: HistoricalMilestoneData,
     modifier: Modifier = Modifier
 ) {
+    val statusColor = when (item.status) {
+        MilestoneStatus.COMPLETED -> Color(0xFF10B981)
+        MilestoneStatus.CURRENT -> Color(0xFFA78BFA)
+        MilestoneStatus.LOCKED -> Color(0xFF64748B)
+    }
+
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1334,30 +1356,26 @@ fun MarcoItem(
                 }
             }
 
+        }
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
                 text = item.title,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = if (item.status != MilestoneStatus.LOCKED) FontWeight.Medium else FontWeight.Normal,
                 color = if (item.status != MilestoneStatus.LOCKED) Color.White else Color(0xFF94A3B8),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = item.dateOrStatusLabel,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = statusColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-
-        Text(
-            text = item.dateOrStatusLabel,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = when (item.status) {
-                MilestoneStatus.COMPLETED -> Color(0xFF10B981)
-                MilestoneStatus.CURRENT -> Color(0xFFA78BFA)
-                MilestoneStatus.LOCKED -> Color(0xFF64748B)
-            },
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(58.dp)
-        )
     }
 }
 

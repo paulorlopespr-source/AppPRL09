@@ -131,3 +131,13 @@ Implementar um fluxo de avaliação inicial que gere automaticamente um plano de
 ## Resultado esperado
 
 Ao final, o usuário terá um plano personalizado de 12 semanas, compromissos automaticamente distribuídos na Agenda, histórico completo dos treinos e uma transição controlada para um segundo plano mais avançado.
+
+## Backlog futuro — Programas prontos por nível
+
+O fluxo atual de avaliação e ciclo não deve ser considerado a entrega dos programas completos por nível. Em uma etapa futura, criar uma área de programas em que o usuário possa escolher:
+
+- plano de 12 semanas para iniciante;
+- plano de 12 semanas para intermediário;
+- plano de 12 semanas para avançado.
+
+Ao tocar em um plano, o usuário deverá ver a rotina recomendada, a divisão semanal, os exercícios, séries, repetições, descanso e as regras de progressão daquele nível antes de iniciar. Cada programa precisa ter conteúdo e progressão próprios; não basta trocar o rótulo do nível em um plano genérico.

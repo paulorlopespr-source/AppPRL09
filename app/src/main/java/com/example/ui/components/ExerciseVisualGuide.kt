@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -115,7 +116,7 @@ fun ExerciseVisualGuideDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .height(720.dp)
+                .fillMaxHeight(0.9f)
                 .clip(RoundedCornerShape(24.dp))
                 .border(1.5.dp, GlassBorder, RoundedCornerShape(24.dp)),
             color = PurpleDarkest

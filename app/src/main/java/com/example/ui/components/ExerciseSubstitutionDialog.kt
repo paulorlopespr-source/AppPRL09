@@ -69,30 +69,37 @@ import com.example.ui.theme.TextSecondary
 fun ExerciseSubstitutionDialog(
     currentPlan: WorkoutExercisePlan,
     availableExercises: List<Exercise>,
+    currentExercise: Exercise? = null,
+    allowedEquipment: Set<Equipment>? = null,
     onDismiss: () -> Unit,
     onSelectExercise: (Exercise) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedEquipmentFilter by remember { mutableStateOf<Equipment?>(null) }
+    var showAllSuggestions by remember { mutableStateOf(false) }
 
-    // Identify target muscle group from current plan or available exercises
-    val currentExercise = availableExercises.find { it.name.equals(currentPlan.exerciseName, ignoreCase = true) }
-    val targetMuscleGroup = currentExercise?.muscleGroup
+    // The original may be absent from availableExercises when its equipment is unavailable.
+    val sourceExercise = currentExercise ?: availableExercises.find { it.name.equals(currentPlan.exerciseName, ignoreCase = true) }
+    val targetMuscleGroup = sourceExercise?.muscleGroup
 
-    // Filter exercises primarily by same muscle group
-    val sameGroupExercises = remember(availableExercises, targetMuscleGroup, currentPlan.muscleGroup) {
+    // The caller already ranks alternatives by catalog primary muscle; fallback to group text if
+    // the current exercise is not present in the local catalog.
+    val sameGroupExercises = remember(availableExercises, targetMuscleGroup, currentPlan.muscleGroup, sourceExercise) {
         availableExercises.filter { ex ->
-            if (targetMuscleGroup != null) {
-                ex.muscleGroup == targetMuscleGroup
-            } else {
+            if (targetMuscleGroup != null) true else {
                 ex.muscleGroup.displayName.contains(currentPlan.muscleGroup, ignoreCase = true) ||
                         currentPlan.muscleGroup.contains(ex.muscleGroup.displayName, ignoreCase = true)
             }
-        }.filter { it.name != currentPlan.exerciseName } // Exclude the one already selected
+        }.filter { !it.name.equals(currentPlan.exerciseName, ignoreCase = true) }
+            .filter { allowedEquipment == null || it.equipment in allowedEquipment }
+            .sortedWith(
+                compareBy<Exercise> { sourceExercise != null && it.equipment == sourceExercise.equipment }
+                    .thenBy { it.name }
+            )
     }
 
-    val displayList = remember(sameGroupExercises, searchQuery, selectedEquipmentFilter) {
+    val filteredExercises = remember(sameGroupExercises, searchQuery, selectedEquipmentFilter) {
         sameGroupExercises.filter { ex ->
             val matchesQuery = searchQuery.isBlank() ||
                     ex.name.contains(searchQuery, ignoreCase = true) ||
@@ -101,6 +108,9 @@ fun ExerciseSubstitutionDialog(
             matchesQuery && matchesEquip
         }
     }
+    val displayList = if (searchQuery.isBlank() && selectedEquipmentFilter == null && !showAllSuggestions) {
+        filteredExercises.take(4)
+    } else filteredExercises
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -135,7 +145,7 @@ fun ExerciseSubstitutionDialog(
                             color = TextPrimary
                         )
                         Text(
-                            text = "Mesmo grupo: ${targetMuscleGroup?.displayName ?: currentPlan.muscleGroup}",
+                            text = "Mesmo músculo principal: ${targetMuscleGroup?.displayName ?: currentPlan.muscleGroup}",
                             style = MaterialTheme.typography.labelSmall,
                             color = LilacAccent,
                             fontWeight = FontWeight.Bold
@@ -223,7 +233,7 @@ fun ExerciseSubstitutionDialog(
                             )
                         )
                     }
-                    items(listOf(Equipment.HALTERES, Equipment.BARRA, Equipment.MAQUINA, Equipment.POLIA, Equipment.PESO_CORPO)) { equip ->
+                    items(sameGroupExercises.map { it.equipment }.distinct().sortedBy { it.displayName }) { equip ->
                         val isSelected = selectedEquipmentFilter == equip
                         FilterChip(
                             selected = isSelected,
@@ -240,6 +250,25 @@ fun ExerciseSubstitutionDialog(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = if (sourceExercise == null) "Alternativas do mesmo grupo muscular" else
+                        "Sugestões para ${targetMuscleGroup?.displayName ?: currentPlan.muscleGroup}",
+                    color = LilacAccent,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Prioridade para outro equipamento. Se a troca for por lesão, escolha apenas movimentos liberados para você.",
+                    color = TextMuted,
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                if (searchQuery.isBlank() && selectedEquipmentFilter == null && filteredExercises.size > 4) {
+                    TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
+                        Text(if (showAllSuggestions) "Mostrar menos" else "Ver todas (${filteredExercises.size})", color = LilacAccent)
+                    }
+                }
 
                 // List of alternative exercises
                 if (displayList.isEmpty()) {
@@ -326,6 +355,13 @@ fun ExerciseSubstitutionDialog(
                                                     text = "${ex.defaultSets} séries x ${ex.defaultReps} reps",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = TextMuted
+                                                )
+                                            }
+                                            if (sourceExercise != null && ex.equipment != sourceExercise.equipment) {
+                                                Text(
+                                                    text = "Outro equipamento · foco muscular equivalente",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = EmeraldSuccess
                                                 )
                                             }
                                         }

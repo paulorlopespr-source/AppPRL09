@@ -90,6 +90,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.model.CardioType
 import com.example.data.model.IntensityLevel
 import com.example.data.model.SessionStatus
+import com.example.data.model.AIWorkoutPlanResult
+import com.example.data.model.HomeEquipmentProfile
 import com.example.domain.dashboard.MuscleVolume
 import com.example.ui.components.AIEvaluationDialog
 import com.example.ui.components.AddProgressPhotoDialog
@@ -103,6 +105,7 @@ import com.example.ui.components.DayBarData
 import com.example.ui.components.FullWorkoutHistorySheet
 import com.example.ui.components.GreetingCard
 import com.example.ui.components.HealthConnectDialog
+import com.example.ui.components.HomeEquipmentDialog
 import com.example.ui.components.KeyMetricsGrid
 import com.example.ui.components.MotivationCard
 import com.example.ui.components.OutdoorGpsPromptDialog
@@ -146,6 +149,7 @@ private enum class PainelTab(val label: String) { OVERVIEW("Visão Geral"), WORK
 @Composable
 fun PainelScreen(
     onStartTodayWorkout: () -> Unit = {},
+    onNavigateToActiveWorkout: () -> Unit = onStartTodayWorkout,
     onOpenExerciseLibrary: () -> Unit = {},
     phase45Vm: Phase45ViewModel = viewModel(),
     fitnessVm: FitnessViewModel = viewModel(),
@@ -163,6 +167,7 @@ fun PainelScreen(
     val muscleVolumes by phase45Vm.muscleVolumes.collectAsStateWithLifecycle()
 
     val userProfile by fitnessVm.userProfile.collectAsStateWithLifecycle()
+    val homeEquipmentProfile by fitnessVm.homeEquipmentProfile.collectAsStateWithLifecycle()
     val workoutSessions by fitnessVm.allWorkoutSessions.collectAsStateWithLifecycle()
     val cardioSessions by fitnessVm.allCardioSessions.collectAsStateWithLifecycle()
     val bodyMeasurements by fitnessVm.allBodyMeasurements.collectAsStateWithLifecycle()
@@ -183,6 +188,9 @@ fun PainelScreen(
     var showHealthConnectDialog by remember { mutableStateOf(false) }
     var showNutritionDialog by remember { mutableStateOf(false) }
     var showWorkoutGeneratorDialog by remember { mutableStateOf(false) }
+    var pendingHomeAIWorkout by remember { mutableStateOf<AIWorkoutPlanResult?>(null) }
+    var showHomeEquipmentDialog by remember { mutableStateOf(false) }
+    var showHomeEquipmentError by remember { mutableStateOf(false) }
     var showWorkoutReminderDialog by remember { mutableStateOf(false) }
     var showDataExportDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -560,11 +568,42 @@ fun PainelScreen(
                 Toast.makeText(context, "Treino adicionado com sucesso!", Toast.LENGTH_SHORT).show()
             },
             onStartWorkoutNow = { plan ->
-                fitnessVm.startWorkoutFromAIPlan(plan)
-                showWorkoutGeneratorDialog = false
-                onStartTodayWorkout()
+                val location = userProfile?.defaultGymLocation ?: "Academia Smart Fit"
+                if (location.contains("Em Casa", ignoreCase = true)) {
+                    pendingHomeAIWorkout = plan
+                    showWorkoutGeneratorDialog = false
+                    showHomeEquipmentDialog = true
+                } else if (fitnessVm.startWorkoutFromAIPlan(plan, location)) {
+                    showWorkoutGeneratorDialog = false
+                    onNavigateToActiveWorkout()
+                }
             },
             onDismiss = { showWorkoutGeneratorDialog = false }
+        )
+    }
+
+    if (showHomeEquipmentDialog) {
+        HomeEquipmentDialog(
+            initialProfile = homeEquipmentProfile,
+            onDismiss = { showHomeEquipmentDialog = false; pendingHomeAIWorkout = null },
+            onSave = { profile: HomeEquipmentProfile ->
+                fitnessVm.saveHomeEquipmentProfile(profile)
+                val started = pendingHomeAIWorkout?.let {
+                    fitnessVm.startWorkoutFromAIPlan(it, userProfile?.defaultGymLocation ?: "Em Casa")
+                } ?: false
+                showHomeEquipmentDialog = false
+                pendingHomeAIWorkout = null
+                if (started) onNavigateToActiveWorkout() else showHomeEquipmentError = true
+            }
+        )
+    }
+
+    if (showHomeEquipmentError) {
+        AlertDialog(
+            onDismissRequest = { showHomeEquipmentError = false },
+            title = { Text("Sem exercícios compatíveis") },
+            text = { Text("Não encontrei exercícios deste treino compatíveis com os equipamentos selecionados. Ajuste os equipamentos ou escolha outro treino.") },
+            confirmButton = { TextButton(onClick = { showHomeEquipmentError = false }) { Text("Entendi") } }
         )
     }
 

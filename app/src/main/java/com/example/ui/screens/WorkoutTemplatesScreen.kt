@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -84,6 +85,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -97,6 +99,8 @@ import com.example.data.model.WorkoutTemplate
 import com.example.ui.components.BentoCard
 import com.example.ui.components.LiquidGlassSurface
 import com.example.ui.components.LocationSelector
+import com.example.ui.components.HomeEquipmentDialog
+import com.example.data.model.HomeEquipmentProfile
 import com.example.ui.components.PrimaryButton
 import com.example.ui.components.QuickWorkoutSheet
 import com.example.ui.components.SecondaryButton
@@ -135,6 +139,7 @@ fun WorkoutTemplatesScreen(
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
+    val homeEquipmentProfile by viewModel.homeEquipmentProfile.collectAsStateWithLifecycle()
 
     var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Meus Treinos, 1: Treino Rápido, 2: Favoritos
     var selectedCategoryFilter by remember { mutableStateOf<WorkoutCategory?>(null) }
@@ -145,6 +150,9 @@ fun WorkoutTemplatesScreen(
     var showQuickWorkoutSheet by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var templateToStart by remember { mutableStateOf<WorkoutTemplate?>(null) }
+    var pendingHomeStart by remember { mutableStateOf<PendingHomeWorkoutStart?>(null) }
+    var showHomeEquipmentDialog by remember { mutableStateOf(false) }
+    var showHomeEquipmentError by remember { mutableStateOf(false) }
     var selectedLocation by remember {
         mutableStateOf(userProfile?.defaultGymLocation ?: "Smart Fit Paulista")
     }
@@ -464,9 +472,13 @@ fun WorkoutTemplatesScreen(
         QuickWorkoutSheet(
             onDismiss = { showQuickWorkoutSheet = false },
             onStartStrengthWorkout = { title, location, plans ->
-                viewModel.startWorkoutWithPlans(title = title, location = location, plans = plans)
                 showQuickWorkoutSheet = false
-                onStartWorkout()
+                if (location.contains("Em Casa", ignoreCase = true)) {
+                    pendingHomeStart = PendingHomeWorkoutStart(title = title, location = location, plans = plans)
+                    showHomeEquipmentDialog = true
+                } else if (viewModel.startWorkoutWithPlans(title = title, location = location, plans = plans)) {
+                    onStartWorkout()
+                }
             },
             onStartCardio = { type, location, intensity, targetMinutes, enableGps ->
                 viewModel.startLiveCardio(
@@ -543,8 +555,12 @@ fun WorkoutTemplatesScreen(
                         val currentTemplate = templateToStart
                         templateToStart = null
                         if (currentTemplate != null) {
-                            viewModel.startWorkoutFromTemplate(currentTemplate, selectedLocation)
-                            onStartWorkout()
+                            if (selectedLocation.contains("Em Casa", ignoreCase = true)) {
+                                pendingHomeStart = PendingHomeWorkoutStart(template = currentTemplate, location = selectedLocation)
+                                showHomeEquipmentDialog = true
+                            } else if (viewModel.startWorkoutFromTemplate(currentTemplate, selectedLocation)) {
+                                onStartWorkout()
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
@@ -584,6 +600,35 @@ fun WorkoutTemplatesScreen(
         )
     }
 
+    if (showHomeEquipmentDialog) {
+        HomeEquipmentDialog(
+            initialProfile = homeEquipmentProfile,
+            onDismiss = { showHomeEquipmentDialog = false; pendingHomeStart = null },
+            onSave = { profile: HomeEquipmentProfile ->
+                viewModel.saveHomeEquipmentProfile(profile)
+                val pending = pendingHomeStart
+                val started = when {
+                    pending == null -> false
+                    pending.template != null -> viewModel.startWorkoutFromTemplate(pending.template, pending.location)
+                    else -> viewModel.startWorkoutWithPlans(pending.title, pending.location, pending.plans.orEmpty())
+                }
+                showHomeEquipmentDialog = false
+                pendingHomeStart = null
+                if (started) onStartWorkout() else showHomeEquipmentError = true
+            }
+        )
+    }
+
+    if (showHomeEquipmentError) {
+        AlertDialog(
+            onDismissRequest = { showHomeEquipmentError = false },
+            title = { Text("Sem exercícios compatíveis", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text("A biblioteca não tem exercícios compatíveis com os equipamentos selecionados para este grupo muscular. Escolha outros equipamentos ou amplie a biblioteca.", color = TextSecondary) },
+            confirmButton = { TextButton(onClick = { showHomeEquipmentError = false }) { Text("Entendi", color = LilacAccent) } },
+            containerColor = PurpleDarkSurface
+        )
+    }
+
     if (showExerciseLibrary) {
         ExerciseLibraryDialog(
             allExercises = allExercises,
@@ -591,6 +636,13 @@ fun WorkoutTemplatesScreen(
         )
     }
 }
+
+private data class PendingHomeWorkoutStart(
+    val template: WorkoutTemplate? = null,
+    val title: String = "Treino em Casa",
+    val location: String,
+    val plans: List<com.example.data.model.WorkoutExercisePlan>? = null
+)
 
 @Composable
 private fun ExerciseLibraryDialog(
@@ -609,7 +661,7 @@ private fun ExerciseLibraryDialog(
             Text("Biblioteca de Exercícios", color = TextPrimary, fontWeight = FontWeight.Black)
         },
         text = {
-            Column(Modifier.fillMaxWidth().height(520.dp)) {
+            Column(Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
                 Text("${filteredExercises.size} exercícios disponíveis", color = TextSecondary, fontSize = 12.sp)
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp),
@@ -650,10 +702,28 @@ private fun ExerciseLibraryDialog(
                                     )
                                     Spacer(Modifier.width(10.dp))
                                 }
-                                Column {
-                                    Text(exercise.name, color = TextPrimary, fontWeight = FontWeight.Bold)
-                                    Text(exercise.muscleGroup.displayName, color = LilacAccent, fontSize = 12.sp)
-                                    Text(exercise.equipment.displayName, color = TextSecondary, fontSize = 11.sp)
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        exercise.name,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        exercise.muscleGroup.displayName,
+                                        color = LilacAccent,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        exercise.equipment.displayName,
+                                        color = TextSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }

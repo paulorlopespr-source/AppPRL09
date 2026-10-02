@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.ActiveCardioTrackerModal
+import com.example.ui.components.HomeEquipmentDialog
 import com.example.ui.components.QuickWorkoutSheet
 import com.example.ui.screens.ActiveWorkoutScreen
 import com.example.ui.screens.AgendaScreen
@@ -100,6 +101,9 @@ import com.example.ui.theme.PurpleVibrant
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.viewmodel.FitnessViewModel
+import com.example.data.model.HomeEquipmentProfile
+import com.example.data.model.WorkoutTemplate
+import com.example.data.model.WorkoutExercisePlan
 
 enum class AppDestination(
     val title: String,
@@ -138,6 +142,9 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
     val activeWorkoutState by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val activeCardioState by viewModel.activeCardio.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val homeEquipmentProfile by viewModel.homeEquipmentProfile.collectAsStateWithLifecycle()
+    var pendingHomeStart by remember { mutableStateOf<PendingHomeStart?>(null) }
+    var homeStartError by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val shouldKeepScreenOn = keepScreenOn || activeWorkoutState.isActive || activeCardioState.isActive
@@ -176,6 +183,7 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     )
                     AppDestination.DASHBOARD -> PainelScreen(
                         onStartTodayWorkout = { currentDestination = AppDestination.WORKOUTS },
+                        onNavigateToActiveWorkout = { currentDestination = AppDestination.ACTIVE_WORKOUT },
                         onOpenExerciseLibrary = { openExerciseLibrary = true; currentDestination = AppDestination.WORKOUTS },
                         fitnessVm = viewModel
                     )
@@ -190,8 +198,11 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     AppDestination.AGENDA -> AgendaScreen(
                         viewModel = viewModel,
                         onStartScheduledWorkout = { template, location, scheduledId, dateEpoch, appointmentId ->
-                            viewModel.startWorkoutFromTemplate(template, location, scheduledId, dateEpoch, appointmentId)
-                            currentDestination = AppDestination.ACTIVE_WORKOUT
+                            if (location.contains("Em Casa", ignoreCase = true)) {
+                                pendingHomeStart = PendingHomeStart(template, location, scheduledId, dateEpoch, appointmentId)
+                            } else if (viewModel.startWorkoutFromTemplate(template, location, scheduledId, dateEpoch, appointmentId)) {
+                                currentDestination = AppDestination.ACTIVE_WORKOUT
+                            }
                         },
                         onOpenExerciseLibrary = { openExerciseLibrary = true; currentDestination = AppDestination.WORKOUTS }
                     )
@@ -332,9 +343,12 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
         QuickWorkoutSheet(
             onDismiss = { showQuickStartSheet = false },
             onStartStrengthWorkout = { title, location, plans ->
-                viewModel.startWorkoutWithPlans(title = title, location = location, plans = plans)
                 showQuickStartSheet = false
-                currentDestination = AppDestination.ACTIVE_WORKOUT
+                if (location.contains("Em Casa", ignoreCase = true)) {
+                    pendingHomeStart = PendingHomeStart(null, location, title = title, plans = plans)
+                } else if (viewModel.startWorkoutWithPlans(title = title, location = location, plans = plans)) {
+                    currentDestination = AppDestination.ACTIVE_WORKOUT
+                }
             },
             onStartCardio = { type, location, intensity, targetMinutes, enableGps ->
                 viewModel.startLiveCardio(type = type, location = location, intensity = intensity, targetMinutes = targetMinutes, enableGps = enableGps)
@@ -344,7 +358,54 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
             sheetState = sheetState
         )
     }
+
+    pendingHomeStart?.let { pending ->
+        HomeEquipmentDialog(
+            initialProfile = homeEquipmentProfile,
+            onDismiss = { pendingHomeStart = null },
+            onSave = { profile: HomeEquipmentProfile ->
+                viewModel.saveHomeEquipmentProfile(profile)
+                val started = if (pending.template != null) {
+                    viewModel.startWorkoutFromTemplate(
+                        template = pending.template,
+                        location = pending.location,
+                        scheduledSessionId = pending.scheduledSessionId,
+                        scheduledDateEpochDay = pending.scheduledDateEpochDay,
+                        agendaAppointmentId = pending.agendaAppointmentId
+                    )
+                } else {
+                    viewModel.startWorkoutWithPlans(pending.title, pending.location, pending.plans.orEmpty())
+                }
+                if (started) {
+                    pendingHomeStart = null
+                    currentDestination = AppDestination.ACTIVE_WORKOUT
+                } else {
+                    pendingHomeStart = null
+                    homeStartError = true
+                }
+            }
+        )
+    }
+
+    if (homeStartError) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { homeStartError = false },
+            title = { Text("Sem exercícios compatíveis") },
+            text = { Text("A biblioteca atual não tem exercícios para este foco com os equipamentos selecionados.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { homeStartError = false }) { Text("Entendi") } }
+        )
+    }
 }
+
+private data class PendingHomeStart(
+    val template: WorkoutTemplate?,
+    val location: String,
+    val scheduledSessionId: Long? = null,
+    val scheduledDateEpochDay: Long? = null,
+    val agendaAppointmentId: String? = null,
+    val title: String = "Treino em Casa",
+    val plans: List<WorkoutExercisePlan>? = null
+)
 
 @Composable
 fun MainBottomNavigation(

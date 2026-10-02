@@ -40,6 +40,9 @@ import com.example.data.model.CardioType
 import com.example.data.model.IntensityLevel
 import com.example.data.model.SessionStatus
 import com.example.data.model.WorkoutTemplate
+import com.example.data.model.HomeEquipmentProfile
+import com.example.data.model.AIWorkoutPlanResult
+import com.example.data.model.WorkoutExercisePlan
 import com.example.ui.components.AIEvaluationDialog
 import com.example.ui.components.AINutritionDialog
 import com.example.ui.components.AIWorkoutGeneratorDialog
@@ -52,6 +55,7 @@ import com.example.ui.components.EssentialMetricsRow
 import com.example.ui.components.FullWorkoutHistorySheet
 import com.example.ui.components.HealthConnectDialog
 import com.example.ui.components.HomeHeader
+import com.example.ui.components.HomeEquipmentDialog
 import com.example.ui.components.HomeUiState
 import com.example.ui.components.MotivationCard
 import com.example.ui.components.OutdoorGpsPromptDialog
@@ -94,6 +98,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val homeEquipmentProfile by viewModel.homeEquipmentProfile.collectAsStateWithLifecycle()
     val activeTrainingCycle by viewModel.activeTrainingCycle.collectAsStateWithLifecycle()
     var showInitialAssessment by remember { mutableStateOf(activeTrainingCycle == null) }
     var assessmentDismissed by remember { mutableStateOf(false) }
@@ -144,6 +149,11 @@ fun HomeScreen(
     var showGpsPromptDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var pendingOutdoorCardioType by remember { mutableStateOf<CardioType?>(null) }
+    var templatePendingHomeStart by remember { mutableStateOf<WorkoutTemplate?>(null) }
+    var aiPendingHomeStart by remember { mutableStateOf<AIWorkoutPlanResult?>(null) }
+    var quickPendingHomeStart by remember { mutableStateOf<Pair<String, List<WorkoutExercisePlan>>?>(null) }
+    var showHomeEquipmentDialog by remember { mutableStateOf(false) }
+    var showHomeEquipmentError by remember { mutableStateOf(false) }
 
     // Intercepta se o usuário acionou o check-in de Prontidão
     if (checkInMode) {
@@ -319,11 +329,13 @@ fun HomeScreen(
                         onStartWorkout = {
                             val templateToStart = dailySuggestion.template ?: todayTemplate
                             if (templateToStart != null) {
-                                viewModel.startWorkoutFromTemplate(
-                                    template = templateToStart,
-                                    location = userProfile?.defaultGymLocation ?: "Academia Principal"
-                                )
-                                onNavigateToActiveWorkout()
+                                val location = userProfile?.defaultGymLocation ?: "Academia Principal"
+                                if (location.contains("Em Casa", ignoreCase = true)) {
+                                    templatePendingHomeStart = templateToStart
+                                    showHomeEquipmentDialog = true
+                                } else if (viewModel.startWorkoutFromTemplate(templateToStart, location)) {
+                                    onNavigateToActiveWorkout()
+                                }
                             } else {
                                 onNavigateToWorkouts()
                             }
@@ -484,9 +496,15 @@ fun HomeScreen(
                 showWorkoutGeneratorDialog = false
             },
             onStartWorkoutNow = { plan ->
-                viewModel.startWorkoutFromAIPlan(plan)
-                showWorkoutGeneratorDialog = false
-                onNavigateToActiveWorkout()
+                val location = userProfile?.defaultGymLocation ?: "Academia Smart Fit"
+                if (location.contains("Em Casa", ignoreCase = true)) {
+                    aiPendingHomeStart = plan
+                    showWorkoutGeneratorDialog = false
+                    showHomeEquipmentDialog = true
+                } else if (viewModel.startWorkoutFromAIPlan(plan, location)) {
+                    showWorkoutGeneratorDialog = false
+                    onNavigateToActiveWorkout()
+                }
             },
             onDismiss = { showWorkoutGeneratorDialog = false }
         )
@@ -568,13 +586,15 @@ fun HomeScreen(
         QuickWorkoutSheet(
             onDismiss = { showQuickWorkoutSheet = false },
             onStartStrengthWorkout = { title, location, plans ->
-                viewModel.startWorkoutWithPlans(
-                    title = title,
-                    location = location,
-                    plans = plans
-                )
                 showQuickWorkoutSheet = false
-                onNavigateToActiveWorkout()
+                if (location.contains("Em Casa", ignoreCase = true)) {
+                    quickPendingHomeStart = title to plans
+                    showHomeEquipmentDialog = true
+                } else if (viewModel.startWorkoutWithPlans(title, location, plans)) {
+                    onNavigateToActiveWorkout()
+                } else {
+                    showHomeEquipmentError = true
+                }
             },
             onStartCardio = { type, location, intensity, targetMinutes, enableGps ->
                 viewModel.startLiveCardio(
@@ -638,6 +658,38 @@ fun HomeScreen(
                 viewModel.archiveActiveCycle()
                 showCycleReassessment = false
             }
+        )
+    }
+
+    if (showHomeEquipmentDialog) {
+        HomeEquipmentDialog(
+            initialProfile = homeEquipmentProfile,
+            onDismiss = { showHomeEquipmentDialog = false; templatePendingHomeStart = null; aiPendingHomeStart = null; quickPendingHomeStart = null },
+            onSave = { profile: HomeEquipmentProfile ->
+                viewModel.saveHomeEquipmentProfile(profile)
+                val template = templatePendingHomeStart
+                val started = template?.let {
+                    viewModel.startWorkoutFromTemplate(it, userProfile?.defaultGymLocation ?: "Em Casa")
+                } ?: aiPendingHomeStart?.let {
+                    viewModel.startWorkoutFromAIPlan(it, userProfile?.defaultGymLocation ?: "Em Casa")
+                } ?: quickPendingHomeStart?.let { (title, plans) ->
+                    viewModel.startWorkoutWithPlans(title, userProfile?.defaultGymLocation ?: "Em Casa", plans)
+                } ?: false
+                showHomeEquipmentDialog = false
+                templatePendingHomeStart = null
+                aiPendingHomeStart = null
+                quickPendingHomeStart = null
+                if (started) onNavigateToActiveWorkout() else showHomeEquipmentError = true
+            }
+        )
+    }
+
+    if (showHomeEquipmentError) {
+        AlertDialog(
+            onDismissRequest = { showHomeEquipmentError = false },
+            title = { Text("Sem exercícios compatíveis", color = TextPrimary) },
+            text = { Text("Não encontrei exercícios deste treino compatíveis com os equipamentos selecionados. Ajuste os equipamentos ou escolha outro treino.", color = TextSecondary) },
+            confirmButton = { TextButton(onClick = { showHomeEquipmentError = false }) { Text("Entendi", color = LilacAccent) } }
         )
     }
 }

@@ -7,17 +7,26 @@ import com.example.data.model.CardioSession
 import com.example.data.model.Exercise
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutSession
+import com.example.data.model.SessionStatus
 import com.example.data.model.WorkoutTemplate
 import com.example.data.model.TrainingCycle
 import com.example.data.model.InitialAssessment
 import com.example.data.model.PlannedWorkout
 import com.example.data.model.CycleReassessment
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+internal fun isStaleWorkoutDraft(existing: WorkoutSession?, incoming: WorkoutSession): Boolean =
+    existing?.status == SessionStatus.COMPLETED && incoming.status == SessionStatus.IN_PROGRESS
 
 class FitnessRepository(
     private val dao: FitnessDao,
     private val geminiService: GeminiCalorieService = GeminiCalorieService()
 ) {
+    // Draft autosaves and final completion share one Room row; serialize writes and
+    // prevent a late draft from downgrading a completed session.
+    private val workoutSessionWriteMutex = Mutex()
     val activeTrainingCycle: Flow<TrainingCycle?> = dao.getActiveTrainingCycle()
     val initialAssessments: Flow<List<InitialAssessment>> = dao.getInitialAssessments()
     fun getPlannedWorkouts(cycleId: Long): Flow<List<PlannedWorkout>> = dao.getPlannedWorkouts(cycleId)
@@ -72,7 +81,10 @@ class FitnessRepository(
 
     suspend fun getWorkoutSessionById(id: Long): WorkoutSession? = dao.getWorkoutSessionById(id)
 
-    suspend fun saveWorkoutSession(session: WorkoutSession): Long = dao.insertWorkoutSession(session)
+    suspend fun saveWorkoutSession(session: WorkoutSession): Long = workoutSessionWriteMutex.withLock {
+        val existing = session.id.takeIf { it != 0L }?.let { dao.getWorkoutSessionById(it) }
+        if (isStaleWorkoutDraft(existing, session)) existing!!.id else dao.insertWorkoutSession(session)
+    }
 
     suspend fun updateWorkoutSession(session: WorkoutSession) = dao.updateWorkoutSession(session)
 

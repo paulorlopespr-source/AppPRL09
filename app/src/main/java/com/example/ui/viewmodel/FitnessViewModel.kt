@@ -12,6 +12,8 @@ import com.example.data.model.CardioSession
 import com.example.data.model.CardioType
 import com.example.data.model.DailyWorkoutSuggestion
 import com.example.data.model.Exercise
+import com.example.data.model.Equipment
+import com.example.data.model.HomeEquipmentProfile
 import com.example.data.model.ExerciseEvolutionSummary
 import com.example.data.model.ExerciseExecutionRecord
 import com.example.data.model.ExerciseSetEntry
@@ -99,6 +101,18 @@ private fun String?.toAgendaMillis(epochDay: Long): Long? = runCatching {
         .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 }.getOrNull()
 
+private fun workoutStartTimeMillis(state: ActiveWorkoutState): Long =
+    state.startedAtMillis.takeIf { it > 0L }
+        ?: (System.currentTimeMillis() - state.durationSeconds * 1000L)
+
+private fun workoutStartDateEpochDay(state: ActiveWorkoutState): Long =
+    if (state.startedAtMillis > 0L) {
+        java.time.Instant.ofEpochMilli(state.startedAtMillis)
+            .atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+    } else {
+        state.scheduledDateEpochDay ?: DateUtils.todayEpochDay()
+    }
+
 data class ProgressiveOverloadSuggestion(
     val exerciseName: String,
     val previousWeightKg: Double,
@@ -116,6 +130,7 @@ data class ActiveWorkoutState(
     val scheduledSessionId: Long? = null,
     val agendaAppointmentId: String? = null,
     val scheduledDateEpochDay: Long? = null,
+    val startedAtMillis: Long = 0L,
     val title: String = "",
     val location: String = "Academia Smart Fit",
     val durationSeconds: Int = 0,
@@ -126,6 +141,12 @@ data class ActiveWorkoutState(
     val restTimerRemainingSeconds: Int = 0,
     val restTimerTotalSeconds: Int = 60,
     val restTimerPaused: Boolean = false
+)
+
+private data class ExerciseCatalogRule(
+    val equipment: Set<Equipment>,
+    val levelRank: Int,
+    val primaryMuscles: Set<String> = emptySet()
 )
 
 data class ActiveCardioState(
@@ -178,6 +199,31 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     // Persistent Preferences: Keep Screen On & Backup Unlocked Medals
     private val prefs = application.getSharedPreferences("fitpr09_prefs", Context.MODE_PRIVATE)
+    private fun readHomeEquipmentProfile(): HomeEquipmentProfile = HomeEquipmentProfile(
+        availableEquipment = (prefs.getStringSet("home_equipment_codes", emptySet()) ?: emptySet())
+            .mapNotNull { runCatching { Equipment.valueOf(it) }.getOrNull() }
+            .toSet()
+            .ifEmpty { setOf(Equipment.PESO_CORPO) },
+        barLoadKg = prefs.getString("home_bar_load_kg", null)?.toDoubleOrNull(),
+        dumbbellLoadPerHandKg = prefs.getString("home_dumbbell_load_per_hand_kg", null)?.toDoubleOrNull(),
+        configured = prefs.getBoolean("home_equipment_configured", false)
+    )
+    private val _homeEquipmentProfile = MutableStateFlow(readHomeEquipmentProfile())
+    val homeEquipmentProfile: StateFlow<HomeEquipmentProfile> = _homeEquipmentProfile.asStateFlow()
+
+    fun saveHomeEquipmentProfile(profile: HomeEquipmentProfile) {
+        val normalized = profile.copy(availableEquipment = profile.availableEquipment + Equipment.PESO_CORPO)
+        _homeEquipmentProfile.value = normalized
+        prefs.edit().apply {
+            putStringSet("home_equipment_codes", normalized.availableEquipment.map { it.name }.toSet())
+            normalized.barLoadKg?.let { putString("home_bar_load_kg", it.toString()) } ?: remove("home_bar_load_kg")
+            normalized.dumbbellLoadPerHandKg?.let { putString("home_dumbbell_load_per_hand_kg", it.toString()) } ?: remove("home_dumbbell_load_per_hand_kg")
+            remove("home_total_plates_kg")
+            remove("home_empty_bar_kg")
+            remove("home_empty_dumbbell_pair_kg")
+            putBoolean("home_equipment_configured", normalized.configured)
+        }.apply()
+    }
     private val _keepScreenOn = MutableStateFlow(prefs.getBoolean("pref_keep_screen_on", true))
     val keepScreenOn: StateFlow<Boolean> = _keepScreenOn.asStateFlow()
 
@@ -660,6 +706,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     private var workoutTimerJob: Job? = null
     private var restTimerJob: Job? = null
+    private var activeDraftSaveJob: Job? = null
 
     // --- Active Cardio State ---
     private val _activeCardio = MutableStateFlow(ActiveCardioState())
@@ -749,7 +796,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         scheduledSessionId: Long? = null,
         scheduledDateEpochDay: Long? = null,
         agendaAppointmentId: String? = null
-    ) {
+    ): Boolean {
         val parsedPlans = try {
             plansAdapter.fromJson(template.exercisesJson) ?: emptyList()
         } catch (e: Exception) {
@@ -757,13 +804,17 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // Reset completion status for fresh session
-        val freshPlans = parsedPlans.map { plan ->
+        val basePlans = parsedPlans.map { plan ->
             plan.copy(
                 sets = plan.sets.map { set ->
                     set.copy(isCompleted = false)
                 }
             )
         }
+        val freshPlans = if (location.isHomeWorkoutLocation()) {
+            adaptPlansForHome(basePlans)
+        } else basePlans
+        if (location.isHomeWorkoutLocation() && freshPlans.isEmpty()) return false
 
         _activeWorkout.value = ActiveWorkoutState(
             isActive = true,
@@ -771,6 +822,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             scheduledSessionId = scheduledSessionId,
             agendaAppointmentId = agendaAppointmentId,
             scheduledDateEpochDay = scheduledDateEpochDay,
+            startedAtMillis = System.currentTimeMillis(),
             title = template.title,
             location = location,
             durationSeconds = 0,
@@ -784,6 +836,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
         startWorkoutDurationTimer()
         ttsVoiceManager.speakStartWorkout(template.title)
+        return true
     }
 
     fun startEmptyWorkout(title: String = "Treino Personalizado", location: String = "Academia Smart Fit") {
@@ -815,6 +868,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             isActive = true,
             templateId = null,
             title = title.ifBlank { "Treino Personalizado" },
+            startedAtMillis = System.currentTimeMillis(),
             location = location,
             durationSeconds = 0,
             exercises = plans,
@@ -829,14 +883,17 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         ttsVoiceManager.speakStartWorkout(_activeWorkout.value.title)
     }
 
-    fun startWorkoutWithPlans(title: String, location: String, plans: List<WorkoutExercisePlan>) {
+    fun startWorkoutWithPlans(title: String, location: String, plans: List<WorkoutExercisePlan>): Boolean {
+        val selectedPlans = if (location.isHomeWorkoutLocation()) adaptPlansForHome(plans) else plans
+        if (location.isHomeWorkoutLocation() && selectedPlans.isEmpty()) return false
         _activeWorkout.value = ActiveWorkoutState(
             isActive = true,
             templateId = null,
             title = title.ifBlank { "Treino Rápido" },
+            startedAtMillis = System.currentTimeMillis(),
             location = location,
             durationSeconds = 0,
-            exercises = plans,
+            exercises = selectedPlans,
             perceivedExertion = 7,
             notes = "",
             restTimerVisible = false
@@ -844,6 +901,170 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
         startWorkoutDurationTimer()
         ttsVoiceManager.speakStartWorkout(_activeWorkout.value.title)
+        return true
+    }
+
+    private fun String.isHomeWorkoutLocation(): Boolean = contains("em casa", ignoreCase = true)
+
+    private fun catalogEquipment(label: String): Equipment? = when (label.trim().lowercase()) {
+        "barra", "barra e anilhas", "barra/anilhas" -> Equipment.BARRA
+        "halteres", "dumbbell", "dumbbells" -> Equipment.HALTERES
+        "máquina", "maquina", "máquinas" -> Equipment.MAQUINA
+        "polia/cabo", "polia", "cabo" -> Equipment.POLIA
+        "peso corporal", "sem equipamento", "bodyweight" -> Equipment.PESO_CORPO
+        "elástico", "elastico", "faixa elástica", "faixa elastica" -> Equipment.ELASTICO
+        "barra fixa", "pull-up bar" -> Equipment.BARRA_FIXA
+        "paralelas", "barras paralelas" -> Equipment.PARALELAS
+        "banco", "banco/apoio" -> Equipment.BANCO
+        "kettlebell" -> Equipment.KETTLEBELL
+        "hand gripper", "gripper" -> Equipment.HAND_GRIPPER
+        "trenó", "treno", "sled" -> Equipment.TRENO
+        else -> null
+    }
+
+    private fun normalizeExerciseName(value: String): String = java.text.Normalizer
+        .normalize(value.lowercase(), java.text.Normalizer.Form.NFD)
+        .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+
+    private fun requiredEquipmentFor(exercise: Exercise, rule: ExerciseCatalogRule?): Set<Equipment> {
+        val normalizedName = normalizeExerciseName(exercise.name)
+        return buildSet {
+            addAll(rule?.equipment ?: setOf(exercise.equipment))
+            if ((normalizedName.contains("supino") || normalizedName.contains("crucifixo com halter") ||
+                    normalizedName.contains("rosca scott com barra") || normalizedName.contains("mergulho no banco") ||
+                    normalizedName.contains("pullover com halter")) && !normalizedName.contains("maquina")) {
+                add(Equipment.BANCO)
+            }
+            if (normalizedName.contains("barra fixa") || normalizedName.contains("sustentacao na barra")) add(Equipment.BARRA_FIXA)
+            if (normalizedName.contains("mergulho em paralelas") || normalizedName.contains("paralelas")) add(Equipment.PARALELAS)
+            if (normalizedName.contains("kettlebell")) add(Equipment.KETTLEBELL)
+            if (normalizedName.contains("hand gripper") || normalizedName.contains("gripper")) add(Equipment.HAND_GRIPPER)
+            if (normalizedName.contains("treno")) add(Equipment.TRENO)
+            if (normalizedName.contains("elastico")) add(Equipment.ELASTICO)
+        }
+    }
+
+    private fun readExerciseCatalogRules(): Map<String, ExerciseCatalogRule> = runCatching {
+        val root = JSONObject(getApplication<Application>().assets.open("exercise_library/exercises.pt-BR.json").bufferedReader().use { it.readText() })
+        val items = root.optJSONArray("exercises") ?: return emptyMap()
+        buildMap {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val name = item.optString("name").trim().lowercase()
+                if (name.isBlank()) continue
+                val equipmentLabels = item.optJSONArray("equipment")
+                val listedEquipment = (0 until (equipmentLabels?.length() ?: 0))
+                    .mapNotNull { catalogEquipment(equipmentLabels?.optString(it).orEmpty()) }
+                    .toSet()
+                    .ifEmpty { setOfNotNull(catalogEquipment(item.optString("equipment"))) }
+                val required = buildSet {
+                    addAll(listedEquipment)
+                    val normalizedName = normalizeExerciseName(name)
+                    if ((normalizedName.contains("supino") || normalizedName.contains("crucifixo com halter") ||
+                            normalizedName.contains("rosca scott com barra") || normalizedName.contains("mergulho no banco") ||
+                            normalizedName.contains("pullover com halter")) && !normalizedName.contains("maquina")) add(Equipment.BANCO)
+                    if (normalizedName.contains("barra fixa") || normalizedName.contains("sustentacao na barra")) add(Equipment.BARRA_FIXA)
+                    if (normalizedName.contains("mergulho em paralelas") || normalizedName.contains("paralelas")) add(Equipment.PARALELAS)
+                    if (normalizedName.contains("kettlebell")) add(Equipment.KETTLEBELL)
+                    if (normalizedName.contains("hand gripper") || normalizedName.contains("gripper")) add(Equipment.HAND_GRIPPER)
+                    if (normalizedName.contains("treno")) add(Equipment.TRENO)
+                    if (normalizedName.contains("elastico")) add(Equipment.ELASTICO)
+                }
+                val rank = when (item.optString("level").lowercase()) {
+                    "iniciante" -> 1
+                    "intermediário", "intermediario" -> 2
+                    "avançado", "avancado" -> 3
+                    else -> 1
+                }
+                val primaryMuscles = item.optJSONArray("primaryMuscles")?.let { muscles ->
+                    (0 until muscles.length()).map { normalizeExerciseName(muscles.optString(it)) }.filter { it.isNotBlank() }.toSet()
+                }.orEmpty()
+                put(name, ExerciseCatalogRule(required, rank, primaryMuscles))
+            }
+        }
+    }.getOrDefault(emptyMap())
+
+    private fun adaptPlansForHome(plans: List<WorkoutExercisePlan>): List<WorkoutExercisePlan> {
+        val inventory = _homeEquipmentProfile.value
+        val equipment = inventory.availableEquipment + Equipment.PESO_CORPO
+        val exercises = allExercises.value
+        if (exercises.isEmpty()) return emptyList()
+        val rules = readExerciseCatalogRules()
+        val maxLevel = when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
+            FitnessLevel.SEDENTARY, FitnessLevel.BEGINNER -> 1
+            FitnessLevel.INTERMEDIATE -> 2
+            FitnessLevel.ADVANCED -> 3
+        }
+        val used = mutableSetOf<Long>()
+        return plans.mapNotNull { plan ->
+            val original = exercises.firstOrNull { it.id == plan.exerciseId || it.name.equals(plan.exerciseName, true) }
+            val originalRule = original?.let { rules[it.name.lowercase()] }
+            val originalRequiredEquipment = original?.let { requiredEquipmentFor(it, originalRule) }.orEmpty()
+            val originalFits = original != null && originalRequiredEquipment.all { it in equipment } &&
+                (originalRule?.levelRank ?: 1) <= maxLevel
+            val chosen = if (originalFits) original else {
+                val normalizedPlanGroup = normalizeExerciseName(plan.muscleGroup)
+                val targetGroup = original?.muscleGroup ?: exercises.map { it.muscleGroup }.distinct().firstOrNull {
+                    val normalizedGroup = normalizeExerciseName(it.displayName)
+                    normalizedGroup.contains(normalizedPlanGroup) || normalizedPlanGroup.contains(normalizedGroup)
+                }
+                exercises.asSequence()
+                    .filter { candidate -> candidate.id !in used && candidate.name != plan.exerciseName }
+                    .filter { candidate -> targetGroup != null && candidate.muscleGroup == targetGroup }
+                    .filter { candidate ->
+                        val rule = rules[candidate.name.lowercase()]
+                        val required = requiredEquipmentFor(candidate, rule)
+                        required.all { it in equipment } && (rule?.levelRank ?: 1) <= maxLevel
+                    }
+                    .sortedWith(compareByDescending<Exercise> {
+                        requiredEquipmentFor(it, rules[it.name.lowercase()]).any { item -> item != Equipment.PESO_CORPO }
+                    }.thenBy { rules[it.name.lowercase()]?.levelRank ?: 1 }.thenBy { it.name })
+                    .firstOrNull()
+            } ?: return@mapNotNull null
+
+            used += chosen.id
+            val requiredEquipment = requiredEquipmentFor(chosen, rules[chosen.name.lowercase()])
+            val setsCount = when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
+                FitnessLevel.SEDENTARY -> 2
+                FitnessLevel.BEGINNER -> 3
+                FitnessLevel.INTERMEDIATE -> plan.sets.size.coerceIn(3, 4)
+                FitnessLevel.ADVANCED -> plan.sets.size.coerceIn(3, 5)
+            }
+            val reps = when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
+                FitnessLevel.SEDENTARY -> 12
+                FitnessLevel.BEGINNER -> 10
+                FitnessLevel.INTERMEDIATE -> plan.sets.firstOrNull()?.reps?.coerceIn(8, 12) ?: 10
+                FitnessLevel.ADVANCED -> plan.sets.firstOrNull()?.reps?.coerceIn(6, 12) ?: 8
+            }
+            val rest = if (maxLevel <= 1) 90 else chosen.defaultRestSeconds.coerceIn(60, 150)
+            val referenceLoad = when {
+                Equipment.BARRA in requiredEquipment -> inventory.barLoadKg
+                Equipment.HALTERES in requiredEquipment -> inventory.dumbbellLoadPerHandKg
+                else -> null
+            } ?: 0.0
+            val baseWeight = plan.sets.firstOrNull()?.weightKg?.takeIf { it > 0.0 } ?: referenceLoad
+            val usesExternalLoad = requiredEquipment.any {
+                it == Equipment.BARRA || it == Equipment.HALTERES || it == Equipment.MAQUINA ||
+                    it == Equipment.POLIA || it == Equipment.KETTLEBELL
+            }
+            plan.copy(
+                exerciseId = chosen.id,
+                exerciseName = chosen.name,
+                muscleGroup = chosen.muscleGroup.displayName,
+                targetRestSeconds = rest,
+                notes = chosen.executionTips.ifBlank { plan.notes },
+                sets = (1..setsCount).map { index ->
+                    val previous = plan.sets.getOrNull(index - 1) ?: plan.sets.lastOrNull()
+                    (previous ?: ExerciseSetEntry(index, baseWeight, reps, restSeconds = rest)).copy(
+                        setNumber = index,
+                        weightKg = if (!usesExternalLoad) 0.0 else baseWeight,
+                        reps = reps,
+                        isCompleted = false,
+                        restSeconds = rest
+                    )
+                }
+            )
+        }
     }
 
     private fun startWorkoutDurationTimer() {
@@ -1169,6 +1390,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             )
             updatedExercises[exerciseIndex] = plan.copy(sets = plan.sets + newSet)
             _activeWorkout.value = current.copy(exercises = updatedExercises)
+            persistActiveWorkoutDraft()
         }
     }
 
@@ -1185,8 +1407,23 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 }
                 updatedExercises[exerciseIndex] = plan.copy(sets = reindexedSets)
                 _activeWorkout.value = current.copy(exercises = updatedExercises)
+                persistActiveWorkoutDraft()
             }
         }
+    }
+
+    /** Próximo confirma o exercício atual; ao voltar, cada série segue editável. */
+    fun completeExercise(exerciseIndex: Int) {
+        val current = _activeWorkout.value
+        if (exerciseIndex !in current.exercises.indices) return
+        val updatedExercises = current.exercises.toMutableList()
+        val plan = updatedExercises[exerciseIndex]
+        if (plan.sets.isEmpty() || plan.sets.all { it.isCompleted }) return
+        updatedExercises[exerciseIndex] = plan.copy(
+            sets = plan.sets.map { it.copy(isCompleted = true) }
+        )
+        _activeWorkout.value = current.copy(exercises = updatedExercises)
+        persistActiveWorkoutDraft()
     }
 
     fun addExerciseToActiveWorkout(exercise: Exercise) {
@@ -1209,6 +1446,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             notes = exercise.executionTips
         )
         _activeWorkout.value = current.copy(exercises = current.exercises + newPlan)
+        persistActiveWorkoutDraft()
     }
 
     // Substitution of an exercise in the active workout for another in the same muscle group
@@ -1240,6 +1478,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             )
             updatedExercises[exerciseIndex] = newPlan
             _activeWorkout.value = current.copy(exercises = updatedExercises)
+            persistActiveWorkoutDraft()
         }
     }
 
@@ -1250,26 +1489,74 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun getExercisesForMuscleGroup(muscleGroupDisplayName: String): List<Exercise> {
+    fun getExercisesForMuscleGroup(
+        muscleGroupDisplayName: String,
+        allowedEquipment: Set<Equipment>? = null
+    ): List<Exercise> {
         val all = allExercises.value
         val matches = all.filter {
             it.muscleGroup.displayName.equals(muscleGroupDisplayName, ignoreCase = true) ||
                     muscleGroupDisplayName.contains(it.muscleGroup.displayName, ignoreCase = true) ||
                     it.muscleGroup.displayName.contains(muscleGroupDisplayName, ignoreCase = true)
         }
-        return if (matches.isNotEmpty()) matches else all
+        val groupMatches = if (matches.isNotEmpty()) matches else all
+        if (allowedEquipment == null) return groupMatches
+        val rules = readExerciseCatalogRules()
+        return groupMatches.filter { exercise ->
+            requiredEquipmentFor(exercise, rules[exercise.name.lowercase()]).all { it in allowedEquipment }
+        }
+    }
+
+    /** Alternatives are matched by catalog primary muscle, falling back to the app's group. */
+    fun getSubstituteExercises(
+        source: Exercise?,
+        muscleGroupDisplayName: String,
+        allowedEquipment: Set<Equipment>? = null
+    ): List<Exercise> {
+        val all = allExercises.value
+        val rules = readExerciseCatalogRules()
+        val sourceMuscles = source?.let { rules[it.name.lowercase()]?.primaryMuscles }.orEmpty()
+        val samePrimaryMuscle = if (sourceMuscles.isEmpty()) emptyList() else all.filter { candidate ->
+            candidate.id != source?.id &&
+                rules[candidate.name.lowercase()]?.primaryMuscles.orEmpty().any { it in sourceMuscles }
+        }
+        val sameGroup = all.filter { candidate ->
+            candidate.id != source?.id && (
+                candidate.muscleGroup.displayName.equals(muscleGroupDisplayName, ignoreCase = true) ||
+                    muscleGroupDisplayName.contains(candidate.muscleGroup.displayName, ignoreCase = true) ||
+                    candidate.muscleGroup.displayName.contains(muscleGroupDisplayName, ignoreCase = true)
+                )
+        }
+        val candidates = (samePrimaryMuscle + sameGroup).distinctBy { it.id }
+        return candidates.filter { candidate ->
+            !candidate.name.equals(source?.name, ignoreCase = true) &&
+                (allowedEquipment == null || requiredEquipmentFor(candidate, rules[candidate.name.lowercase()]).all { it in allowedEquipment })
+        }.sortedWith(
+            compareBy<Exercise> { source != null && it.equipment == source.equipment }
+                .thenByDescending { candidate ->
+                    rules[candidate.name.lowercase()]?.primaryMuscles.orEmpty().intersect(sourceMuscles).size
+                }
+                .thenBy { it.name }
+        )
+    }
+
+    fun findExerciseByIdOrName(id: Long, name: String): Exercise? = allExercises.value.firstOrNull {
+        (id > 0 && it.id == id) || it.name.equals(name, ignoreCase = true)
     }
 
     fun updateActiveLocation(location: String) {
         _activeWorkout.value = _activeWorkout.value.copy(location = location)
+        persistActiveWorkoutDraft()
     }
 
     fun updateActiveRPE(rpe: Int) {
         _activeWorkout.value = _activeWorkout.value.copy(perceivedExertion = rpe)
+        persistActiveWorkoutDraft()
     }
 
     fun updateActiveNotes(notes: String) {
         _activeWorkout.value = _activeWorkout.value.copy(notes = notes)
+        persistActiveWorkoutDraft()
     }
 
     // --- Rest Timer Functions ---
@@ -1347,8 +1634,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             templateId = current.templateId,
             agendaAppointmentId = current.agendaAppointmentId,
             title = current.title.ifBlank { "Treino de Musculação" },
-            dateEpochDay = current.scheduledDateEpochDay ?: DateUtils.todayEpochDay(),
-            startTimeMillis = System.currentTimeMillis() - (current.durationSeconds * 1000L),
+            dateEpochDay = workoutStartDateEpochDay(current),
+            startTimeMillis = workoutStartTimeMillis(current),
             endTimeMillis = System.currentTimeMillis(),
             durationSeconds = current.durationSeconds,
             location = current.location,
@@ -1360,7 +1647,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             notes = current.notes,
             exercisesDoneJson = exercisesJson
         )
-        viewModelScope.launch {
+        activeDraftSaveJob = viewModelScope.launch {
             val savedId = repository.saveWorkoutSession(draft)
             if (current.scheduledSessionId == null && _activeWorkout.value.isActive) {
                 _activeWorkout.value = _activeWorkout.value.copy(scheduledSessionId = savedId)
@@ -1384,13 +1671,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                         "panturrilhas" -> MuscleGroup.PANTURRILHA; "core" -> MuscleGroup.ABDOMEN; "antebracos_funcional" -> MuscleGroup.BICEPS
                         else -> MuscleGroup.PEITO
                     }
-                    val equipment = when (item.optJSONArray("equipment")?.optString(0)?.lowercase()) {
-                        "halteres" -> com.example.data.model.Equipment.HALTERES
-                        "máquina", "maquina" -> com.example.data.model.Equipment.MAQUINA
-                        "polia", "cabo" -> com.example.data.model.Equipment.POLIA
-                        "peso corporal" -> com.example.data.model.Equipment.PESO_CORPO
-                        else -> com.example.data.model.Equipment.BARRA
-                    }
+                    val equipment = catalogEquipment(item.optJSONArray("equipment")?.optString(0).orEmpty())
+                        ?: com.example.data.model.Equipment.BARRA
                     add(com.example.data.model.Exercise(name = name, muscleGroup = group, equipment = equipment, instructions = item.optString("instructions"), executionTips = item.optString("tips")))
                 }
             }
@@ -1430,8 +1712,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             templateId = current.templateId,
             agendaAppointmentId = current.agendaAppointmentId,
             title = current.title.ifBlank { "Treino de Musculação" },
-            dateEpochDay = current.scheduledDateEpochDay ?: DateUtils.todayEpochDay(),
-            startTimeMillis = System.currentTimeMillis() - (current.durationSeconds * 1000L),
+            dateEpochDay = workoutStartDateEpochDay(current),
+            startTimeMillis = workoutStartTimeMillis(current),
             endTimeMillis = System.currentTimeMillis(),
             durationSeconds = current.durationSeconds,
             location = current.location,
@@ -1444,8 +1726,14 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         )
 
         viewModelScope.launch {
-            val insertedId = repository.saveWorkoutSession(session)
-            val savedSession = session.copy(id = if (session.id != 0L) session.id else insertedId)
+            // Finish only after the latest autosave settles, then reuse its ID so
+            // the completed row replaces the draft instead of creating a second log.
+            activeDraftSaveJob?.join()
+            val finalSession = session.copy(
+                id = session.id.takeIf { it != 0L } ?: _activeWorkout.value.scheduledSessionId ?: 0L
+            )
+            val insertedId = repository.saveWorkoutSession(finalSession)
+            val savedSession = finalSession.copy(id = if (finalSession.id != 0L) finalSession.id else insertedId)
             backupWorkoutSessions()
 
             _activeWorkout.value = ActiveWorkoutState() // Reset
@@ -2530,26 +2818,32 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun startWorkoutFromAIPlan(workout: AIWorkoutPlanResult, location: String = "Academia Smart Fit") {
-        val freshPlans = workout.exercises.map { plan ->
+    fun startWorkoutFromAIPlan(workout: AIWorkoutPlanResult, location: String = "Academia Smart Fit"): Boolean {
+        val basePlans = workout.exercises.map { plan ->
             plan.copy(
                 sets = plan.sets.map { set ->
                     set.copy(isCompleted = false)
                 }
             )
         }
+        val freshPlans = if (location.isHomeWorkoutLocation()) adaptPlansForHome(basePlans) else basePlans
+        if (location.isHomeWorkoutLocation() && freshPlans.isEmpty()) return false
         _activeWorkout.value = ActiveWorkoutState(
             isActive = true,
             templateId = null,
             title = workout.title,
             location = location,
             durationSeconds = 0,
+            startedAtMillis = System.currentTimeMillis(),
             exercises = freshPlans,
             perceivedExertion = 7,
             notes = "Criado por IA: ${workout.subtitle}",
             restTimerVisible = false
         )
         _generatedAIWorkout.value = null
+        persistActiveWorkoutDraft()
+        startWorkoutDurationTimer()
+        return true
     }
 
     // --- AI Coach Chat Assistant ---

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -44,11 +45,15 @@ import androidx.compose.material.icons.filled.VolumeUp
 import com.example.ui.components.ExerciseSubstitutionDialog
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
@@ -148,6 +153,7 @@ fun ActiveWorkoutScreen(
     modifier: Modifier = Modifier
 ) {
     val activeState by viewModel.activeWorkout.collectAsStateWithLifecycle()
+    val homeEquipmentProfile by viewModel.homeEquipmentProfile.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val appliedProgressions by viewModel.appliedProgressions.collectAsStateWithLifecycle()
     val dismissedProgressions by viewModel.dismissedProgressions.collectAsStateWithLifecycle()
@@ -174,6 +180,8 @@ fun ActiveWorkoutScreen(
     var completedSessionForStory by remember { mutableStateOf<WorkoutSession?>(null) }
     var showJourneyImpact by remember { mutableStateOf(false) }
     var focusedExerciseIndex by remember { mutableStateOf(0) }
+    var showWorkoutMenu by remember { mutableStateOf(false) }
+    val focusedPlan = activeState.exercises.getOrNull(focusedExerciseIndex)
 
     var showAIExecutionModal by remember { mutableStateOf(false) }
     var selectedAIExerciseName by remember { mutableStateOf("") }
@@ -247,35 +255,13 @@ fun ActiveWorkoutScreen(
                                 fontWeight = FontWeight.Black,
                                 color = TextPrimary
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Timer,
-                                    contentDescription = null,
-                                    tint = LilacAccent,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = DateUtils.formatSecondsToTime(activeState.durationSeconds),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LilacAccent
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = LilacSoft,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = activeState.location,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = LilacSoft,
-                                    modifier = Modifier.clickable { showLocationDialog = true }
-                                )
-                            }
+                            Text(
+                                text = "${DateUtils.formatSecondsToTime(activeState.durationSeconds)}  ·  ${activeState.location}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = LilacSoft,
+                                maxLines = 1,
+                                modifier = Modifier.clickable { showLocationDialog = true }
+                            )
                         }
                     },
                     navigationIcon = {
@@ -284,55 +270,88 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     actions = {
-                        // Screen On / WakeLock toggle
-                        IconButton(
-                            onClick = { viewModel.toggleKeepScreenOn() },
-                            modifier = Modifier.testTag("btn_toggle_screen_on_active")
-                        ) {
-                            Icon(
-                                imageVector = if (keepScreenOn) Icons.Default.PhoneAndroid else Icons.Default.MobileOff,
-                                contentDescription = if (keepScreenOn) "Tela Ativa (Ligada)" else "Tela Bloqueio Automático",
-                                tint = if (keepScreenOn) EmeraldSuccess else TextMuted
-                            )
-                        }
-                        // TTS Voice Coach toggle
-                        IconButton(
-                            onClick = { viewModel.toggleTtsVoice() },
-                            modifier = Modifier.testTag("btn_toggle_tts_voice")
-                        ) {
-                            Icon(
-                                imageVector = if (isTtsVoiceEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                                contentDescription = if (isTtsVoiceEnabled) "Voz do Coach Ativa" else "Voz do Coach Silenciada",
-                                tint = if (isTtsVoiceEnabled) EmeraldSuccess else TextMuted
-                            )
-                        }
-                        // Quick Audio / Music streaming launcher
-                        IconButton(
-                            onClick = { showAudioSheet = true },
-                            modifier = Modifier.testTag("btn_open_music_player")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Headphones,
-                                contentDescription = "Músicas e Áudio de Treino",
-                                tint = LilacAccent
-                            )
-                        }
-                        // Quick interval / HIIT Timer dialog button
-                        IconButton(
-                            onClick = { showIntervalTimerDialog = true },
-                            modifier = Modifier.testTag("btn_open_interval_timer")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = "Timer Intervalado / HIIT",
-                                tint = LilacAccent
-                            )
-                        }
-                        IconButton(
-                            onClick = { showDiscardDialog = true },
-                            modifier = Modifier.testTag("btn_discard_workout")
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Descartar", tint = RedDestructive)
+                        Box {
+                            IconButton(onClick = { showWorkoutMenu = true }, modifier = Modifier.testTag("btn_active_workout_menu")) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "Mais opções", tint = TextPrimary)
+                            }
+                            DropdownMenu(expanded = showWorkoutMenu, onDismissRequest = { showWorkoutMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(if (keepScreenOn) "Desativar tela sempre ligada" else "Manter tela ligada") },
+                                    onClick = { viewModel.toggleKeepScreenOn(); showWorkoutMenu = false },
+                                    modifier = Modifier.testTag("btn_toggle_screen_on_active")
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (isTtsVoiceEnabled) "Silenciar coach de voz" else "Ativar coach de voz") },
+                                    onClick = { viewModel.toggleTtsVoice(); showWorkoutMenu = false },
+                                    modifier = Modifier.testTag("btn_toggle_tts_voice")
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Música e áudio") },
+                                    onClick = { showAudioSheet = true; showWorkoutMenu = false },
+                                    modifier = Modifier.testTag("btn_open_music_player")
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Timer intervalado") },
+                                    onClick = { showIntervalTimerDialog = true; showWorkoutMenu = false },
+                                    modifier = Modifier.testTag("btn_open_interval_timer")
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Guia visual do exercício") },
+                                    onClick = {
+                                        focusedPlan?.let { plan ->
+                                            selectedVisualGuideExercise = viewModel.findExerciseByIdOrName(plan.exerciseId, plan.exerciseName)
+                                        }
+                                        showWorkoutMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Execução com IA") },
+                                    onClick = {
+                                        focusedPlan?.let { plan ->
+                                            val equipmentName = viewModel.findExerciseByIdOrName(plan.exerciseId, plan.exerciseName)?.equipment?.displayName ?: "Equipamento livre"
+                                            selectedAIExerciseName = plan.exerciseName
+                                            selectedAIMuscleGroup = plan.muscleGroup
+                                            selectedAIEquipment = equipmentName
+                                            showAIExecutionModal = true
+                                            viewModel.requestExerciseExecutionGuide(plan.exerciseName, plan.muscleGroup, equipmentName)
+                                        }
+                                        showWorkoutMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Histórico deste exercício") },
+                                    onClick = { focusedPlan?.let { historyDialogExerciseName = it.exerciseName }; showWorkoutMenu = false }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Gerar aquecimento") },
+                                    onClick = { warmupGeneratorExerciseIndex = focusedExerciseIndex; showWorkoutMenu = false }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Calculadora de carga") },
+                                    onClick = {
+                                        focusedPlan?.let { plan ->
+                                            plateCalculatorWeightKg = plan.sets.firstOrNull()?.weightKg ?: 0.0
+                                            plateCalculatorExerciseName = plan.exerciseName
+                                        }
+                                        showWorkoutMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Adicionar exercício") },
+                                    onClick = { showAddExerciseDialog = true; showWorkoutMenu = false },
+                                    modifier = Modifier.testTag("btn_add_exercise_to_workout")
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Finalizar treino") },
+                                    onClick = { showFinishDialog = true; showWorkoutMenu = false },
+                                    modifier = Modifier.testTag("btn_finish_workout")
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Descartar treino") },
+                                    onClick = { showDiscardDialog = true; showWorkoutMenu = false },
+                                    modifier = Modifier.testTag("btn_discard_workout")
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -348,14 +367,15 @@ fun ActiveWorkoutScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
                     .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = bottomNavPadding + 32.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                contentPadding = PaddingValues(top = 6.dp, bottom = bottomNavPadding + 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                userScrollEnabled = false
             ) {
                 // Visual overview aligned with the active-workout reference. It uses
                 // drawable-name lookups so final PNG/WebP assets can be added without
                 // another UI rewrite.
                 item {
-                    if (false) return@item
+                    if (true) return@item
                     val currentPlan = activeState.exercises.firstOrNull { plan ->
                         plan.sets.any { !it.isCompleted }
                     } ?: activeState.exercises.firstOrNull()
@@ -378,7 +398,7 @@ fun ActiveWorkoutScreen(
 
                 // Location & Gym Switcher Banner
                 item {
-                    if (false) return@item
+                    if (true) return@item
                     LiquidGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -442,55 +462,20 @@ fun ActiveWorkoutScreen(
                     val hasExercises = activeState.exercises.isNotEmpty()
                     val totalExercises = activeState.exercises.size
                     val progress = if (totalExercises == 0) 0f else (focusedExerciseIndex + 1).toFloat() / totalExercises
-                    val exerciseGroups = activeState.exercises.map { it.muscleGroup }.distinct().joinToString(" • ")
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = exerciseGroups.ifBlank { "Treino em execução" },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = LilacSoft,
-                            modifier = Modifier.fillMaxWidth()
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.weight(1f).height(5.dp),
+                            color = LilacAccent,
+                            trackColor = PurpleDarkSurface
                         )
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            androidx.compose.material3.LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.weight(1f).height(5.dp),
-                                color = LilacAccent,
-                                trackColor = PurpleDarkSurface
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text("Exercício ${if (hasExercises) focusedExerciseIndex + 1 else 0} de $totalExercises", color = TextSecondary, fontSize = 12.sp)
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                val previous = (focusedExerciseIndex - 1).coerceAtLeast(0)
-                                focusedExerciseIndex = previous
-                            },
-                            enabled = hasExercises && focusedExerciseIndex > 0,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Exercício anterior")
-                            Spacer(Modifier.width(6.dp))
-                            Text("Anterior")
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                val next = (focusedExerciseIndex + 1).coerceAtMost(activeState.exercises.lastIndex)
-                                focusedExerciseIndex = next
-                            },
-                            enabled = hasExercises && focusedExerciseIndex < activeState.exercises.lastIndex,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Próximo")
-                            Spacer(Modifier.width(6.dp))
-                            Icon(Icons.Default.ArrowForward, contentDescription = "Próximo exercício")
-                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "${if (hasExercises) focusedExerciseIndex + 1 else 0} / $totalExercises",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
                 item {
@@ -503,110 +488,65 @@ fun ActiveWorkoutScreen(
                         viewModel.getProgressionSuggestion(plan.exerciseName, plan)
                     }
 
-                    // Resumo simplificado do exercício atual: foco, imagem e métricas essenciais.
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = Color(0xFFF9F9FB),
-                        shape = RoundedCornerShape(22.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDD8E8))
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("${exIndex + 1}/${activeState.exercises.size} ${plan.muscleGroup}", color = Color(0xFF16121D), fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
-                                Text("Atual", color = Color(0xFF6F4AA8), fontWeight = FontWeight.Bold)
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                WorkoutVisualAssetSlot(plan.exerciseName, plan.muscleGroup, Modifier.size(128.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(plan.exerciseName, color = Color(0xFF16121D), fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                                    Text("${plan.sets.size} séries planejadas", color = Color(0xFF6E667B), fontSize = 13.sp)
-                                }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                ActiveMetric("${plan.sets.firstOrNull()?.reps ?: 0}", "Repetições")
-                                ActiveMetric("${plan.targetRestSeconds / 60}:${(plan.targetRestSeconds % 60).toString().padStart(2, '0')}", "Descanso")
-                                ActiveMetric("${plan.sets.count { it.isCompleted }}/${plan.sets.size}", "Conjuntos feitos")
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    ActiveExerciseCard(
+                    val currentLoad = plan.sets.firstOrNull()?.weightKg ?: 0.0
+                    val previousSet = lastExecution?.completedSets?.maxByOrNull { it.weightKg }
+                    CompactActiveExerciseCard(
+                        modifier = Modifier.fillParentMaxHeight(0.9f),
                         exerciseIndex = exIndex,
+                        exerciseCount = activeState.exercises.size,
                         plan = plan,
-                        lastExecution = lastExecution,
-                        progressionSuggestion = progressionSuggestion,
-                        appliedWeight = appliedProgressions[plan.exerciseName],
-                        onViewFullHistory = { historyDialogExerciseName = plan.exerciseName },
-                        onOpenAIExecutionGuide = {
-                            val matched = allExercises.find { it.id == plan.exerciseId || it.name.equals(plan.exerciseName, ignoreCase = true) }
-                            val equipStr = matched?.equipment?.displayName ?: "Halteres / Máquina"
-                            selectedAIExerciseName = plan.exerciseName
-                            selectedAIMuscleGroup = plan.muscleGroup
-                            selectedAIEquipment = equipStr
-                            showAIExecutionModal = true
-                            viewModel.requestExerciseExecutionGuide(
-                                exerciseName = plan.exerciseName,
-                                muscleGroup = plan.muscleGroup,
-                                equipment = equipStr
-                            )
+                        illustration = { WorkoutVisualAssetSlot(plan.exerciseName, plan.muscleGroup, Modifier.fillMaxSize()) },
+                        lastPerformance = previousSet?.let { "${formatWorkoutWeight(it.weightKg)} kg × ${it.reps}" } ?: "Ainda sem histórico",
+                        suggestedWeight = progressionSuggestion?.suggestedWeightKg ?: currentLoad,
+                        timerVisible = activeState.restTimerVisible,
+                        timerPaused = activeState.restTimerPaused,
+                        timerRemaining = activeState.restTimerRemainingSeconds,
+                        onSubstitute = {
+                            exerciseToSubstitute = plan
+                            showExerciseSubstitutionDialog = true
                         },
-                        onViewVisualGuide = {
-                            val found = allExercises.find { it.id == plan.exerciseId || it.name.equals(plan.exerciseName, ignoreCase = true) }
+                        onOpenVisualGuide = {
+                            val found = viewModel.findExerciseByIdOrName(plan.exerciseId, plan.exerciseName)
+                                ?: allExercises.find { it.name.equals(plan.exerciseName, ignoreCase = true) }
                             selectedVisualGuideExercise = found ?: com.example.data.model.Exercise(
                                 name = plan.exerciseName,
                                 muscleGroup = com.example.data.model.MuscleGroup.PEITO,
                                 equipment = com.example.data.model.Equipment.HALTERES,
-                                executionTips = plan.notes.ifBlank { "Mantenha postura firme, controle o ritmo na descida e contraia no topo." },
-                                defaultSets = 3,
-                                defaultReps = 10,
+                                executionTips = plan.notes,
+                                defaultSets = plan.sets.size,
+                                defaultReps = plan.sets.firstOrNull()?.reps ?: 10,
                                 defaultRestSeconds = plan.targetRestSeconds
                             )
                         },
-                        onOpenPlateCalculator = { weight ->
-                            plateCalculatorWeightKg = weight
-                            plateCalculatorExerciseName = plan.exerciseName
+                        onWeightChanged = { setIndex, weight ->
+                            val set = plan.sets[setIndex]
+                            viewModel.updateSet(exIndex, setIndex, weight, set.reps, set.isCompleted)
                         },
-                        onOpenWarmupGenerator = {
-                            warmupGeneratorExerciseIndex = exIndex
+                        onRepsChanged = { setIndex, reps ->
+                            val set = plan.sets[setIndex]
+                            viewModel.updateSet(exIndex, setIndex, set.weightKg, reps, set.isCompleted)
                         },
-                        onApplyProgression = { suggestedWeight ->
-                            viewModel.applyProgressionSuggestion(exIndex, suggestedWeight)
-                            triggerVibration(context)
+                        onToggleSet = { setIndex ->
+                            val set = plan.sets[setIndex]
+                            viewModel.updateSet(exIndex, setIndex, set.weightKg, set.reps, !set.isCompleted)
+                            if (!set.isCompleted) triggerVibration(context)
                         },
-                        onDismissProgression = {
-                            viewModel.dismissProgressionSuggestion(plan.exerciseName)
-                        },
-                        onSubstituteExercise = {
-                            exerciseToSubstitute = plan
-                            showExerciseSubstitutionDialog = true
-                        },
-                        onUpdateSet = { setIndex, weight, reps, completed ->
-                            viewModel.updateSet(exIndex, setIndex, weight, reps, completed)
-                            if (completed) {
-                                triggerVibration(context)
-                            }
-                        },
-                        onUpdateSetDetails = { setIndex, weight, reps, completed, tag, rir, rpe, notes, restSec ->
-                            viewModel.updateSet(
-                                exerciseIndex = exIndex,
-                                setIndex = setIndex,
-                                weight = weight,
-                                reps = reps,
-                                completed = completed,
-                                tag = tag,
-                                autoRest = false,
-                                rir = rir,
-                                rpe = rpe,
-                                notes = notes,
-                                restSeconds = restSec
-                            )
-                        },
-                        onUpdateSetTag = { setIndex, tag ->
-                            viewModel.updateSetTag(exIndex, setIndex, tag)
-                        },
-                        onAddSet = { viewModel.addSetToExercise(exIndex) },
                         onRemoveSet = { setIndex -> viewModel.removeSetFromExercise(exIndex, setIndex) },
-                        onTriggerRest = { seconds -> viewModel.triggerRestTimer(seconds) }
+                        onAddSet = { viewModel.addSetToExercise(exIndex) },
+                        onStartTimer = { viewModel.triggerRestTimer(plan.targetRestSeconds) },
+                        onToggleTimer = { viewModel.toggleRestTimerPause() },
+                        onAddRest = { viewModel.addRestSeconds(15) },
+                        onSkipTimer = { viewModel.dismissRestTimer() },
+                        onPrevious = { focusedExerciseIndex = (exIndex - 1).coerceAtLeast(0) },
+                        onNext = {
+                            if (exIndex < activeState.exercises.lastIndex) {
+                                viewModel.completeExercise(exIndex)
+                                focusedExerciseIndex = exIndex + 1
+                            } else {
+                                viewModel.completeExercise(exIndex)
+                                showFinishDialog = true
+                            }
+                        }
                     )
                 }
 
@@ -615,7 +555,7 @@ fun ActiveWorkoutScreen(
                     val nextExercise = activeState.exercises.firstOrNull { ex -> ex.sets.any { !it.isCompleted } }
                     if (nextExercise != null) {
                         item {
-                            if (false) return@item
+                            if (true) return@item
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
                                 color = PurpleDarkSurface,
@@ -664,7 +604,7 @@ fun ActiveWorkoutScreen(
 
                 // Add exercise to active workout button
                 item {
-                    if (false) return@item
+                    if (true) return@item
                     SecondaryButton(
                         text = "+ Adicionar Mais Um Exercício",
                         icon = Icons.Default.Add,
@@ -677,7 +617,7 @@ fun ActiveWorkoutScreen(
 
                 // Perceived Exertion (RPE 1-10)
                 item {
-                    if (false) return@item
+                    if (true) return@item
                     BentoCard(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -723,6 +663,7 @@ fun ActiveWorkoutScreen(
 
                 // Finish Workout Button with Gradient
                 item {
+                    if (true) return@item
                     PrimaryButton(
                         text = "FINALIZAR TREINO & AVALIAR COM IA",
                         icon = Icons.Default.Check,
@@ -736,21 +677,6 @@ fun ActiveWorkoutScreen(
             }
         }
 
-        // Rest Timer Floating Overlay
-        RestTimerOverlay(
-            isVisible = activeState.restTimerVisible,
-            remainingSeconds = activeState.restTimerRemainingSeconds,
-            totalSeconds = activeState.restTimerTotalSeconds,
-            isPaused = activeState.restTimerPaused,
-            onPauseResume = { viewModel.toggleRestTimerPause() },
-            onAddSeconds = { delta -> viewModel.addRestSeconds(delta) },
-            onSelectPreset = { preset -> viewModel.triggerRestTimer(preset) },
-            onDismiss = { viewModel.dismissRestTimer() },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp)
-        )
     }
 
     // Dialog to change location
@@ -1083,12 +1009,21 @@ fun ActiveWorkoutScreen(
     // Exercise Substitution Dialog (Same Muscle Group)
     if (showExerciseSubstitutionDialog && exerciseToSubstitute != null) {
         val currentPlan = exerciseToSubstitute!!
-        val candidateExercises = remember(currentPlan.muscleGroup) {
-            viewModel.getExercisesForMuscleGroup(currentPlan.muscleGroup)
+        val homeLocation = activeState.location.contains("Em Casa", ignoreCase = true)
+        val homeAllowedEquipment = homeEquipmentProfile.availableEquipment + com.example.data.model.Equipment.PESO_CORPO
+        val sourceExercise = viewModel.findExerciseByIdOrName(currentPlan.exerciseId, currentPlan.exerciseName)
+        val candidateExercises = remember(currentPlan.muscleGroup, homeLocation, homeAllowedEquipment, sourceExercise) {
+            viewModel.getSubstituteExercises(
+                source = sourceExercise,
+                muscleGroupDisplayName = currentPlan.muscleGroup,
+                allowedEquipment = if (homeLocation) homeAllowedEquipment else null
+            )
         }
         ExerciseSubstitutionDialog(
             currentPlan = currentPlan,
             availableExercises = candidateExercises,
+            currentExercise = sourceExercise,
+            allowedEquipment = if (homeLocation) homeAllowedEquipment else null,
             onDismiss = {
                 showExerciseSubstitutionDialog = false
                 exerciseToSubstitute = null
@@ -1267,6 +1202,245 @@ private fun WorkoutVisualAssetSlot(
     }
 }
 
+@Composable
+private fun CompactActiveExerciseCard(
+    modifier: Modifier = Modifier,
+    exerciseIndex: Int,
+    exerciseCount: Int,
+    plan: WorkoutExercisePlan,
+    illustration: @Composable () -> Unit,
+    lastPerformance: String,
+    suggestedWeight: Double,
+    timerVisible: Boolean,
+    timerPaused: Boolean,
+    timerRemaining: Int,
+    onSubstitute: () -> Unit,
+    onOpenVisualGuide: () -> Unit,
+    onWeightChanged: (Int, Double) -> Unit,
+    onRepsChanged: (Int, Int) -> Unit,
+    onToggleSet: (Int) -> Unit,
+    onRemoveSet: (Int) -> Unit,
+    onAddSet: () -> Unit,
+    onStartTimer: () -> Unit,
+    onToggleTimer: () -> Unit,
+    onAddRest: () -> Unit,
+    onSkipTimer: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit
+) {
+    val completedSets = plan.sets.count { it.isCompleted }
+    val rowHeight = when {
+        plan.sets.size >= 6 -> 38.dp
+        plan.sets.size >= 5 -> 41.dp
+        else -> 44.dp
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth().testTag("card_compact_active_workout"),
+        color = PurpleDeepCard,
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(plan.muscleGroup.uppercase(), color = LilacSoft, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(
+                        plan.exerciseName,
+                        color = TextPrimary,
+                        fontSize = 17.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+                IconButton(onClick = onOpenVisualGuide, modifier = Modifier.size(36.dp).testTag("btn_compact_visual_guide")) {
+                    Icon(Icons.Default.MenuBook, contentDescription = "Ver execução", tint = LilacAccent, modifier = Modifier.size(19.dp))
+                }
+                TextButton(onClick = onSubstitute, modifier = Modifier.height(38.dp).testTag("btn_compact_substitute")) {
+                    Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = LilacAccent, modifier = Modifier.size(17.dp))
+                    Text("Trocar", color = LilacAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().height(100.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(100.dp).clip(RoundedCornerShape(14.dp))) { illustration() }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    CompactLoadInfo(label = "Último treino", value = lastPerformance, accent = TextPrimary)
+                    CompactLoadInfo(label = "Sugestão", value = "${formatWorkoutWeight(suggestedWeight)} kg", accent = LilacAccent)
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("SÉRIES", color = TextPrimary, fontWeight = FontWeight.Black, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                Text("Meta ${plan.sets.size} × ${plan.sets.firstOrNull()?.reps ?: 0}  ·  $completedSets/${plan.sets.size}", color = TextSecondary, fontSize = 11.sp)
+            }
+
+            plan.sets.forEachIndexed { index, set ->
+                CompactSetRow(
+                    index = index,
+                    weightKg = set.weightKg,
+                    reps = set.reps,
+                    completed = set.isCompleted,
+                    canDelete = plan.sets.size > 1,
+                    rowHeight = rowHeight,
+                    onWeightChanged = { onWeightChanged(index, it) },
+                    onRepsChanged = { onRepsChanged(index, it) },
+                    onToggle = { onToggleSet(index) },
+                    onDelete = { onRemoveSet(index) }
+                )
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onAddSet, modifier = Modifier.height(30.dp).testTag("btn_compact_add_set")) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = LilacAccent, modifier = Modifier.size(16.dp))
+                    Text("Adicionar série", color = LilacAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.weight(1f))
+                Text("Descanso entre séries", color = TextMuted, fontSize = 10.sp)
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                shape = RoundedCornerShape(13.dp),
+                color = PurpleDarkSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Icon(Icons.Default.Timer, contentDescription = null, tint = LilacAccent, modifier = Modifier.size(21.dp))
+                    Column(Modifier.weight(1f).padding(start = 5.dp)) {
+                        Text("Descanso", color = LilacSoft, fontSize = 10.sp)
+                        Text(
+                            if (timerVisible) formatCompactTimer(timerRemaining) else formatCompactTimer(plan.targetRestSeconds),
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 18.sp
+                        )
+                    }
+                    TextButton(onClick = onAddRest, enabled = timerVisible, modifier = Modifier.height(36.dp)) {
+                        Text("+15s", color = LilacAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(
+                        onClick = if (timerVisible) onToggleTimer else onStartTimer,
+                        modifier = Modifier.size(36.dp).testTag("btn_compact_rest_toggle")
+                    ) {
+                        Icon(
+                            if (timerVisible && !timerPaused) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (timerVisible && !timerPaused) "Pausar descanso" else "Iniciar descanso",
+                            tint = LilacAccent
+                        )
+                    }
+                    if (timerVisible) {
+                        IconButton(onClick = onSkipTimer, modifier = Modifier.size(34.dp).testTag("btn_compact_rest_skip")) {
+                            Icon(Icons.Default.Close, contentDescription = "Pular descanso", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onPrevious, enabled = exerciseIndex > 0, modifier = Modifier.weight(1f).height(44.dp)) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Anterior", fontSize = 12.sp)
+                }
+                Button(
+                    onClick = onNext,
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                    modifier = Modifier.weight(1.2f).height(44.dp).testTag("btn_compact_next")
+                ) {
+                    Text(if (exerciseIndex == exerciseCount - 1) "Finalizar" else "Próximo", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(4.dp))
+                    Icon(if (exerciseIndex == exerciseCount - 1) Icons.Default.Check else Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(17.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactLoadInfo(label: String, value: String, accent: Color) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(PurpleDarkSurface).padding(horizontal = 9.dp, vertical = 5.dp)
+    ) {
+        Text(label, color = TextMuted, fontSize = 9.sp, maxLines = 1)
+        Text(value, color = accent, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun CompactSetRow(
+    index: Int,
+    weightKg: Double,
+    reps: Int,
+    completed: Boolean,
+    canDelete: Boolean,
+    rowHeight: androidx.compose.ui.unit.Dp,
+    onWeightChanged: (Double) -> Unit,
+    onRepsChanged: (Int) -> Unit,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(rowHeight).testTag("compact_set_row_${index + 1}"),
+        shape = RoundedCornerShape(12.dp),
+        color = if (completed) EmeraldDark.copy(alpha = 0.55f) else PurpleDarkSurface,
+        border = androidx.compose.foundation.BorderStroke(if (completed) 1.2.dp else 1.dp, if (completed) EmeraldSuccess.copy(alpha = 0.7f) else GlassBorderSubtle)
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Box(Modifier.size(27.dp).clip(CircleShape).background(PurplePrimary.copy(alpha = 0.34f)), contentAlignment = Alignment.Center) {
+                Text("${index + 1}", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            Row(Modifier.weight(1.15f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                IconButton(onClick = { onWeightChanged((weightKg - 2.5).coerceAtLeast(0.0)) }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Remove, contentDescription = "Diminuir carga", tint = TextSecondary, modifier = Modifier.size(14.dp))
+                }
+                Text("${formatWorkoutWeight(weightKg)}kg", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                IconButton(onClick = { onWeightChanged(weightKg + 2.5) }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = "Aumentar carga", tint = TextSecondary, modifier = Modifier.size(14.dp))
+                }
+            }
+            Row(Modifier.weight(0.78f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                IconButton(onClick = { onRepsChanged((reps - 1).coerceAtLeast(1)) }, modifier = Modifier.size(27.dp)) {
+                    Icon(Icons.Default.Remove, contentDescription = "Diminuir repetições", tint = TextSecondary, modifier = Modifier.size(14.dp))
+                }
+                Text("$reps", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = { onRepsChanged(reps + 1) }, modifier = Modifier.size(27.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = "Aumentar repetições", tint = TextSecondary, modifier = Modifier.size(14.dp))
+                }
+            }
+            IconButton(onClick = onToggle, modifier = Modifier.size(32.dp).testTag("btn_check_set_${index + 1}")) {
+                Icon(Icons.Default.Check, contentDescription = if (completed) "Desmarcar série" else "Concluir série", tint = if (completed) EmeraldSuccess else LilacAccent, modifier = Modifier.size(19.dp))
+            }
+            Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+                if (canDelete) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(26.dp).testTag("btn_remove_set_${index + 1}")) {
+                        Icon(Icons.Default.Delete, contentDescription = "Excluir série ${index + 1}", tint = RedDestructive, modifier = Modifier.size(15.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatCompactTimer(totalSeconds: Int): String =
+    "%02d:%02d".format((totalSeconds.coerceAtLeast(0) / 60), (totalSeconds.coerceAtLeast(0) % 60))
+
 private fun formatWorkoutWeight(weight: Double): String =
     if (weight % 1.0 == 0.0) weight.toInt().toString() else String.format("%.1f", weight)
 
@@ -1290,6 +1464,7 @@ private fun workoutAssetCandidates(exerciseName: String, muscleGroup: String): L
     return listOfNotNull(
         semanticExercise,
         exerciseToken.takeIf { it.isNotBlank() }?.let { "exercise_$it" },
+        *if (exerciseToken.isNotBlank()) (1..20).map { "exercise_${it.toString().padStart(2, '0')}_$exerciseToken" }.toTypedArray() else emptyArray(),
         workoutMuscleAssetName(muscleGroup),
         includedFallback
     ).distinct()
@@ -2057,6 +2232,20 @@ fun SetItemRow(
                         tint = if (isCompleted) Color.White else TextMuted,
                         modifier = Modifier.size(18.dp)
                     )
+                }
+
+                if (canDelete) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(30.dp).testTag("btn_remove_set_$setNumber")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Excluir série $setNumber",
+                            tint = RedDestructive,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 

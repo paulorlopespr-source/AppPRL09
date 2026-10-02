@@ -19,10 +19,16 @@ enum class MuscleGroup(val displayName: String, val iconName: String) {
 enum class Equipment(val displayName: String) {
     BARRA("Barra"),
     HALTERES("Halteres"),
+    BANCO("Banco / apoio"),
+    BARRA_FIXA("Barra fixa"),
+    PARALELAS("Barras paralelas"),
     MAQUINA("Máquina"),
     POLIA("Polia / Cabo"),
     PESO_CORPO("Peso Corporal"),
-    ELASTICO("Elástico / Outro")
+    ELASTICO("Elástico"),
+    KETTLEBELL("Kettlebell"),
+    HAND_GRIPPER("Hand gripper"),
+    TRENO("Trenó")
 }
 
 enum class SetTag(val code: String, val label: String, val shortLabel: String, val badgeColorHex: Long) {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -139,7 +140,7 @@ fun AIFoodNutritionDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
-                .height(680.dp)
+                .fillMaxHeight(0.9f)
                 .clip(RoundedCornerShape(24.dp))
                 .border(1.5.dp, GlassBorder, RoundedCornerShape(24.dp)),
             color = PurpleDarkest
