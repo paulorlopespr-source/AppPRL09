@@ -5,5 +5,6 @@ data class HomeEquipmentProfile(
     val availableEquipment: Set<Equipment> = setOf(Equipment.PESO_CORPO),
     val barLoadKg: Double? = null,
     val dumbbellLoadPerHandKg: Double? = null,
+    val hasRack: Boolean = false,
     val configured: Boolean = false
 )

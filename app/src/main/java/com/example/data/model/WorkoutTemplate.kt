@@ -37,7 +37,7 @@ data class WorkoutTemplate(
         get() {
             return try {
                 val count = exercisesJson.split("\"exerciseName\"").size - 1
-                if (count > 0) count else 4
+                if (count > 0) count else if (exercisesJson.trim() == "[]") 0 else 4
             } catch (_: Exception) {
                 4
             }

@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
@@ -30,7 +32,10 @@ fun InitialAssessmentDialog(onDismiss: () -> Unit, onSubmit: (age: Int, sex: Str
     var goal by remember { mutableStateOf(FitnessGoal.CONDICIONAMENTO_GERAL) }
     val valid = age.toIntOrNull()?.let { it in 12..100 } == true && (height.toDoubleOrNull() ?: 0.0) in 100.0..240.0 && (weight.toDoubleOrNull() ?: 0.0) in 30.0..300.0
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Avaliação inicial") }, text = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text("Vamos montar seu plano de 12 semanas.", style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) { OutlinedTextField(age, { age = it }, label = { Text("Idade") }, modifier = Modifier.weight(1f)); OutlinedTextField(sex, { sex = it }, label = { Text("Perfil") }, modifier = Modifier.weight(1f)) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) { OutlinedTextField(height, { height = it }, label = { Text("Altura cm") }, modifier = Modifier.weight(1f)); OutlinedTextField(weight, { weight = it }, label = { Text("Peso kg") }, modifier = Modifier.weight(1f)) }
@@ -72,14 +77,12 @@ fun InitialAssessmentDialog(onDismiss: () -> Unit, onSubmit: (age: Int, sex: Str
                                         color = if (selected) Color.White else Color(0xFFD6D0E2),
                                         maxLines = 1
                                     )
-                                    if (selected) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = "Selecionado",
-                                            tint = Color.White,
-                                            modifier = Modifier.padding(start = 5.dp).size(15.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = if (selected) "Selecionado" else null,
+                                        tint = if (selected) Color.White else Color.Transparent,
+                                        modifier = Modifier.padding(start = 5.dp).size(15.dp)
+                                    )
                                 }
                             }
                         }

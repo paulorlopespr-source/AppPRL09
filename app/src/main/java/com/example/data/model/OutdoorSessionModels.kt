@@ -45,7 +45,18 @@ data class OutdoorSessionState(
     val cardioType: CardioType = CardioType.CORRIDA,
     val intensity: IntensityLevel = IntensityLevel.MODERADA,
     val locationName: String = "Outdoor Tracker",
-    val targetMinutes: Int? = null
+    val targetMinutes: Int? = null,
+    val sessionUuid: String = java.util.UUID.randomUUID().toString(),
+    val startedAtMillis: Long = 0L,
+    val accumulatedDurationSeconds: Long = 0L,
+    val resumeStartedElapsedRealtime: Long = 0L,
+    val bootCount: Int = -1,
+    val steps: Long? = null,
+    val stepSensorAvailable: Boolean? = null,
+    val plannedSessionCode: String? = null,
+    val pausedBySystem: Boolean = false,
+    val userWeightKg: Double? = null,
+    val gpsEnabled: Boolean = true
 ) {
     val isRunning: Boolean get() = status == OutdoorTrackingStatus.RUNNING
     val isPaused: Boolean get() = status == OutdoorTrackingStatus.PAUSED

@@ -25,6 +25,8 @@ import com.example.data.model.SessionStatus
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutCategory
 import com.example.data.model.WorkoutExercisePlan
+import com.example.data.model.completedSetsForHistory
+import com.example.data.model.markCompletedForNavigation
 import com.example.data.model.WorkoutSession
 import com.example.data.model.WorkoutTemplate
 import com.example.data.model.AgendaCustomAppointment
@@ -34,6 +36,7 @@ import com.example.data.model.FitnessLevel
 import com.example.data.model.PlannedWorkout
 import com.example.data.model.CycleReassessment
 import com.example.domain.training.TrainingPlanGenerator
+import com.example.domain.training.HomeIntermediate8WeekProgram
 import com.example.data.model.AICoachMessage
 import com.example.data.model.AICoachSender
 import com.example.data.model.AIWorkoutPlanResult
@@ -95,6 +98,9 @@ import com.example.domain.gamification.WorkoutJourneyImpact
 import com.example.data.model.JourneyUnlock
 import org.json.JSONObject
 
+private const val KEY_ACTIVE_HOME_PROGRAM_CARDIO = "active_home_program_cardio_session"
+private const val KEY_ACTIVE_HOME_PROGRAM_CARDIO_TARGET = "active_home_program_cardio_target"
+
 private fun String?.toAgendaMillis(epochDay: Long): Long? = runCatching {
     if (this.isNullOrBlank()) return null
     LocalDate.ofEpochDay(epochDay).atTime(LocalTime.parse(this))
@@ -128,6 +134,7 @@ data class ActiveWorkoutState(
     val isActive: Boolean = false,
     val templateId: Long? = null,
     val scheduledSessionId: Long? = null,
+    val scheduledSessionSnapshot: WorkoutSession? = null,
     val agendaAppointmentId: String? = null,
     val scheduledDateEpochDay: Long? = null,
     val startedAtMillis: Long = 0L,
@@ -165,10 +172,17 @@ data class ActiveCardioState(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val gpsPointsCount: Int = 0,
-    val targetMinutes: Int? = null
+    val targetMinutes: Int? = null,
+    val steps: Long? = null,
+    val stepSensorAvailable: Boolean? = null,
+    val sessionUuid: String? = null,
+    val pausedBySystem: Boolean = false
 )
 
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
+
+    @Volatile
+    private var isFinishingOrDiscardingCardio = false
 
     private var outdoorServiceBinder: OutdoorLocationService.OutdoorLocationBinder? = null
     private val _outdoorSessionState = MutableStateFlow(OutdoorSessionState())
@@ -206,6 +220,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             .ifEmpty { setOf(Equipment.PESO_CORPO) },
         barLoadKg = prefs.getString("home_bar_load_kg", null)?.toDoubleOrNull(),
         dumbbellLoadPerHandKg = prefs.getString("home_dumbbell_load_per_hand_kg", null)?.toDoubleOrNull(),
+        hasRack = Equipment.SUPORTE_BARRA in (prefs.getStringSet("home_equipment_codes", emptySet()) ?: emptySet())
+            .mapNotNull { runCatching { Equipment.valueOf(it) }.getOrNull() },
         configured = prefs.getBoolean("home_equipment_configured", false)
     )
     private val _homeEquipmentProfile = MutableStateFlow(readHomeEquipmentProfile())
@@ -247,6 +263,15 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             importExerciseLibraryFromAssets(db.fitnessDao())
             val templates = DefaultFitnessData.getDefaultWorkoutTemplates(exercises)
             templates.forEach { db.fitnessDao().insertWorkoutTemplate(it) }
+
+            // Add the official home plan once, reusing the existing illustrated exercise catalog.
+            // If the user already has a template with that exact title, leave their version intact.
+            val exerciseCatalog = db.fitnessDao().getAllExercises().firstOrNull().orEmpty()
+            HomeIntermediate8WeekProgram.templates(exerciseCatalog).forEach { programTemplate ->
+                if (db.fitnessDao().getWorkoutTemplateByTitle(programTemplate.title) == null) {
+                    db.fitnessDao().insertWorkoutTemplate(programTemplate)
+                }
+            }
 
             // Ensure predefined medals are populated without overwriting unlocked ones
             val defaultMedals = DefaultFitnessData.getDefaultMedals()
@@ -291,6 +316,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             } else {
                 backupWorkoutSessions()
             }
+
+            // Restore an unfinished strength workout after the process was killed or the
+            // Activity was recreated. The Room draft is the source of truth; completed
+            // sessions are never reopened here.
+            restoreActiveWorkoutDraft(db.fitnessDao().getAllWorkoutSessions().firstOrNull().orEmpty())
 
             // Ensure Body Measurements are restored if database was newly created
             val measurementsInDb = db.fitnessDao().getAllBodyMeasurements().firstOrNull()
@@ -373,6 +403,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), loadCachedProfile())
     val activeTrainingCycle: StateFlow<TrainingCycle?> = repository.activeTrainingCycle.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val allPlannedWorkouts: StateFlow<List<PlannedWorkout>> = repository.allPlannedWorkouts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val latestInitialAssessment: StateFlow<InitialAssessment?> = repository.initialAssessments
+        .map { assessments -> assessments.maxByOrNull { it.createdAtMillis } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun createInitialAssessment(assessment: InitialAssessment) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -797,6 +830,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         scheduledDateEpochDay: Long? = null,
         agendaAppointmentId: String? = null
     ): Boolean {
+        val scheduledSessionSnapshot = scheduledSessionId?.let { id ->
+            allWorkoutSessions.value.firstOrNull { it.id == id && it.status == SessionStatus.SCHEDULED }
+        }
         val parsedPlans = try {
             plansAdapter.fromJson(template.exercisesJson) ?: emptyList()
         } catch (e: Exception) {
@@ -806,24 +842,38 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         // Reset completion status for fresh session
         val basePlans = parsedPlans.map { plan ->
             plan.copy(
+                isCompleted = false,
                 sets = plan.sets.map { set ->
                     set.copy(isCompleted = false)
                 }
             )
         }
+        val isOfficialHomePlan = HomeIntermediate8WeekProgram.isStrengthTemplate(template)
+        val programWeek = if (isOfficialHomePlan) {
+            val progress = HomeIntermediate8WeekProgram.progress(
+                workouts = allWorkoutSessions.value,
+                cardios = allCardioSessions.value,
+                templates = workoutTemplates.value
+            )
+            HomeIntermediate8WeekProgram.weekForCompletedStrengthSessions(
+                (progress.weekNumber - 1) * HomeIntermediate8WeekProgram.STRENGTH_SESSIONS_PER_WEEK
+            )
+        } else null
+        val progressedPlans = if (programWeek != null) basePlans.map { HomeIntermediate8WeekProgram.applyWeek(it, programWeek.number) } else basePlans
         val freshPlans = if (location.isHomeWorkoutLocation()) {
-            adaptPlansForHome(basePlans)
-        } else basePlans
+            adaptPlansForHome(progressedPlans, preserveDose = isOfficialHomePlan)
+        } else progressedPlans
         if (location.isHomeWorkoutLocation() && freshPlans.isEmpty()) return false
 
         _activeWorkout.value = ActiveWorkoutState(
             isActive = true,
             templateId = template.id,
             scheduledSessionId = scheduledSessionId,
+            scheduledSessionSnapshot = scheduledSessionSnapshot,
             agendaAppointmentId = agendaAppointmentId,
             scheduledDateEpochDay = scheduledDateEpochDay,
             startedAtMillis = System.currentTimeMillis(),
-            title = template.title,
+            title = if (programWeek != null) "${template.title} · Semana ${programWeek.number}/8" else template.title,
             location = location,
             durationSeconds = 0,
             exercises = freshPlans,
@@ -899,6 +949,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             restTimerVisible = false
         )
 
+        persistActiveWorkoutDraft()
         startWorkoutDurationTimer()
         ttsVoiceManager.speakStartWorkout(_activeWorkout.value.title)
         return true
@@ -930,6 +981,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         val normalizedName = normalizeExerciseName(exercise.name)
         return buildSet {
             addAll(rule?.equipment ?: setOf(exercise.equipment))
+            if (normalizedName.contains("barra") && !normalizedName.contains("barra fixa")) add(Equipment.ANILHAS)
+            if (normalizedName.contains("agachamento livre com barra")) add(Equipment.SUPORTE_BARRA)
             if ((normalizedName.contains("supino") || normalizedName.contains("crucifixo com halter") ||
                     normalizedName.contains("rosca scott com barra") || normalizedName.contains("mergulho no banco") ||
                     normalizedName.contains("pullover com halter")) && !normalizedName.contains("maquina")) {
@@ -984,13 +1037,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }.getOrDefault(emptyMap())
 
-    private fun adaptPlansForHome(plans: List<WorkoutExercisePlan>): List<WorkoutExercisePlan> {
+    private fun adaptPlansForHome(plans: List<WorkoutExercisePlan>, preserveDose: Boolean = false): List<WorkoutExercisePlan> {
         val inventory = _homeEquipmentProfile.value
         val equipment = inventory.availableEquipment + Equipment.PESO_CORPO
         val exercises = allExercises.value
         if (exercises.isEmpty()) return emptyList()
         val rules = readExerciseCatalogRules()
-        val maxLevel = when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
+        val maxLevel = if (preserveDose) 3 else when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
             FitnessLevel.SEDENTARY, FitnessLevel.BEGINNER -> 1
             FitnessLevel.INTERMEDIATE -> 2
             FitnessLevel.ADVANCED -> 3
@@ -1012,6 +1065,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                     .filter { candidate -> candidate.id !in used && candidate.name != plan.exerciseName }
                     .filter { candidate -> targetGroup != null && candidate.muscleGroup == targetGroup }
                     .filter { candidate ->
+                        val needsSafeSquatSwap = normalizeExerciseName(plan.exerciseName).contains("agachamento livre com barra") &&
+                            Equipment.SUPORTE_BARRA !in equipment
+                        !needsSafeSquatSwap || normalizeExerciseName(candidate.name).contains("bulgar") ||
+                            normalizeExerciseName(candidate.name).contains("afundo") || normalizeExerciseName(candidate.name).contains("passada")
+                    }
+                    .filter { candidate ->
                         val rule = rules[candidate.name.lowercase()]
                         val required = requiredEquipmentFor(candidate, rule)
                         required.all { it in equipment } && (rule?.levelRank ?: 1) <= maxLevel
@@ -1024,19 +1083,19 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
             used += chosen.id
             val requiredEquipment = requiredEquipmentFor(chosen, rules[chosen.name.lowercase()])
-            val setsCount = when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
+            val setsCount = if (preserveDose) plan.sets.size else when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
                 FitnessLevel.SEDENTARY -> 2
                 FitnessLevel.BEGINNER -> 3
                 FitnessLevel.INTERMEDIATE -> plan.sets.size.coerceIn(3, 4)
                 FitnessLevel.ADVANCED -> plan.sets.size.coerceIn(3, 5)
             }
-            val reps = when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
+            val reps = if (preserveDose) plan.sets.firstOrNull()?.reps ?: 10 else when (activeTrainingCycle.value?.fitnessLevel ?: FitnessLevel.BEGINNER) {
                 FitnessLevel.SEDENTARY -> 12
                 FitnessLevel.BEGINNER -> 10
                 FitnessLevel.INTERMEDIATE -> plan.sets.firstOrNull()?.reps?.coerceIn(8, 12) ?: 10
                 FitnessLevel.ADVANCED -> plan.sets.firstOrNull()?.reps?.coerceIn(6, 12) ?: 8
             }
-            val rest = if (maxLevel <= 1) 90 else chosen.defaultRestSeconds.coerceIn(60, 150)
+            val rest = if (preserveDose) plan.targetRestSeconds else if (maxLevel <= 1) 90 else chosen.defaultRestSeconds.coerceIn(60, 150)
             val referenceLoad = when {
                 Equipment.BARRA in requiredEquipment -> inventory.barLoadKg
                 Equipment.HALTERES in requiredEquipment -> inventory.dumbbellLoadPerHandKg
@@ -1052,7 +1111,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 exerciseName = chosen.name,
                 muscleGroup = chosen.muscleGroup.displayName,
                 targetRestSeconds = rest,
-                notes = chosen.executionTips.ifBlank { plan.notes },
+                notes = if (preserveDose) listOf(plan.notes, chosen.executionTips).filter { it.isNotBlank() }.distinct().joinToString("\n")
+                    else chosen.executionTips.ifBlank { plan.notes },
                 sets = (1..setsCount).map { index ->
                     val previous = plan.sets.getOrNull(index - 1) ?: plan.sets.lastOrNull()
                     (previous ?: ExerciseSetEntry(index, baseWeight, reps, restSeconds = rest)).copy(
@@ -1113,7 +1173,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                     restSeconds = restSeconds ?: oldSet.restSeconds,
                     estimated1RM = e1RM
                 )
-                updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets)
+                val exerciseCompleted = when {
+                    !completed -> false
+                    updatedSets.isNotEmpty() && updatedSets.all { it.isCompleted } -> true
+                    else -> plan.isCompleted
+                }
+                updatedExercises[exerciseIndex] = plan.copy(sets = updatedSets, isCompleted = exerciseCompleted)
                 _activeWorkout.value = current.copy(exercises = updatedExercises)
                 persistActiveWorkoutDraft()
 
@@ -1388,7 +1453,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 isCompleted = false,
                 restSeconds = plan.targetRestSeconds
             )
-            updatedExercises[exerciseIndex] = plan.copy(sets = plan.sets + newSet)
+            updatedExercises[exerciseIndex] = plan.copy(sets = plan.sets + newSet, isCompleted = false)
             _activeWorkout.value = current.copy(exercises = updatedExercises)
             persistActiveWorkoutDraft()
         }
@@ -1412,16 +1477,14 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    /** Próximo confirma o exercício atual; ao voltar, cada série segue editável. */
+    /** Avançar confirma o exercício na navegação sem falsear as séries realmente feitas. */
     fun completeExercise(exerciseIndex: Int) {
         val current = _activeWorkout.value
         if (exerciseIndex !in current.exercises.indices) return
         val updatedExercises = current.exercises.toMutableList()
         val plan = updatedExercises[exerciseIndex]
-        if (plan.sets.isEmpty() || plan.sets.all { it.isCompleted }) return
-        updatedExercises[exerciseIndex] = plan.copy(
-            sets = plan.sets.map { it.copy(isCompleted = true) }
-        )
+        if (plan.isCompleted) return
+        updatedExercises[exerciseIndex] = plan.markCompletedForNavigation()
         _activeWorkout.value = current.copy(exercises = updatedExercises)
         persistActiveWorkoutDraft()
     }
@@ -1474,7 +1537,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 muscleGroup = newExercise.muscleGroup.displayName,
                 sets = setList,
                 targetRestSeconds = newExercise.defaultRestSeconds,
-                notes = newExercise.executionTips
+                notes = newExercise.executionTips,
+                isCompleted = false
             )
             updatedExercises[exerciseIndex] = newPlan
             _activeWorkout.value = current.copy(exercises = updatedExercises)
@@ -1649,10 +1713,49 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         )
         activeDraftSaveJob = viewModelScope.launch {
             val savedId = repository.saveWorkoutSession(draft)
-            if (current.scheduledSessionId == null && _activeWorkout.value.isActive) {
+            if (current.scheduledSessionId == null &&
+                _activeWorkout.value.isActive &&
+                _activeWorkout.value.startedAtMillis == current.startedAtMillis
+            ) {
                 _activeWorkout.value = _activeWorkout.value.copy(scheduledSessionId = savedId)
             }
         }
+    }
+
+    private fun restoreActiveWorkoutDraft(sessions: List<WorkoutSession>) {
+        if (_activeWorkout.value.isActive) return
+        val draft = sessions
+            .asSequence()
+            .filter { it.status == SessionStatus.IN_PROGRESS }
+            .maxByOrNull { it.startTimeMillis }
+            ?: return
+
+        val exercises = runCatching {
+            plansAdapter.fromJson(draft.exercisesDoneJson).orEmpty()
+        }.getOrDefault(emptyList())
+        val startedAt = draft.startTimeMillis.takeIf { it > 0L }
+            ?: (System.currentTimeMillis() - draft.durationSeconds.coerceAtLeast(0) * 1_000L)
+        val elapsedSeconds = ((System.currentTimeMillis() - startedAt) / 1_000L)
+            .coerceAtLeast(draft.durationSeconds.toLong())
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+
+        _activeWorkout.value = ActiveWorkoutState(
+            isActive = true,
+            templateId = draft.templateId,
+            scheduledSessionId = draft.id.takeIf { it != 0L },
+            agendaAppointmentId = draft.agendaAppointmentId,
+            scheduledDateEpochDay = draft.dateEpochDay,
+            startedAtMillis = startedAt,
+            title = draft.title,
+            location = draft.location,
+            durationSeconds = elapsedSeconds,
+            exercises = exercises,
+            perceivedExertion = draft.perceivedExertion,
+            notes = draft.notes,
+            restTimerVisible = false
+        )
+        startWorkoutDurationTimer()
     }
 
     private suspend fun importExerciseLibraryFromAssets(dao: com.example.data.local.FitnessDao) {
@@ -1680,8 +1783,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         } catch (_: Exception) { }
     }
 
-    fun finishActiveWorkout(onSaved: (WorkoutSession) -> Unit = {}) {
+    fun finishActiveWorkout(
+        saveCompletedSetsOnly: Boolean = false,
+        onSaved: (WorkoutSession) -> Unit = {}
+    ) {
         val current = _activeWorkout.value
+        val sessionExercises = if (saveCompletedSetsOnly) current.exercises.completedSetsForHistory() else current.exercises
+        if (saveCompletedSetsOnly && sessionExercises.isEmpty()) return
         workoutTimerJob?.cancel()
         restTimerJob?.cancel()
 
@@ -1689,7 +1797,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
         // Calculate total lifted weight
         var totalWeight = 0.0
-        current.exercises.forEach { plan ->
+        sessionExercises.forEach { plan ->
             plan.sets.forEach { set ->
                 if (set.isCompleted) {
                     totalWeight += (set.weightKg * set.reps)
@@ -1698,7 +1806,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
 
         val exercisesJson = try {
-            plansAdapter.toJson(current.exercises)
+            plansAdapter.toJson(sessionExercises)
         } catch (e: Exception) {
             "[]"
         }
@@ -1820,7 +1928,31 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun discardActiveWorkout() {
         workoutTimerJob?.cancel()
         restTimerJob?.cancel()
-        _activeWorkout.value = ActiveWorkoutState()
+        val discardedWorkout = _activeWorkout.value
+        val pendingDraft = activeDraftSaveJob
+        viewModelScope.launch {
+            pendingDraft?.join()
+            val latestDiscardedWorkout = _activeWorkout.value.takeIf {
+                it.startedAtMillis == discardedWorkout.startedAtMillis
+            } ?: discardedWorkout
+            val sessionId = latestDiscardedWorkout.scheduledSessionId
+                ?: repository.allWorkoutSessions.firstOrNull()?.firstOrNull { session ->
+                    session.status == SessionStatus.IN_PROGRESS &&
+                        session.title == latestDiscardedWorkout.title &&
+                        session.startTimeMillis == workoutStartTimeMillis(latestDiscardedWorkout)
+                }?.id
+            if (sessionId != null) {
+                val scheduledSnapshot = latestDiscardedWorkout.scheduledSessionSnapshot
+                if (scheduledSnapshot != null) {
+                    repository.saveWorkoutSession(scheduledSnapshot)
+                } else {
+                    repository.deleteWorkoutSessionById(sessionId)
+                }
+            }
+            if (_activeWorkout.value.startedAtMillis == discardedWorkout.startedAtMillis) {
+                _activeWorkout.value = ActiveWorkoutState()
+            }
+        }
     }
 
     // --- Live Cardio Session Functions (OutdoorLocationService) ---
@@ -1837,15 +1969,62 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 caloriesBurned = state.caloriesBurned,
                 speedKmh = state.currentSpeedKmh,
                 paceMinKm = if (state.avgSpeedKmh > 0.5) (60.0 / state.avgSpeedKmh) else 0.0,
-                gpsEnabled = state.routePoints.isNotEmpty() || state.status == OutdoorTrackingStatus.RUNNING,
+                gpsEnabled = state.gpsEnabled,
                 gpsAccuracyMeters = state.accuracyMeters,
                 latitude = state.currentLocation?.latitude,
                 longitude = state.currentLocation?.longitude,
                 gpsPointsCount = state.routePoints.size,
-                targetMinutes = state.targetMinutes
+                targetMinutes = state.targetMinutes,
+                steps = state.steps,
+                stepSensorAvailable = state.stepSensorAvailable,
+                sessionUuid = state.sessionUuid,
+                pausedBySystem = state.pausedBySystem
             )
+        } else if (state.isStopped && state.startedAtMillis > 0L && !isFinishingOrDiscardingCardio) {
+            recoverInterruptedCardio(state)
+            if (_activeCardio.value.isActive) _activeCardio.value = ActiveCardioState()
         } else if (_activeCardio.value.isActive && state.isStopped) {
             _activeCardio.value = ActiveCardioState()
+        }
+    }
+
+    private fun recoverInterruptedCardio(state: OutdoorSessionState) {
+        if (state.durationSeconds <= 0L && state.distanceKm <= 0.0 && state.steps == 0L) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val startMillis = state.startedAtMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
+                val code = state.plannedSessionCode
+                val note = code?.let { HomeIntermediate8WeekProgram.cardioMarker(it, state.targetMinutes) }
+                    ?: "Sessão recuperada após encerramento inesperado do serviço."
+                val pending = OutdoorCardioPersistence.buildSession(
+                    type = state.cardioType,
+                    dateEpochDay = java.time.Instant.ofEpochMilli(startMillis).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay(),
+                    timestampMillis = startMillis,
+                    durationMinutes = (state.durationSeconds / 60).toInt().coerceAtLeast(1),
+                    durationSeconds = state.durationSeconds,
+                    steps = state.steps,
+                    sessionUuid = state.sessionUuid,
+                    source = if (code != null) "PLANNED" else "INDEPENDENT",
+                    distanceKm = state.distanceKm.takeIf { it > 0.0 },
+                    intensity = state.intensity,
+                    location = state.locationName,
+                    caloriesBurned = state.caloriesBurned,
+                    notes = note,
+                    routePoints = state.routePoints,
+                    splits = state.splits,
+                    elevationGainMeters = state.elevationGainMeters,
+                    avgPaceMinKm = state.avgPaceMinKm
+                )
+                val id = repository.saveCardioSession(pending)
+                if (id > 0L) {
+                    val saved = pending.copy(id = id)
+                    userProfile.value?.let { evaluateCardioWithAI(saved, it) }
+                }
+                repository.deleteActiveCardioSession(state.sessionUuid)
+                OutdoorLocationService.clearPersistedSession(getApplication(), state.sessionUuid)
+            } catch (e: Exception) {
+                Log.e("FitnessViewModel", "Failed to recover pending cardio session", e)
+            }
         }
     }
 
@@ -1854,11 +2033,19 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         location: String,
         intensity: IntensityLevel,
         targetMinutes: Int? = null,
-        enableGps: Boolean = true
+        enableGps: Boolean = true,
+        programSessionCode: String? = null
     ) {
         val app = getApplication<Application>()
+        if (programSessionCode.isNullOrBlank()) {
+            prefs.edit().remove(KEY_ACTIVE_HOME_PROGRAM_CARDIO).remove(KEY_ACTIVE_HOME_PROGRAM_CARDIO_TARGET).apply()
+        } else {
+            prefs.edit().putString(KEY_ACTIVE_HOME_PROGRAM_CARDIO, programSessionCode)
+                .putInt(KEY_ACTIVE_HOME_PROGRAM_CARDIO_TARGET, targetMinutes ?: 0).apply()
+        }
         val startIntent = OutdoorLocationService.startServiceIntent(
-            app, type, intensity, location, targetMinutes
+            app, type, intensity, location, targetMinutes, programSessionCode,
+            userProfile.value?.currentWeightKg?.takeIf { it > 0.0 }, enableGps
         )
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1869,7 +2056,10 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         } catch (e: Exception) {
             Log.e("FitnessViewModel", "Error starting OutdoorLocationService: ${e.message}")
         }
-        outdoorServiceBinder?.start(type, intensity, location, targetMinutes)
+        outdoorServiceBinder?.start(
+            type, intensity, location, targetMinutes, programSessionCode,
+            userProfile.value?.currentWeightKg?.takeIf { it > 0.0 }, enableGps
+        )
     }
 
     fun onPauseClicked() {
@@ -1883,6 +2073,10 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             Log.e("FitnessViewModel", "Error sending ACTION_PAUSE: ${e.message}")
         }
         outdoorServiceBinder?.pause()
+    }
+
+    fun requestCardioStepSensor() {
+        outdoorServiceBinder?.enableStepCounting()
     }
 
     fun onResumeClicked() {
@@ -1904,6 +2098,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         notes: String = "",
         onFinished: ((CardioSession) -> Unit)? = null
     ) {
+        isFinishingOrDiscardingCardio = true
         val currentState = outdoorServiceBinder?.stop() ?: _outdoorSessionState.value
         val app = getApplication<Application>()
         try {
@@ -1917,6 +2112,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         if (currentState.durationSeconds == 0L && currentState.distanceKm == 0.0 && !currentState.isActive) {
             _activeCardio.value = ActiveCardioState()
             _outdoorSessionState.value = OutdoorSessionState()
+            isFinishingOrDiscardingCardio = false
             return
         }
 
@@ -1926,17 +2122,28 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 val finalDist = distanceKm ?: if (currentState.distanceKm > 0.0) currentState.distanceKm else null
                 val profile = userProfile.value ?: DefaultFitnessData.getDefaultUserProfile()
 
+                val programSessionCode = prefs.getString(KEY_ACTIVE_HOME_PROGRAM_CARDIO, null)
+                val plannedMinutes = prefs.getInt(KEY_ACTIVE_HOME_PROGRAM_CARDIO_TARGET, 0).takeIf { it > 0 }
+                val sessionNotes = listOfNotNull(
+                    notes.takeIf { it.isNotBlank() },
+                    programSessionCode?.let { HomeIntermediate8WeekProgram.cardioMarker(it, plannedMinutes) }
+                ).joinToString(" · ")
                 val session = OutdoorCardioPersistence.buildSession(
                     type = currentState.cardioType,
-                    dateEpochDay = DateUtils.todayEpochDay(),
-                    timestampMillis = System.currentTimeMillis(),
+                    dateEpochDay = java.time.Instant.ofEpochMilli(currentState.startedAtMillis.takeIf { it > 0L } ?: System.currentTimeMillis())
+                        .atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay(),
+                    timestampMillis = currentState.startedAtMillis.takeIf { it > 0L } ?: System.currentTimeMillis(),
                     durationMinutes = finalDurationMin,
+                    durationSeconds = currentState.durationSeconds,
+                    steps = currentState.steps,
+                    sessionUuid = currentState.sessionUuid,
+                    source = if (programSessionCode != null) "PLANNED" else "INDEPENDENT",
                     distanceKm = finalDist,
                     avgHeartRateBpm = heartRate,
                     intensity = currentState.intensity,
                     location = currentState.locationName,
                     caloriesBurned = currentState.caloriesBurned,
-                    notes = notes,
+                    notes = sessionNotes,
                     routePoints = currentState.routePoints,
                     splits = currentState.splits,
                     elevationGainMeters = currentState.elevationGainMeters,
@@ -1944,28 +2151,35 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 )
 
                 val id = repository.saveCardioSession(session)
-                val savedSession = session.copy(id = id)
+                val savedSession = if (id > 0L) session.copy(id = id) else repository.getCardioSessionByUuid(session.sessionUuid)
+                repository.deleteActiveCardioSession(currentState.sessionUuid)
+                OutdoorLocationService.clearPersistedSession(app, currentState.sessionUuid)
+                prefs.edit().remove(KEY_ACTIVE_HOME_PROGRAM_CARDIO).remove(KEY_ACTIVE_HOME_PROGRAM_CARDIO_TARGET).apply()
 
                 withContext(Dispatchers.Main) {
                     _activeCardio.value = ActiveCardioState()
                     _outdoorSessionState.value = OutdoorSessionState()
-                    onFinished?.invoke(savedSession)
+                    savedSession?.let { onFinished?.invoke(it) }
                 }
 
-                // AI cardio evaluation
-                evaluateCardioWithAI(savedSession, profile)
+                if (id > 0L && savedSession != null) {
+                    // AI cardio evaluation and external sync run only for the first successful insert.
+                    evaluateCardioWithAI(savedSession, profile)
 
-                // Sync Health Connect
-                try {
-                    if (_healthPermissionsGranted.value) {
-                        healthConnectManager.writeCardioSession(savedSession)
-                        refreshHealthDailyMetrics()
+                    // Sync Health Connect
+                    try {
+                        if (_healthPermissionsGranted.value) {
+                            healthConnectManager.writeCardioSession(savedSession)
+                            refreshHealthDailyMetrics()
+                        }
+                    } catch (e: Exception) {
+                        Log.w("FitnessViewModel", "Health Connect write error: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    Log.w("FitnessViewModel", "Health Connect write error: ${e.message}")
                 }
             } catch (e: Exception) {
                 Log.e("FitnessViewModel", "Error saving outdoor cardio session: ${e.message}", e)
+            } finally {
+                isFinishingOrDiscardingCardio = false
             }
         }
     }
@@ -1982,10 +2196,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     ) = onStopClicked(distanceKm, heartRate, notes, onFinished)
 
     fun toggleCardioGps(enable: Boolean): Boolean {
-        return _outdoorSessionState.value.isActive
+        return outdoorServiceBinder?.setGpsEnabled(enable) ?: false
     }
 
     fun discardLiveCardio() {
+        isFinishingOrDiscardingCardio = true
+        val discardedUuid = _outdoorSessionState.value.sessionUuid
+        prefs.edit().remove(KEY_ACTIVE_HOME_PROGRAM_CARDIO).remove(KEY_ACTIVE_HOME_PROGRAM_CARDIO_TARGET).apply()
         val app = getApplication<Application>()
         try {
             app.startService(Intent(app, OutdoorLocationService::class.java).apply {
@@ -1995,6 +2212,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             Log.e("FitnessViewModel", "Error stopping service on discard: ${e.message}")
         }
         outdoorServiceBinder?.stop()
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { repository.deleteActiveCardioSession(discardedUuid) }
+            OutdoorLocationService.clearPersistedSession(app, discardedUuid)
+            isFinishingOrDiscardingCardio = false
+        }
         _activeCardio.value = ActiveCardioState()
         _outdoorSessionState.value = OutdoorSessionState()
     }
@@ -2235,7 +2457,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         description: String,
         durationMin: Int = 50,
         restSec: Int = 60,
-        isFavorite: Boolean = false
+        isFavorite: Boolean = false,
+        onSaved: (WorkoutTemplate) -> Unit = {}
     ) {
         viewModelScope.launch {
             val json = plansAdapter.toJson(exercises)
@@ -2252,7 +2475,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 createdAtEpochDay = DateUtils.todayEpochDay(),
                 timesCompleted = 0
             )
-            repository.saveWorkoutTemplate(template)
+            val id = repository.saveWorkoutTemplate(template)
+            onSaved(template.copy(id = id))
         }
     }
 

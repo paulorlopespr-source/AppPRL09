@@ -217,6 +217,9 @@ class HealthConnectManager(private val context: Context) {
                 CardioType.BICICLETA_INDOOR -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY
                 CardioType.CAMINHADA_ESTEIRA, CardioType.CAMINHADA_AR_LIVRE -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
                 CardioType.FUTEBOL -> ExerciseSessionRecord.EXERCISE_TYPE_SOCCER
+                CardioType.BICICLETA_AR_LIVRE -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING
+                CardioType.ELIPTICO -> ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL
+                CardioType.HIIT -> ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING
             }
 
             val exerciseRecord = ExerciseSessionRecord(

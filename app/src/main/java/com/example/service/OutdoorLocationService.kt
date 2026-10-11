@@ -12,6 +12,12 @@ import android.content.pm.ServiceInfo
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.provider.Settings
+import android.os.SystemClock
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -21,6 +27,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.example.MainActivity
 import com.example.R
+import com.example.data.local.AppDatabase
+import com.example.data.local.OutdoorCardioPersistence
+import com.example.data.model.ActiveCardioSessionRecord
+import com.example.domain.cardio.CardioSessionMath
 import com.example.data.model.CardioType
 import com.example.data.model.GpsPoint
 import com.example.data.model.IntensityLevel
@@ -42,7 +52,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class OutdoorLocationService : Service() {
 
@@ -54,6 +69,17 @@ class OutdoorLocationService : Service() {
     private var locationCallback: LocationCallback? = null
     private var systemLocationManager: LocationManager? = null
     private var systemLocationListener: LocationListener? = null
+    private var sensorManager: SensorManager? = null
+    private var activeStepSensor: Sensor? = null
+    private var stepSensorListener: SensorEventListener? = null
+    private var stepSensorBaseline: Float? = null
+    private var stepsAtSensorStart: Long = 0L
+    private var lastCheckpointElapsedRealtime = 0L
+    private var lastRoomCheckpointElapsedRealtime = 0L
+    private val roomWriteMutex = Mutex()
+    private val database by lazy { AppDatabase.getDatabase(applicationContext, serviceScope) }
+    private val statePrefs by lazy { getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE) }
+    private val stateAdapter by lazy { Moshi.Builder().add(KotlinJsonAdapterFactory()).build().adapter(OutdoorSessionState::class.java) }
 
     private val _sessionState = MutableStateFlow(OutdoorSessionState())
     val sessionState: StateFlow<OutdoorSessionState> = _sessionState.asStateFlow()
@@ -75,13 +101,18 @@ class OutdoorLocationService : Service() {
             type: CardioType,
             intensity: IntensityLevel,
             locationName: String,
-            targetMinutes: Int?
+            targetMinutes: Int?,
+            plannedSessionCode: String? = null,
+            userWeightKg: Double? = null,
+            enableGps: Boolean = true
         ) {
-            this@OutdoorLocationService.startTracking(type, intensity, locationName, targetMinutes)
+            this@OutdoorLocationService.startTracking(type, intensity, locationName, targetMinutes, plannedSessionCode, userWeightKg, enableGps)
         }
 
         fun pause() = this@OutdoorLocationService.pauseTracking()
         fun resume() = this@OutdoorLocationService.resumeTracking()
+        fun setGpsEnabled(enabled: Boolean): Boolean = this@OutdoorLocationService.setGpsEnabled(enabled)
+        fun enableStepCounting() = this@OutdoorLocationService.startStepCounting()
         fun stop(): OutdoorSessionState = this@OutdoorLocationService.stopTracking()
     }
 
@@ -94,6 +125,8 @@ class OutdoorLocationService : Service() {
             Log.w(TAG, "FusedLocationProviderClient init error: ${e.message}")
         }
         systemLocationManager = getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        restoreSession()
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -107,6 +140,8 @@ class OutdoorLocationService : Service() {
                 val intensityName = intent.getStringExtra(EXTRA_INTENSITY)
                 val locName = intent.getStringExtra(EXTRA_LOCATION_NAME) ?: "Corrida ao Ar Livre"
                 val targetMin = if (intent.hasExtra(EXTRA_TARGET_MINUTES)) intent.getIntExtra(EXTRA_TARGET_MINUTES, 30) else null
+                val userWeightKg = intent.getDoubleExtra(EXTRA_USER_WEIGHT_KG, 0.0).takeIf { it > 0.0 }
+                val enableGps = intent.getBooleanExtra(EXTRA_ENABLE_GPS, true)
 
                 val cardioType = try {
                     CardioType.valueOf(typeName ?: CardioType.CORRIDA.name)
@@ -120,7 +155,8 @@ class OutdoorLocationService : Service() {
                     IntensityLevel.MODERADA
                 }
 
-                startTracking(cardioType, intensity, locName, targetMin)
+                val plannedCode = intent.getStringExtra(EXTRA_PLANNED_SESSION_CODE)
+                startTracking(cardioType, intensity, locName, targetMin, plannedCode, userWeightKg, enableGps)
             }
             ACTION_PAUSE -> {
                 pauseTracking()
@@ -130,9 +166,10 @@ class OutdoorLocationService : Service() {
             }
             ACTION_STOP -> {
                 stopTracking()
+                stopSelf()
             }
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     @SuppressLint("MissingPermission")
@@ -140,10 +177,13 @@ class OutdoorLocationService : Service() {
         type: CardioType = CardioType.CORRIDA,
         intensity: IntensityLevel = IntensityLevel.MODERADA,
         locationName: String = "Corrida ao Ar Livre",
-        targetMinutes: Int? = null
+        targetMinutes: Int? = null,
+        plannedSessionCode: String? = null,
+        userWeightKg: Double? = null,
+        enableGps: Boolean = true
     ) {
-        if (_sessionState.value.status == OutdoorTrackingStatus.RUNNING) {
-            return // Already running
+        if (_sessionState.value.isActive) {
+            return // Never replace a running or paused session with a second session.
         }
 
         // Reset state
@@ -154,6 +194,7 @@ class OutdoorLocationService : Service() {
         nextKmSplitIndex = 1
         lastSplitDurationSeconds = 0
 
+        val nowElapsed = SystemClock.elapsedRealtime()
         _sessionState.value = OutdoorSessionState(
             status = OutdoorTrackingStatus.RUNNING,
             durationSeconds = 0L,
@@ -163,63 +204,112 @@ class OutdoorLocationService : Service() {
             locationName = locationName,
             targetMinutes = targetMinutes,
             splits = emptyList(),
-            routePoints = emptyList()
+            routePoints = emptyList(),
+            sessionUuid = java.util.UUID.randomUUID().toString(),
+            startedAtMillis = System.currentTimeMillis(),
+            accumulatedDurationSeconds = 0L,
+            resumeStartedElapsedRealtime = nowElapsed,
+            bootCount = currentBootCount(),
+            steps = 0L,
+            stepSensorAvailable = null,
+            plannedSessionCode = plannedSessionCode,
+            userWeightKg = userWeightKg,
+            gpsEnabled = enableGps
         )
 
         // Start Foreground Service with Notification
         startAsForeground()
 
         // Start Location Updates
-        startLocationUpdates()
+        if (enableGps) startLocationUpdates()
+        startStepCounting()
 
         // Start 1-second ticker
         startTimerTicker()
+        persistSession()
     }
 
     fun pauseTracking() {
         if (_sessionState.value.status != OutdoorTrackingStatus.RUNNING) return
+        val now = SystemClock.elapsedRealtime()
+        val currentDuration = calculateDurationSeconds(_sessionState.value, now)
         tickerJob?.cancel()
+        if (_sessionState.value.gpsEnabled) stopLocationUpdates()
+        stopStepCounting()
         _sessionState.value = _sessionState.value.copy(
             status = OutdoorTrackingStatus.PAUSED,
+            durationSeconds = currentDuration,
+            accumulatedDurationSeconds = currentDuration,
+            resumeStartedElapsedRealtime = 0L,
             currentSpeedKmh = 0.0,
             currentPaceMinKm = "--:--"
         )
+        persistSession()
         updateNotification()
     }
 
     fun resumeTracking() {
         if (_sessionState.value.status != OutdoorTrackingStatus.PAUSED) return
         _sessionState.value = _sessionState.value.copy(
-            status = OutdoorTrackingStatus.RUNNING
+            status = OutdoorTrackingStatus.RUNNING,
+            resumeStartedElapsedRealtime = SystemClock.elapsedRealtime(),
+            bootCount = currentBootCount(),
+            pausedBySystem = false
         )
+        if (_sessionState.value.gpsEnabled) startLocationUpdates()
+        startStepCounting()
         startTimerTicker()
+        persistSession()
         updateNotification()
     }
 
+    fun setGpsEnabled(enabled: Boolean): Boolean {
+        val current = _sessionState.value
+        if (!current.isActive) return false
+        if (current.gpsEnabled == enabled) return true
+        _sessionState.value = current.copy(gpsEnabled = enabled, accuracyMeters = if (enabled) current.accuracyMeters else null)
+        if (current.status == OutdoorTrackingStatus.RUNNING) {
+            if (enabled) {
+                startAsForeground()
+                if (_sessionState.value.gpsEnabled) startLocationUpdates()
+            } else stopLocationUpdates()
+        }
+        persistSession()
+        updateNotification()
+        return _sessionState.value.gpsEnabled == enabled
+    }
+
     fun stopTracking(): OutdoorSessionState {
+        val state = _sessionState.value
+        val duration = if (state.status == OutdoorTrackingStatus.RUNNING) calculateDurationSeconds(state, SystemClock.elapsedRealtime()) else state.durationSeconds
         tickerJob?.cancel()
-        stopLocationUpdates()
+        if (_sessionState.value.gpsEnabled) stopLocationUpdates()
+        stopStepCounting()
 
         val finalState = _sessionState.value.copy(
             status = OutdoorTrackingStatus.STOPPED,
+            durationSeconds = duration,
+            accumulatedDurationSeconds = duration,
+            resumeStartedElapsedRealtime = 0L,
             currentSpeedKmh = 0.0,
             currentPaceMinKm = "--:--"
         )
         _sessionState.value = finalState
+        persistSession()
 
         try {
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping foreground: ${e.message}")
         }
-        stopSelf()
         return finalState
     }
 
     private fun startAsForeground() {
         val notification = buildNotification()
         val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            if (_sessionState.value.gpsEnabled) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            else if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH else 0
         } else {
             0
         }
@@ -243,7 +333,7 @@ class OutdoorLocationService : Service() {
                 delay(1000L)
                 if (_sessionState.value.status == OutdoorTrackingStatus.RUNNING) {
                     val current = _sessionState.value
-                    val newDuration = current.durationSeconds + 1
+                    val newDuration = calculateDurationSeconds(current, SystemClock.elapsedRealtime())
                     val distKm = accumulatedDistanceMeters / 1000.0
 
                     val avgSpeedKmh = if (newDuration > 0 && distKm > 0.0) {
@@ -258,8 +348,8 @@ class OutdoorLocationService : Service() {
                         IntensityLevel.MODERADA -> current.cardioType.metModerate
                         IntensityLevel.INTENSA -> current.cardioType.metIntense
                     }
-                    val userWeightKg = 75.0 // Base average athlete weight
-                    val calories = ((met * 3.5 * userWeightKg / 200.0) * (newDuration / 60.0)).roundToInt()
+                    val userWeightKg = current.userWeightKg
+                    val calories = if (userWeightKg != null && userWeightKg > 0.0) ((met * 3.5 * userWeightKg / 200.0) * (newDuration / 60.0)).roundToInt() else 0
 
                     _sessionState.value = current.copy(
                         durationSeconds = newDuration,
@@ -274,6 +364,7 @@ class OutdoorLocationService : Service() {
                     if (newDuration % 2L == 0L) {
                         updateNotification()
                     }
+                    if (SystemClock.elapsedRealtime() - lastCheckpointElapsedRealtime >= CHECKPOINT_INTERVAL_MILLIS) persistSession()
                 }
             }
         }
@@ -281,6 +372,7 @@ class OutdoorLocationService : Service() {
 
     @SuppressLint("MissingPermission")
     private fun startLocationUpdates() {
+        if (!_sessionState.value.gpsEnabled) return
         try {
             val locationRequest = LocationRequest.Builder(
                 Priority.PRIORITY_HIGH_ACCURACY,
@@ -302,6 +394,10 @@ class OutdoorLocationService : Service() {
                 locationCallback!!,
                 Looper.getMainLooper()
             )
+        } catch (e: SecurityException) {
+            _sessionState.value = _sessionState.value.copy(gpsEnabled = false, accuracyMeters = null)
+            Log.w(TAG, "Location permission unavailable; continuing cardio without GPS", e)
+            persistSession()
         } catch (e: Exception) {
             Log.w(TAG, "Fused location updates failed, using fallback: ${e.message}")
             startSystemLocationFallback()
@@ -321,6 +417,10 @@ class OutdoorLocationService : Service() {
                 systemLocationListener!!,
                 Looper.getMainLooper()
             )
+        } catch (e: SecurityException) {
+            _sessionState.value = _sessionState.value.copy(gpsEnabled = false, accuracyMeters = null)
+            Log.w(TAG, "Location permission revoked; continuing cardio without GPS", e)
+            persistSession()
         } catch (e: Exception) {
             Log.e(TAG, "Fallback location updates error: ${e.message}")
         }
@@ -341,6 +441,212 @@ class OutdoorLocationService : Service() {
         }
     }
 
+    private fun calculateDurationSeconds(state: OutdoorSessionState, nowElapsed: Long): Long =
+        CardioSessionMath.elapsedSeconds(
+            accumulatedSeconds = state.accumulatedDurationSeconds,
+            resumedAtElapsedRealtime = state.resumeStartedElapsedRealtime,
+            nowElapsedRealtime = nowElapsed,
+            isRunning = state.status == OutdoorTrackingStatus.RUNNING,
+            sameBoot = state.bootCount == currentBootCount()
+        )
+
+    private fun currentBootCount(): Int = try {
+        Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, -1)
+    } catch (_: Exception) { -1 }
+
+    private fun persistSession() {
+        val state = _sessionState.value
+        val now = SystemClock.elapsedRealtime()
+        val duration = if (state.status == OutdoorTrackingStatus.RUNNING) calculateDurationSeconds(state, now) else state.durationSeconds
+        val snapshot = state.copy(durationSeconds = duration)
+        statePrefs.edit()
+            .putString(KEY_ACTIVE_STATE, stateAdapter.toJson(snapshot))
+            .putInt(KEY_BOOT_COUNT, currentBootCount())
+            .apply()
+        lastCheckpointElapsedRealtime = now
+        if (now - lastRoomCheckpointElapsedRealtime >= CHECKPOINT_INTERVAL_MILLIS || state.status != OutdoorTrackingStatus.RUNNING) {
+            lastRoomCheckpointElapsedRealtime = now
+            val record = snapshot.toActiveRecord()
+            serviceScope.launch(Dispatchers.IO) {
+                roomWriteMutex.withLock {
+                    if (snapshot.status != OutdoorTrackingStatus.STOPPED) runCatching {
+                        val latest = database.fitnessDao().getActiveCardioSession()
+                        if (latest == null || latest.sessionUuid != record.sessionUuid || latest.updatedAtMillis <= record.updatedAtMillis) {
+                            database.fitnessDao().saveActiveCardioSession(record)
+                        }
+                    }
+                        .onFailure { Log.w(TAG, "Unable to persist active cardio checkpoint in Room", it) }
+                }
+            }
+        }
+    }
+
+    private fun restoreSession() {
+        val json = statePrefs.getString(KEY_ACTIVE_STATE, null)
+        val savedFromPreferences = if (!json.isNullOrBlank()) runCatching { stateAdapter.fromJson(json) }.getOrNull() else null
+        val recovered = savedFromPreferences ?: runCatching {
+            runBlocking(Dispatchers.IO) { database.fitnessDao().getActiveCardioSession()?.toOutdoorState() }
+        }.getOrNull()
+        val savedState = recovered ?: return
+        if (savedState.status == OutdoorTrackingStatus.STOPPED && savedState.startedAtMillis <= 0L) return
+        if (!savedState.isActive) {
+            _sessionState.value = savedState
+            return
+        }
+        val sameBoot = savedState.bootCount >= 0 && savedState.bootCount == currentBootCount()
+        val nowElapsed = SystemClock.elapsedRealtime()
+        val restored = if (!sameBoot && savedState.status == OutdoorTrackingStatus.RUNNING) {
+            savedState.copy(
+                status = OutdoorTrackingStatus.PAUSED,
+                durationSeconds = savedState.durationSeconds,
+                accumulatedDurationSeconds = savedState.durationSeconds,
+                resumeStartedElapsedRealtime = 0L,
+                pausedBySystem = true
+            )
+        } else if (savedState.status == OutdoorTrackingStatus.RUNNING) {
+            savedState.copy(durationSeconds = calculateDurationSeconds(savedState, nowElapsed), bootCount = currentBootCount())
+        } else savedState
+        accumulatedDistanceMeters = restored.distanceKm.coerceAtLeast(0.0) * 1_000.0
+        accumulatedElevationGainMeters = restored.elevationGainMeters.coerceAtLeast(0.0)
+        lastValidLocation = restored.currentLocation?.let { point ->
+            Location("FITPR09-cardio").apply {
+                latitude = point.latitude
+                longitude = point.longitude
+                if (point.altitudeMeters != null) altitude = point.altitudeMeters
+                time = point.timestampMillis
+            }
+        }
+        lastAltitude = restored.currentLocation?.altitudeMeters
+        nextKmSplitIndex = restored.distanceKm.toInt().coerceAtLeast(0) + 1
+        lastSplitDurationSeconds = restored.splits.lastOrNull()?.totalElapsedSeconds ?: 0
+        _sessionState.value = restored
+        if (restored.status == OutdoorTrackingStatus.RUNNING) {
+            startAsForeground()
+            if (restored.gpsEnabled) startLocationUpdates()
+            startStepCounting()
+            startTimerTicker()
+        }
+        persistSession()
+    }
+
+    private fun startStepCounting() {
+        if (_sessionState.value.status != OutdoorTrackingStatus.RUNNING) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            _sessionState.value = _sessionState.value.copy(steps = null, stepSensorAvailable = false)
+            persistSession()
+            return
+        }
+        val manager = sensorManager ?: return
+        val sensor = manager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            ?: manager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
+        if (sensor == null) {
+            _sessionState.value = _sessionState.value.copy(steps = null, stepSensorAvailable = false)
+            persistSession()
+            return
+        }
+        activeStepSensor = sensor
+        stepsAtSensorStart = _sessionState.value.steps ?: 0L
+        stepSensorBaseline = null
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                if (_sessionState.value.status != OutdoorTrackingStatus.RUNNING) return
+                val steps = if (sensor.type == Sensor.TYPE_STEP_DETECTOR) {
+                    (_sessionState.value.steps ?: 0L) + 1L
+                } else {
+                    val (sessionSteps, baseline) = CardioSessionMath.stepCounterUpdate(
+                        sessionBase = stepsAtSensorStart,
+                        baseline = stepSensorBaseline,
+                        sensorTotal = event.values.firstOrNull() ?: stepSensorBaseline ?: 0f
+                    )
+                    stepSensorBaseline = baseline
+                    sessionSteps
+                }
+                _sessionState.value = _sessionState.value.copy(steps = steps, stepSensorAvailable = true)
+                persistSession()
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+        }
+        stepSensorListener = listener
+        try {
+            manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+            _sessionState.value = _sessionState.value.copy(stepSensorAvailable = true)
+        } catch (_: SecurityException) {
+            _sessionState.value = _sessionState.value.copy(steps = null, stepSensorAvailable = false)
+        }
+    }
+
+    private fun stopStepCounting() {
+        stepSensorListener?.let { sensorManager?.unregisterListener(it) }
+        stepSensorListener = null
+        activeStepSensor = null
+        stepSensorBaseline = null
+    }
+
+    private fun OutdoorSessionState.toActiveRecord() = ActiveCardioSessionRecord(
+        sessionUuid = sessionUuid,
+        cardioType = cardioType.name,
+        intensity = intensity.name,
+        status = status.name,
+        startedAtMillis = startedAtMillis,
+        durationSeconds = durationSeconds,
+        accumulatedDurationSeconds = accumulatedDurationSeconds,
+        resumeStartedElapsedRealtime = resumeStartedElapsedRealtime,
+        bootCount = bootCount,
+        distanceKm = distanceKm,
+        currentSpeedKmh = currentSpeedKmh,
+        avgSpeedKmh = avgSpeedKmh,
+        currentPaceMinKm = currentPaceMinKm,
+        avgPaceMinKm = avgPaceMinKm,
+        caloriesBurned = caloriesBurned,
+        elevationGainMeters = elevationGainMeters,
+        accuracyMeters = accuracyMeters,
+        currentLocationJson = null,
+        routePointsJson = OutdoorCardioPersistence.serializeRoutePoints(routePoints),
+        splitsJson = OutdoorCardioPersistence.serializeSplits(splits),
+        locationName = locationName,
+        targetMinutes = targetMinutes,
+        steps = steps,
+        stepSensorAvailable = stepSensorAvailable,
+        plannedSessionCode = plannedSessionCode,
+        pausedBySystem = pausedBySystem,
+        userWeightKg = userWeightKg,
+        gpsEnabled = gpsEnabled
+    )
+
+    private fun ActiveCardioSessionRecord.toOutdoorState(): OutdoorSessionState {
+        val route = OutdoorCardioPersistence.parseRoutePoints(routePointsJson)
+        return OutdoorSessionState(
+            status = runCatching { OutdoorTrackingStatus.valueOf(status) }.getOrDefault(OutdoorTrackingStatus.PAUSED),
+            durationSeconds = durationSeconds,
+            distanceKm = distanceKm,
+            currentSpeedKmh = currentSpeedKmh,
+            avgSpeedKmh = avgSpeedKmh,
+            currentPaceMinKm = currentPaceMinKm,
+            avgPaceMinKm = avgPaceMinKm,
+            caloriesBurned = caloriesBurned,
+            elevationGainMeters = elevationGainMeters,
+            accuracyMeters = accuracyMeters,
+            currentLocation = route.lastOrNull(),
+            routePoints = route,
+            splits = OutdoorCardioPersistence.parseSplits(splitsJson),
+            cardioType = runCatching { CardioType.valueOf(cardioType) }.getOrDefault(CardioType.CORRIDA),
+            intensity = runCatching { IntensityLevel.valueOf(intensity) }.getOrDefault(IntensityLevel.MODERADA),
+            locationName = locationName,
+            targetMinutes = targetMinutes,
+            sessionUuid = sessionUuid,
+            startedAtMillis = startedAtMillis,
+            accumulatedDurationSeconds = accumulatedDurationSeconds,
+            resumeStartedElapsedRealtime = resumeStartedElapsedRealtime,
+            bootCount = bootCount,
+            steps = steps,
+            stepSensorAvailable = stepSensorAvailable,
+            plannedSessionCode = plannedSessionCode,
+            pausedBySystem = pausedBySystem,
+            userWeightKg = userWeightKg,
+            gpsEnabled = gpsEnabled
+        )
+    }
+
     private fun onNewLocation(location: Location) {
         if (_sessionState.value.status != OutdoorTrackingStatus.RUNNING) return
         if (location.accuracy > 40.0f) return // Discard inaccurate fixes
@@ -348,6 +654,7 @@ class OutdoorLocationService : Service() {
         val lastLoc = lastValidLocation
         if (lastLoc != null) {
             val distance = lastLoc.distanceTo(location)
+            if (distance < 0.5f || distance > 60.0f) return
             // Sanity check: discard teleportation artifacts (> 60 m in 2 sec ~ 108 km/h)
             if (distance in 1.5..60.0) {
                 accumulatedDistanceMeters += distance
@@ -402,6 +709,7 @@ class OutdoorLocationService : Service() {
             routePoints = updatedPoints,
             elevationGainMeters = accumulatedElevationGainMeters
         )
+        persistSession()
     }
 
     private fun checkKmSplits(currentDistKm: Double) {
@@ -497,11 +805,11 @@ class OutdoorLocationService : Service() {
         }
 
         val content = String.format(
-            "%.2f km • %s • %s/km • %d kcal",
+            "%.2f km • %s • %s/km%s",
             state.distanceKm,
             formatDuration(state.durationSeconds),
             state.avgPaceMinKm,
-            state.caloriesBurned
+            state.steps?.let { " • $it passos" } ?: ""
         )
 
         val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
@@ -528,11 +836,7 @@ class OutdoorLocationService : Service() {
             )
         }
 
-        builder.addAction(
-            android.R.drawable.ic_menu_close_clear_cancel,
-            "Finalizar",
-            stopPendingIntent
-        )
+        builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Abrir e finalizar", openAppPendingIntent)
 
         return builder.build()
     }
@@ -560,6 +864,7 @@ class OutdoorLocationService : Service() {
     }
 
     override fun onDestroy() {
+        persistSession()
         super.onDestroy()
         tickerJob?.cancel()
         stopLocationUpdates()
@@ -579,13 +884,32 @@ class OutdoorLocationService : Service() {
         const val EXTRA_INTENSITY = "extra_intensity"
         const val EXTRA_LOCATION_NAME = "extra_location_name"
         const val EXTRA_TARGET_MINUTES = "extra_target_minutes"
+        const val EXTRA_PLANNED_SESSION_CODE = "extra_planned_session_code"
+        const val EXTRA_USER_WEIGHT_KG = "extra_user_weight_kg"
+        const val EXTRA_ENABLE_GPS = "extra_enable_gps"
+        const val STATE_PREFS = "outdoor_cardio_session_state"
+        const val KEY_ACTIVE_STATE = "active_state_json"
+        const val KEY_BOOT_COUNT = "saved_boot_count"
+        private const val CHECKPOINT_INTERVAL_MILLIS = 5_000L
+
+        fun clearPersistedSession(context: Context, sessionUuid: String) {
+            val prefs = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
+            val saved = runCatching {
+                Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+                    .adapter(OutdoorSessionState::class.java).fromJson(prefs.getString(KEY_ACTIVE_STATE, null).orEmpty())
+            }.getOrNull()
+            if (saved?.sessionUuid == sessionUuid) prefs.edit().remove(KEY_ACTIVE_STATE).remove(KEY_BOOT_COUNT).apply()
+        }
 
         fun startServiceIntent(
             context: Context,
             type: CardioType,
             intensity: IntensityLevel,
             locationName: String,
-            targetMinutes: Int? = null
+            targetMinutes: Int? = null,
+            plannedSessionCode: String? = null,
+            userWeightKg: Double? = null,
+            enableGps: Boolean = true
         ): Intent {
             return Intent(context, OutdoorLocationService::class.java).apply {
                 action = ACTION_START
@@ -593,6 +917,9 @@ class OutdoorLocationService : Service() {
                 putExtra(EXTRA_INTENSITY, intensity.name)
                 putExtra(EXTRA_LOCATION_NAME, locationName)
                 targetMinutes?.let { putExtra(EXTRA_TARGET_MINUTES, it) }
+                plannedSessionCode?.let { putExtra(EXTRA_PLANNED_SESSION_CODE, it) }
+                userWeightKg?.let { putExtra(EXTRA_USER_WEIGHT_KG, it) }
+                putExtra(EXTRA_ENABLE_GPS, enableGps)
             }
         }
     }

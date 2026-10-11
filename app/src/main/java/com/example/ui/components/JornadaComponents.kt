@@ -898,6 +898,7 @@ fun MissaoAtualCard(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(44.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .clickable { onViewAll() }
                     .testTag("btn_view_all_quests"),
@@ -906,7 +907,7 @@ fun MissaoAtualCard(
                 border = BorderStroke(1.dp, Color(0xFF38265E))
             ) {
                 Box(
-                    modifier = Modifier.padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -975,7 +976,8 @@ fun ConquistaProgressoCard(
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         modifier = Modifier.weight(1f),
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
 
                     // Badge circular Prata com troféu
@@ -999,7 +1001,9 @@ fun ConquistaProgressoCard(
                         Text(
                             text = achievement.badgeName,
                             fontSize = 9.sp,
-                            color = Color(0xFFCBD5E1)
+                            color = Color(0xFFCBD5E1),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -1011,7 +1015,8 @@ fun ConquistaProgressoCard(
                     fontSize = 12.sp,
                     color = Color(0xFF94A3B8),
                     lineHeight = 16.sp,
-                    maxLines = 2
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1052,6 +1057,7 @@ fun ConquistaProgressoCard(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(44.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .clickable { onViewAll() }
                     .testTag("btn_view_all_achievements"),
@@ -1060,7 +1066,7 @@ fun ConquistaProgressoCard(
                 border = BorderStroke(1.dp, Color(0xFF38265E))
             ) {
                 Box(
-                    modifier = Modifier.padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -1268,16 +1274,20 @@ fun MarcosJornadaCard(
                     )
                 }
 
-                Text(
-                    text = "Ver todos  ›",
-                    fontSize = 11.sp,
-                    color = Color(0xFFA78BFA),
-                    fontWeight = FontWeight.Bold,
+                Surface(
                     modifier = Modifier
                         .align(Alignment.End)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .clickable { onViewAll() }
-                        .testTag("link_view_all_milestones")
-                )
+                        .testTag("link_view_all_milestones"),
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color.Transparent
+                ) {
+                    Box(Modifier.padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                        Text("Ver todos  ›", fontSize = 11.sp, color = Color(0xFFA78BFA), fontWeight = FontWeight.Bold)
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 

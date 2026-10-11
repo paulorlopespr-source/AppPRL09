@@ -2,6 +2,8 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,6 +42,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.GpsFixed
@@ -73,6 +77,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.core.content.ContextCompat
@@ -127,6 +132,9 @@ fun getCardioIcon(type: CardioType): ImageVector {
         CardioType.CORRIDA -> Icons.Default.DirectionsRun
         CardioType.TRILHA -> Icons.Default.Landscape
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
+        CardioType.BICICLETA_AR_LIVRE -> Icons.Default.DirectionsBike
+        CardioType.ELIPTICO -> Icons.Default.FitnessCenter
+        CardioType.HIIT -> Icons.Default.FlashOn
     }
 }
 
@@ -136,10 +144,17 @@ fun CardioScreen(
     viewModel: FitnessViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val cardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
     val activeCardio by viewModel.activeCardio.collectAsStateWithLifecycle()
     val outdoorSession by viewModel.outdoorSessionState.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val initialAssessment by viewModel.latestInitialAssessment.collectAsStateWithLifecycle()
+    val cardioAthleteAsset = if (initialAssessment?.sex?.contains("fem", ignoreCase = true) == true) {
+        com.example.R.drawable.cardio_runner_female
+    } else {
+        com.example.R.drawable.cardio_runner_male
+    }
 
     var showManualLogDialog by remember { mutableStateOf(false) }
     var showStartLiveDialog by remember { mutableStateOf(false) }
@@ -149,8 +164,37 @@ fun CardioScreen(
     var showActiveCardioModal by remember { mutableStateOf(false) }
     var showGpsPromptDialog by remember { mutableStateOf(false) }
     var pendingOutdoorCardioType by remember { mutableStateOf<CardioType?>(null) }
+    var pendingIndoorType by remember { mutableStateOf<CardioType?>(null) }
+    var pendingIndoorLocation by remember { mutableStateOf("Academia") }
+    var pendingIndoorIntensity by remember { mutableStateOf(IntensityLevel.MODERADA) }
+    var pendingIndoorTargetMinutes by remember { mutableStateOf<Int?>(20) }
 
-    val context = LocalContext.current
+    val startCardioNow: (CardioType, String, IntensityLevel, Int?, Boolean) -> Unit = { type, location, intensity, target, gps ->
+        viewModel.startLiveCardio(type, location, intensity, target, enableGps = gps)
+        showActiveCardioModal = true
+    }
+    val activityRecognitionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            pendingIndoorType?.let { startCardioNow(it, pendingIndoorLocation, pendingIndoorIntensity, pendingIndoorTargetMinutes, false) }
+        } else {
+            Toast.makeText(context, "A permissão de atividade é necessária para manter o cardio interno em segundo plano neste Android.", Toast.LENGTH_LONG).show()
+        }
+        pendingIndoorType = null
+    }
+    val startCardioWithoutGps: (CardioType, String, IntensityLevel, Int?) -> Unit = { type, location, intensity, target ->
+        val needsHealthPermission = Build.VERSION.SDK_INT >= 34 &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED
+        if (needsHealthPermission) {
+            pendingIndoorType = type
+            pendingIndoorLocation = location
+            pendingIndoorIntensity = intensity
+            pendingIndoorTargetMinutes = target
+            activityRecognitionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+        } else startCardioNow(type, location, intensity, target, false)
+    }
+
     val gpsPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -158,14 +202,9 @@ fun CardioScreen(
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         val granted = fineGranted || coarseGranted
         val targetType = pendingOutdoorCardioType ?: selectedCardioForLive
-        viewModel.startLiveCardio(
-            type = targetType,
-            location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
-            intensity = IntensityLevel.MODERADA,
-            targetMinutes = 20,
-            enableGps = granted
-        )
-        showActiveCardioModal = true
+        val locationName = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque"
+        if (granted) startCardioNow(targetType, locationName, IntensityLevel.MODERADA, 20, true)
+        else startCardioWithoutGps(targetType, locationName, IntensityLevel.MODERADA, 20)
         pendingOutdoorCardioType = null
     }
 
@@ -198,17 +237,18 @@ fun CardioScreen(
             // Screen Header
             item {
                 Column {
-                    Text(
-                        text = "Cardio & Resistência",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Black,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = "Bicicleta indoor, esteira, ar livre, corrida e futebol com bioenergética IA",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
+                    Text("MODO CARDIO", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = TextPrimary)
+                    Spacer(Modifier.height(12.dp))
+                    Surface(shape = RoundedCornerShape(20.dp), color = PurpleDeepCard, border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = .45f))) {
+                        Row(Modifier.fillMaxWidth().height(132.dp).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                                Text("MOVIMENTO TAMBÉM TE EVOLUI", color = LilacAccent, fontWeight = FontWeight.Black, fontSize = 18.sp, lineHeight = 21.sp)
+                                Spacer(Modifier.height(6.dp))
+                                Text("Mais saúde. Mais resistência. Mais conquistas na sua Jornada.", color = TextSecondary, fontSize = 12.sp)
+                            }
+                            androidx.compose.foundation.Image(painterResource(cardioAthleteAsset), "Atleta FITPR09 conforme perfil", Modifier.size(118.dp))
+                        }
+                    }
                 }
             }
 
@@ -392,7 +432,8 @@ fun CardioScreen(
                             onStart = {
                                 val isOutdoor = routine.cardioType == CardioType.CAMINHADA_AR_LIVRE ||
                                         routine.cardioType == CardioType.CORRIDA ||
-                                        routine.cardioType == CardioType.TRILHA
+                                        routine.cardioType == CardioType.TRILHA ||
+                                        routine.cardioType == CardioType.BICICLETA_AR_LIVRE
                                 if (isOutdoor) {
                                     onStartOutdoorWithPrompt(routine.cardioType)
                                 } else {
@@ -416,21 +457,27 @@ fun CardioScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CardioType.values().forEach { cType ->
-                        CardioTypeItemCard(
-                            type = cType,
-                            onStartLive = {
-                                val isOutdoor = cType == CardioType.CAMINHADA_AR_LIVRE ||
-                                        cType == CardioType.CORRIDA ||
-                                        cType == CardioType.TRILHA
-                                if (isOutdoor) {
-                                    onStartOutdoorWithPrompt(cType)
-                                } else {
-                                    selectedCardioForLive = cType
-                                    showStartLiveDialog = true
+                    val featuredModes = listOf(CardioType.CAMINHADA_AR_LIVRE, CardioType.CORRIDA, CardioType.BICICLETA_AR_LIVRE, CardioType.CAMINHADA_ESTEIRA, CardioType.ELIPTICO, CardioType.HIIT)
+                    featuredModes.chunked(2).forEach { rowModes ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            rowModes.forEach { cType ->
+                                Box(Modifier.weight(1f)) {
+                                    CardioTypeItemCard(type = cType, onStartLive = {
+                                        val isOutdoor = cType in setOf(CardioType.CAMINHADA_AR_LIVRE, CardioType.CORRIDA, CardioType.TRILHA, CardioType.BICICLETA_AR_LIVRE)
+                                        if (isOutdoor) onStartOutdoorWithPrompt(cType) else { selectedCardioForLive = cType; showStartLiveDialog = true }
+                                    })
                                 }
                             }
-                        )
+                            if (rowModes.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    val otherModes = listOf(CardioType.BICICLETA_INDOOR, CardioType.TRILHA, CardioType.FUTEBOL)
+                    Text("Outras modalidades", color = TextSecondary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                    otherModes.forEach { cType ->
+                        CardioTypeItemCard(type = cType, onStartLive = {
+                            if (cType in setOf(CardioType.TRILHA)) onStartOutdoorWithPrompt(cType)
+                            else { selectedCardioForLive = cType; showStartLiveDialog = true }
+                        })
                     }
                 }
             }
@@ -512,7 +559,9 @@ fun CardioScreen(
         var intensity by remember { mutableStateOf(IntensityLevel.MODERADA) }
         val isOutdoor = selectedCardioForLive == CardioType.CAMINHADA_AR_LIVRE ||
                 selectedCardioForLive == CardioType.CORRIDA ||
-                selectedCardioForLive == CardioType.TRILHA
+                selectedCardioForLive == CardioType.TRILHA ||
+                selectedCardioForLive == CardioType.BICICLETA_AR_LIVRE
+                selectedCardioForLive == CardioType.BICICLETA_AR_LIVRE
 
         AlertDialog(
             onDismissRequest = { showStartLiveDialog = false },
@@ -660,14 +709,7 @@ fun CardioScreen(
                                 )
                             }
                         } else {
-                            viewModel.startLiveCardio(
-                                type = selectedCardioForLive,
-                                location = location,
-                                intensity = intensity,
-                                targetMinutes = 20,
-                                enableGps = false
-                            )
-                            showActiveCardioModal = true
+                            startCardioWithoutGps(selectedCardioForLive, location, intensity, 20)
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
@@ -718,14 +760,12 @@ fun CardioScreen(
             onConfirmNoGps = {
                 showGpsPromptDialog = false
                 val targetType = pendingOutdoorCardioType ?: selectedCardioForLive
-                viewModel.startLiveCardio(
-                    type = targetType,
-                    location = if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
-                    intensity = IntensityLevel.MODERADA,
-                    targetMinutes = 25,
-                    enableGps = false
+                startCardioWithoutGps(
+                    targetType,
+                    if (targetType == CardioType.TRILHA) "Trilha / Trekking" else "Rua / Parque",
+                    IntensityLevel.MODERADA,
+                    25
                 )
-                showActiveCardioModal = true
                 pendingOutdoorCardioType = null
             },
             onDismiss = {
@@ -867,21 +907,21 @@ fun CardioTypeItemCard(
     BentoCard(
         modifier = Modifier
             .fillMaxWidth()
+            .height(164.dp)
             .testTag("card_cardio_type_${type.name}")
+        ,
+        onClick = onStartLive
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(PurpleDarkSurface)
                         .border(1.dp, LilacAccent.copy(alpha = 0.5f), CircleShape)
@@ -890,36 +930,13 @@ fun CardioTypeItemCard(
                         imageVector = getCardioIcon(type),
                         contentDescription = null,
                         tint = LilacAccent,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(21.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = type.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Black,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = type.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
-                }
+                Text("Iniciar  ›", color = LilacAccent, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
-
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(GradientAction)
-                    .clickable { onStartLive() }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                    .testTag("btn_start_cardio_${type.name}"),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Iniciar", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            }
+            Text(type.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, color = TextPrimary, maxLines = 1)
+            Text(type.description, style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 2, minLines = 2)
         }
     }
 }

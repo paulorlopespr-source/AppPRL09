@@ -101,6 +101,9 @@ import com.example.data.model.ProgressionSuggestion
 import com.example.data.model.SetTag
 import com.example.data.model.WorkoutExercisePlan
 import com.example.data.model.WorkoutSession
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.ui.components.AIExerciseExecutionModal
 import com.example.ui.components.AudioPlayerBottomSheet
 import com.example.ui.components.AutomaticLastExecutionCard
@@ -160,12 +163,13 @@ fun ActiveWorkoutScreen(
     val activeMedalUnlocked by viewModel.activeMedalUnlocked.collectAsStateWithLifecycle()
     val activePRCelebration by viewModel.activePRCelebration.collectAsStateWithLifecycle()
     val journeyImpact by viewModel.lastWorkoutJourneyImpact.collectAsStateWithLifecycle()
+    val workoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
     val isTtsVoiceEnabled by viewModel.isTtsVoiceEnabled.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showFinishDialog by remember { mutableStateOf(false) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
+    var showProgressionSuggestionDialog by remember { mutableStateOf(false) }
     var showAddExerciseDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
     var showIntervalTimerDialog by remember { mutableStateOf(false) }
@@ -182,6 +186,24 @@ fun ActiveWorkoutScreen(
     var focusedExerciseIndex by remember { mutableStateOf(0) }
     var showWorkoutMenu by remember { mutableStateOf(false) }
     val focusedPlan = activeState.exercises.getOrNull(focusedExerciseIndex)
+    val totalPlannedSets = activeState.exercises.sumOf { it.sets.size }
+    val completedPlannedSets = activeState.exercises.sumOf { plan -> plan.sets.count { it.isCompleted } }
+
+    fun saveFinishedWorkout(saveCompletedSetsOnly: Boolean) {
+        showFinishDialog = false
+        viewModel.finishActiveWorkout(saveCompletedSetsOnly = saveCompletedSetsOnly) { savedSession ->
+            completedSessionForStory = savedSession
+            showJourneyImpact = true
+        }
+    }
+
+    val requestFinishWorkout = {
+        if (totalPlannedSets > 0 && completedPlannedSets == totalPlannedSets) {
+            saveFinishedWorkout(saveCompletedSetsOnly = false)
+        } else {
+            showFinishDialog = true
+        }
+    }
 
     var showAIExecutionModal by remember { mutableStateOf(false) }
     var selectedAIExerciseName by remember { mutableStateOf("") }
@@ -265,11 +287,25 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = TextPrimary)
+                        IconButton(
+                            onClick = onBack,
+                            enabled = !activeState.isActive
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = if (activeState.isActive) "Encerre o treino para sair" else "Voltar",
+                                tint = if (activeState.isActive) TextMuted else TextPrimary
+                            )
                         }
                     },
                     actions = {
+                        TextButton(
+                            onClick = { requestFinishWorkout() },
+                            modifier = Modifier.testTag("btn_finish_workout")
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = EmeraldSuccess, modifier = Modifier.size(17.dp))
+                            Text("Encerrar", color = EmeraldSuccess, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                         Box {
                             IconButton(onClick = { showWorkoutMenu = true }, modifier = Modifier.testTag("btn_active_workout_menu")) {
                                 Icon(Icons.Default.MoreVert, contentDescription = "Mais opções", tint = TextPrimary)
@@ -340,16 +376,6 @@ fun ActiveWorkoutScreen(
                                     text = { Text("Adicionar exercício") },
                                     onClick = { showAddExerciseDialog = true; showWorkoutMenu = false },
                                     modifier = Modifier.testTag("btn_add_exercise_to_workout")
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Finalizar treino") },
-                                    onClick = { showFinishDialog = true; showWorkoutMenu = false },
-                                    modifier = Modifier.testTag("btn_finish_workout")
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Descartar treino") },
-                                    onClick = { showDiscardDialog = true; showWorkoutMenu = false },
-                                    modifier = Modifier.testTag("btn_discard_workout")
                                 )
                             }
                         }
@@ -481,10 +507,10 @@ fun ActiveWorkoutScreen(
                 item {
                     val exIndex = focusedExerciseIndex.coerceIn(0, (activeState.exercises.lastIndex).coerceAtLeast(0))
                     val plan = activeState.exercises.getOrNull(exIndex) ?: return@item
-                    val lastExecution = remember(plan.exerciseName, activeState.exercises.size) {
+                    val lastExecution = remember(plan.exerciseName, plan.exerciseId, workoutSessions) {
                         viewModel.getLastExerciseExecution(plan.exerciseName, plan.exerciseId)
                     }
-                    val progressionSuggestion = remember(plan.exerciseName, plan.sets, appliedProgressions, dismissedProgressions) {
+                    val progressionSuggestion = remember(plan.exerciseName, plan.sets, workoutSessions, appliedProgressions, dismissedProgressions) {
                         viewModel.getProgressionSuggestion(plan.exerciseName, plan)
                     }
 
@@ -498,6 +524,8 @@ fun ActiveWorkoutScreen(
                         illustration = { WorkoutVisualAssetSlot(plan.exerciseName, plan.muscleGroup, Modifier.fillMaxSize()) },
                         lastPerformance = previousSet?.let { "${formatWorkoutWeight(it.weightKg)} kg × ${it.reps}" } ?: "Ainda sem histórico",
                         suggestedWeight = progressionSuggestion?.suggestedWeightKg ?: currentLoad,
+                        hasProgressionSuggestion = progressionSuggestion != null,
+                        onOpenSuggestion = { showProgressionSuggestionDialog = true },
                         timerVisible = activeState.restTimerVisible,
                         timerPaused = activeState.restTimerPaused,
                         timerRemaining = activeState.restTimerRemainingSeconds,
@@ -544,7 +572,7 @@ fun ActiveWorkoutScreen(
                                 focusedExerciseIndex = exIndex + 1
                             } else {
                                 viewModel.completeExercise(exIndex)
-                                showFinishDialog = true
+                                requestFinishWorkout()
                             }
                         }
                     )
@@ -667,7 +695,7 @@ fun ActiveWorkoutScreen(
                     PrimaryButton(
                         text = "FINALIZAR TREINO & AVALIAR COM IA",
                         icon = Icons.Default.Check,
-                        onClick = { showFinishDialog = true },
+                        onClick = { requestFinishWorkout() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp)
@@ -713,58 +741,109 @@ fun ActiveWorkoutScreen(
     if (showFinishDialog) {
         AlertDialog(
             onDismissRequest = { showFinishDialog = false },
-            title = {
-                Text(
-                    "Finalizar Sessão de Treino?",
-                    fontWeight = FontWeight.Black,
-                    color = TextPrimary
-                )
-            },
+            title = { Text("Encerrar treino", fontWeight = FontWeight.Black, color = TextPrimary) },
             text = {
-                Column {
-                    Text("Duração total: ${DateUtils.formatSecondsToTime(activeState.durationSeconds)}", color = TextSecondary)
-                    Text("Local: ${activeState.location}", color = TextSecondary)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(PurpleDeepCard)
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = "✦ A IA do FitPr09 irá calcular seu gasto calórico metabólico e avaliar sua sobrecarga progressiva.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LilacSoft,
-                            lineHeight = 18.sp
-                        )
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Você marcou $completedPlannedSets de $totalPlannedSets séries como concluídas.", color = TextPrimary)
+                    Text("Se salvar, somente as séries marcadas entram no histórico. As séries não marcadas não serão contabilizadas.", color = TextSecondary)
+                    Text("Duração: ${DateUtils.formatSecondsToTime(activeState.durationSeconds)}", color = TextMuted)
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showFinishDialog = false
-                        viewModel.finishActiveWorkout { savedSession ->
-                            completedSessionForStory = savedSession
-                            showJourneyImpact = true
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.testTag("btn_confirm_finish")
-                ) {
-                    Text("Sim, Finalizar", fontWeight = FontWeight.Bold, color = Color.White)
+                Column(horizontalAlignment = Alignment.End) {
+                    Button(
+                        onClick = { saveFinishedWorkout(saveCompletedSetsOnly = true) },
+                        enabled = completedPlannedSets > 0,
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.testTag("btn_save_partial_workout")
+                    ) {
+                        Text("Salvar séries feitas", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    TextButton(
+                        onClick = {
+                            showFinishDialog = false
+                            viewModel.discardActiveWorkout()
+                            onBack()
+                        },
+                        modifier = Modifier.testTag("btn_discard_partial_workout")
+                    ) {
+                        Text("Descartar treino", color = RedDestructive, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showFinishDialog = false }) {
-                    Text("Cancelar", color = TextMuted)
+                    Text("Continuar treinando", color = LilacAccent)
                 }
             },
             containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
         )
+    }
+
+    if (showProgressionSuggestionDialog) {
+        val plan = activeState.exercises.getOrNull(focusedExerciseIndex)
+        if (plan != null) {
+            val lastExecution = remember(plan.exerciseName, plan.exerciseId, workoutSessions) {
+                viewModel.getLastExerciseExecution(plan.exerciseName, plan.exerciseId)
+            }
+            val progressionSuggestion = remember(plan.exerciseName, plan.sets, workoutSessions, appliedProgressions, dismissedProgressions) {
+                viewModel.getProgressionSuggestion(plan.exerciseName, plan)
+            }
+            val currentPlannedLoad = plan.sets.firstOrNull()?.weightKg ?: 0.0
+            val recommendedLoad = progressionSuggestion?.suggestedWeightKg ?: currentPlannedLoad
+            AlertDialog(
+                onDismissRequest = { showProgressionSuggestionDialog = false },
+                title = { Text("Sugestão para ${plan.exerciseName}", color = TextPrimary, fontWeight = FontWeight.Black) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (progressionSuggestion != null) {
+                            Text("Experimente ${formatWorkoutWeight(recommendedLoad)} kg", color = LilacAccent, fontWeight = FontWeight.Bold)
+                            Text(progressionSuggestion.reason, color = TextSecondary)
+                            Text(progressionSuggestion.recentSessionsSummary, color = TextMuted)
+                        } else if (lastExecution != null) {
+                            Text("Mantenha a carga planejada: ${formatWorkoutWeight(currentPlannedLoad)} kg", color = LilacAccent, fontWeight = FontWeight.Bold)
+                            Text("O histórico ainda não indica aumento seguro. Complete a meta de repetições antes de subir a carga.", color = TextSecondary)
+                        } else {
+                            Text("Ainda não há treino concluído deste exercício no histórico.", color = TextSecondary)
+                            Text("Comece com a carga planejada de ${formatWorkoutWeight(currentPlannedLoad)} kg e registre as séries para receber sugestões personalizadas.", color = LilacAccent)
+                        }
+                        lastExecution?.let { record ->
+                            Text("Último registro salvo · ${formatWorkoutDateTime(record.sessionStartTimeMillis)}", color = TextMuted, fontSize = 12.sp)
+                            Text(
+                                "Séries: ${record.completedSets.joinToString("  ·  ") { "${it.setNumber}: ${formatWorkoutWeight(it.weightKg)} kg × ${it.reps}" }}",
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (recommendedLoad > 0.0) viewModel.applyProgressionSuggestion(focusedExerciseIndex, recommendedLoad)
+                            showProgressionSuggestionDialog = false
+                        },
+                        enabled = recommendedLoad > 0.0,
+                        colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                        modifier = Modifier.testTag("btn_apply_progression_suggestion")
+                    ) {
+                        Text("Usar ${formatWorkoutWeight(recommendedLoad)} kg", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            progressionSuggestion?.let { viewModel.dismissProgressionSuggestion(it.exerciseName) }
+                            showProgressionSuggestionDialog = false
+                        }
+                    ) { Text("Manter carga", color = TextSecondary) }
+                },
+                containerColor = PurpleDarkSurface,
+                shape = RoundedCornerShape(24.dp)
+            )
+        }
     }
 
     if (showJourneyImpact && journeyImpact != null) {
@@ -839,35 +918,6 @@ fun ActiveWorkoutScreen(
                 viewModel.applyWarmupSets(warmupGeneratorExerciseIndex!!, generatedSets)
                 warmupGeneratorExerciseIndex = null
             }
-        )
-    }
-
-    // Confirm Discard Dialog
-    if (showDiscardDialog) {
-        AlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Descartar Treino Atual?", fontWeight = FontWeight.Bold, color = TextPrimary) },
-            text = { Text("Todos os dados desta sessão em andamento serão perdidos.", color = TextSecondary) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDiscardDialog = false
-                        viewModel.discardActiveWorkout()
-                        onBack()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = RedDestructive),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Descartar", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) {
-                    Text("Continuar Treino", color = LilacAccent)
-                }
-            },
-            containerColor = PurpleDarkSurface,
-            shape = RoundedCornerShape(24.dp)
         )
     }
 
@@ -1211,6 +1261,8 @@ private fun CompactActiveExerciseCard(
     illustration: @Composable () -> Unit,
     lastPerformance: String,
     suggestedWeight: Double,
+    hasProgressionSuggestion: Boolean,
+    onOpenSuggestion: () -> Unit,
     timerVisible: Boolean,
     timerPaused: Boolean,
     timerRemaining: Int,
@@ -1275,7 +1327,25 @@ private fun CompactActiveExerciseCard(
                 Box(Modifier.size(100.dp).clip(RoundedCornerShape(14.dp))) { illustration() }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     CompactLoadInfo(label = "Último treino", value = lastPerformance, accent = TextPrimary)
-                    CompactLoadInfo(label = "Sugestão", value = "${formatWorkoutWeight(suggestedWeight)} kg", accent = LilacAccent)
+                    Surface(
+                        onClick = onOpenSuggestion,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp).testTag("btn_open_progression_suggestion"),
+                        shape = RoundedCornerShape(10.dp),
+                        color = PurpleDarkSurface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, LilacAccent.copy(alpha = 0.45f))
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(if (hasProgressionSuggestion) "PROGRESSÃO SUGERIDA" else "SUGESTÃO DE CARGA", color = TextMuted, fontSize = 8.sp, maxLines = 1)
+                                Text("${formatWorkoutWeight(suggestedWeight)} kg", color = LilacAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text("Ver", color = LilacAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
 
@@ -1440,6 +1510,9 @@ private fun CompactSetRow(
 
 private fun formatCompactTimer(totalSeconds: Int): String =
     "%02d:%02d".format((totalSeconds.coerceAtLeast(0) / 60), (totalSeconds.coerceAtLeast(0) % 60))
+
+private fun formatWorkoutDateTime(timeMillis: Long): String =
+    SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", Locale("pt", "BR")).format(Date(timeMillis))
 
 private fun formatWorkoutWeight(weight: Double): String =
     if (weight % 1.0 == 0.0) weight.toInt().toString() else String.format("%.1f", weight)

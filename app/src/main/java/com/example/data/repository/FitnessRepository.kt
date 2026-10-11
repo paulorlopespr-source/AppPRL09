@@ -104,6 +104,10 @@ class FitnessRepository(
 
     suspend fun saveCardioSession(session: CardioSession): Long = dao.insertCardioSession(session)
 
+    suspend fun getCardioSessionByUuid(sessionUuid: String): CardioSession? = dao.getCardioSessionByUuid(sessionUuid)
+
+    suspend fun deleteActiveCardioSession(sessionUuid: String) = dao.deleteActiveCardioSession(sessionUuid)
+
     suspend fun deleteCardioSessionById(id: Long) = dao.deleteCardioSessionById(id)
 
     // --- User Profile & Measurements ---

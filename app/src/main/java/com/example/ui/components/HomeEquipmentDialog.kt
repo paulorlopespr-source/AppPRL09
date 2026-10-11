@@ -77,7 +77,7 @@ fun HomeEquipmentDialog(
                     Spacer(Modifier.height(12.dp))
                     if (Equipment.ELASTICO in selected) {
                         Text(
-                            "A biblioteca ainda não tem exercícios cadastrados com elástico. O plano usará os outros equipamentos selecionados e peso corporal.",
+                            "Este plano usa os exercícios ilustrados disponíveis na biblioteca. Onde ainda não há uma variação ilustrada com elástico, ele sugere um movimento equivalente já cadastrado.",
                             color = TextMuted,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -101,6 +101,7 @@ fun HomeEquipmentDialog(
                             availableEquipment = selected + Equipment.PESO_CORPO,
                             barLoadKg = barLoad.toOptionalKg(),
                             dumbbellLoadPerHandKg = dumbbellLoad.toOptionalKg(),
+                            hasRack = Equipment.SUPORTE_BARRA in selected,
                             configured = true
                         )
                     )

@@ -35,9 +35,10 @@ import kotlinx.coroutines.launch
         , com.example.data.model.TrainingCycle::class,
         com.example.data.model.InitialAssessment::class,
         com.example.data.model.PlannedWorkout::class
-        , com.example.data.model.CycleReassessment::class
+        , com.example.data.model.CycleReassessment::class,
+        com.example.data.model.ActiveCardioSessionRecord::class
     ],
-    version = 14,
+    version = 16,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -225,6 +226,59 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `sessionUuid` TEXT NOT NULL DEFAULT ''")
+                database.execSQL("UPDATE `cardio_sessions` SET `sessionUuid` = 'legacy-cardio-' || `id` WHERE `sessionUuid` = ''")
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `durationSeconds` INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("UPDATE `cardio_sessions` SET `durationSeconds` = `durationMinutes` * 60 WHERE `durationSeconds` = 0")
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `steps` INTEGER")
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'INDEPENDENT'")
+                database.execSQL("ALTER TABLE `cardio_sessions` ADD COLUMN `plannedWorkoutId` INTEGER")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_cardio_sessions_sessionUuid` ON `cardio_sessions` (`sessionUuid`)")
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `active_cardio_sessions` (
+                        `sessionUuid` TEXT NOT NULL,
+                        `cardioType` TEXT NOT NULL,
+                        `intensity` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `startedAtMillis` INTEGER NOT NULL,
+                        `durationSeconds` INTEGER NOT NULL,
+                        `accumulatedDurationSeconds` INTEGER NOT NULL,
+                        `resumeStartedElapsedRealtime` INTEGER NOT NULL,
+                        `bootCount` INTEGER NOT NULL,
+                        `distanceKm` REAL NOT NULL,
+                        `currentSpeedKmh` REAL NOT NULL,
+                        `avgSpeedKmh` REAL NOT NULL,
+                        `currentPaceMinKm` TEXT NOT NULL,
+                        `avgPaceMinKm` TEXT NOT NULL,
+                        `caloriesBurned` INTEGER NOT NULL,
+                        `elevationGainMeters` REAL NOT NULL,
+                        `accuracyMeters` REAL,
+                        `currentLocationJson` TEXT,
+                        `routePointsJson` TEXT NOT NULL,
+                        `splitsJson` TEXT NOT NULL,
+                        `locationName` TEXT NOT NULL,
+                        `targetMinutes` INTEGER,
+                        `steps` INTEGER,
+                        `stepSensorAvailable` INTEGER,
+                        `plannedSessionCode` TEXT,
+                        `pausedBySystem` INTEGER NOT NULL,
+                        `userWeightKg` REAL,
+                        `updatedAtMillis` INTEGER NOT NULL,
+                        PRIMARY KEY(`sessionUuid`)
+                    )
+                """.trimIndent())
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_active_cardio_sessions_updatedAtMillis` ON `active_cardio_sessions` (`updatedAtMillis`)")
+            }
+        }
+
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `active_cardio_sessions` ADD COLUMN `gpsEnabled` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
@@ -265,7 +319,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_10_11,
                         MIGRATION_11_12
                         , MIGRATION_12_13,
-                        MIGRATION_13_14
+                        MIGRATION_13_14,
+                        MIGRATION_14_15,
+                        MIGRATION_15_16
                     )
                     .addCallback(DatabaseCallback(scope))
                     .build()

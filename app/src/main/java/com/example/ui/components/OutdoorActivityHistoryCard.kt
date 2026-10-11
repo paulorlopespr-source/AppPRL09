@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocationOn
@@ -460,5 +461,8 @@ fun getOutdoorCardioIcon(type: CardioType): ImageVector {
         CardioType.CORRIDA -> Icons.AutoMirrored.Filled.DirectionsRun
         CardioType.TRILHA -> Icons.Default.Landscape
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
+        CardioType.BICICLETA_AR_LIVRE -> Icons.AutoMirrored.Filled.DirectionsBike
+        CardioType.ELIPTICO -> Icons.Default.FitnessCenter
+        CardioType.HIIT -> Icons.Default.FlashOn
     }
 }

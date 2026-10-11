@@ -59,6 +59,11 @@ object OutdoorCardioPersistence {
         dateEpochDay: Long,
         timestampMillis: Long = System.currentTimeMillis(),
         durationMinutes: Int,
+        durationSeconds: Long = durationMinutes * 60L,
+        steps: Long? = null,
+        sessionUuid: String = java.util.UUID.randomUUID().toString(),
+        source: String = "INDEPENDENT",
+        plannedWorkoutId: Long? = null,
         distanceKm: Double?,
         avgHeartRateBpm: Int? = null,
         intensity: IntensityLevel = IntensityLevel.MODERADA,
@@ -72,10 +77,15 @@ object OutdoorCardioPersistence {
         avgPaceMinKm: String = "--:--"
     ): CardioSession {
         return CardioSession(
+            sessionUuid = sessionUuid,
             type = type,
             dateEpochDay = dateEpochDay,
             timestampMillis = timestampMillis,
             durationMinutes = durationMinutes,
+            durationSeconds = durationSeconds,
+            steps = steps,
+            source = source,
+            plannedWorkoutId = plannedWorkoutId,
             distanceKm = distanceKm,
             avgHeartRateBpm = avgHeartRateBpm,
             intensity = intensity,

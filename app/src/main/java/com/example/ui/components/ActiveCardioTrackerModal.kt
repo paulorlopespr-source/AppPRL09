@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.GpsNotFixed
 import androidx.compose.material.icons.filled.GpsOff
@@ -124,7 +125,8 @@ fun ActiveCardioTrackerModal(
 
     val isOutdoor = activeCardio.type == CardioType.CORRIDA ||
             activeCardio.type == CardioType.CAMINHADA_AR_LIVRE ||
-            activeCardio.type == CardioType.TRILHA
+            activeCardio.type == CardioType.TRILHA ||
+            activeCardio.type == CardioType.BICICLETA_AR_LIVRE
 
     // GPS Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -136,6 +138,9 @@ fun ActiveCardioTrackerModal(
             viewModel.toggleCardioGps(true)
         }
     }
+    val stepPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) viewModel.requestCardioStepSensor() }
 
     fun handleToggleGps() {
         if (!activeCardio.gpsEnabled) {
@@ -237,6 +242,23 @@ fun ActiveCardioTrackerModal(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (activeCardio.pausedBySystem) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = AmberSubtle,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AmberWarning.copy(alpha = 0.55f))
+                ) {
+                    Text(
+                        "A sessão foi pausada após reiniciar o aparelho. Confira o percurso e toque em retomar quando estiver pronto.",
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
 
             // Stopwatch Hero Display
             Surface(
@@ -449,12 +471,61 @@ fun ActiveCardioTrackerModal(
                 }
             }
 
+            if (activeCardio.type in setOf(CardioType.CAMINHADA_AR_LIVRE, CardioType.CAMINHADA_ESTEIRA, CardioType.CORRIDA, CardioType.TRILHA)) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = PurpleDeepCard,
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderSubtle)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("PASSOS", fontSize = 10.sp, fontWeight = FontWeight.Black, color = LilacSoft)
+                            Text(
+                                text = when {
+                                    outdoorSession.steps != null -> "${outdoorSession.steps} passos"
+                                    outdoorSession.stepSensorAvailable == false -> "Sensor indisponível ou sem permissão"
+                                    else -> "Aguardando sensor"
+                                },
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (outdoorSession.stepSensorAvailable != true) {
+                            TextButton(onClick = {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q &&
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED
+                                ) stepPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                                else viewModel.requestCardioStepSensor()
+                            }) { Text("Ativar", color = LilacAccent, fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(14.dp))
 
             // ==========================================
             // LIVE GOOGLE MAP (OUTDOOR CARDIO & TRAIL)
             // ==========================================
             if (isOutdoor) {
+                Text(
+                    text = when {
+                        !activeCardio.gpsEnabled -> "GPS desativado • a sessão continua sem registrar rota"
+                        activeCardio.isPaused -> "GPS pausado durante o descanso"
+                        outdoorSession.accuracyMeters == null && outdoorSession.routePoints.isEmpty() -> "GPS procurando sinal • o mapa será preenchido quando houver uma localização válida"
+                        (outdoorSession.accuracyMeters ?: Float.MAX_VALUE) > 25f -> "Sinal GPS fraco • mantendo o último ponto válido"
+                        else -> "GPS ativo • precisão aproximada de ${outdoorSession.accuracyMeters?.toInt()} m"
+                    },
+                    color = if (outdoorSession.routePoints.isEmpty()) AmberWarning else EmeraldSuccess,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
                 OutdoorLiveMapView(
                     routePoints = outdoorSession.routePoints,
                     currentLocation = outdoorSession.currentLocation,
@@ -845,5 +916,8 @@ fun getCardioIcon(type: CardioType): ImageVector {
         CardioType.CORRIDA -> Icons.Default.DirectionsRun
         CardioType.TRILHA -> Icons.Default.Landscape
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
+        CardioType.BICICLETA_AR_LIVRE -> Icons.Default.DirectionsBike
+        CardioType.ELIPTICO -> Icons.Default.FitnessCenter
+        CardioType.HIIT -> Icons.Default.FlashOn
     }
 }

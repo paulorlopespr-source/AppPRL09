@@ -18,8 +18,12 @@ enum class MuscleGroup(val displayName: String, val iconName: String) {
 
 enum class Equipment(val displayName: String) {
     BARRA("Barra"),
+    ANILHAS("Anilhas"),
     HALTERES("Halteres"),
     BANCO("Banco / apoio"),
+    SUPORTE_BARRA("Rack / suporte com trava"),
+    ESTEIRA("Esteira"),
+    BICICLETA("Bicicleta / ergométrica"),
     BARRA_FIXA("Barra fixa"),
     PARALELAS("Barras paralelas"),
     MAQUINA("Máquina"),
@@ -89,5 +93,21 @@ data class WorkoutExercisePlan(
     val muscleGroup: String,
     val sets: List<ExerciseSetEntry>,
     val targetRestSeconds: Int = 60,
-    val notes: String = ""
+    val notes: String = "",
+    /** Exercise navigation state; deliberately independent from completed set history. */
+    val isCompleted: Boolean = false,
+    /** Optional target range kept in the serialized template and workout history. */
+    val targetRepMin: Int? = null,
+    val targetRepMax: Int? = null,
+    val targetRirMin: Int? = null,
+    val targetRirMax: Int? = null
 )
+
+/** Marks that the user advanced past an exercise without fabricating completed sets. */
+internal fun WorkoutExercisePlan.markCompletedForNavigation(): WorkoutExercisePlan = copy(isCompleted = true)
+
+/** Returns only exercises and sets actually checked as completed, for a partial session record. */
+internal fun List<WorkoutExercisePlan>.completedSetsForHistory(): List<WorkoutExercisePlan> = mapNotNull { plan ->
+    val completedSets = plan.sets.filter { it.isCompleted }
+    if (completedSets.isEmpty()) null else plan.copy(sets = completedSets)
+}

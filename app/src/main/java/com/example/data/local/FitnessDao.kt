@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.example.data.model.BodyMeasurement
 import com.example.data.model.CardioSession
+import com.example.data.model.ActiveCardioSessionRecord
 import com.example.data.model.Exercise
 import com.example.data.model.UserProfile
 import com.example.data.model.WorkoutSession
@@ -51,6 +52,9 @@ interface FitnessDao {
 
     @Query("SELECT * FROM workout_templates WHERE id = :id")
     suspend fun getWorkoutTemplateById(id: Long): WorkoutTemplate?
+
+    @Query("SELECT * FROM workout_templates WHERE title = :title LIMIT 1")
+    suspend fun getWorkoutTemplateByTitle(title: String): WorkoutTemplate?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkoutTemplate(template: WorkoutTemplate): Long
@@ -106,8 +110,23 @@ interface FitnessDao {
     @Query("SELECT * FROM cardio_sessions WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay ASC")
     fun getCardioSessionsInRange(startEpochDay: Long, endEpochDay: Long): Flow<List<CardioSession>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Query("SELECT * FROM cardio_sessions WHERE sessionUuid = :sessionUuid LIMIT 1")
+    suspend fun getCardioSessionByUuid(sessionUuid: String): CardioSession?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCardioSession(session: CardioSession): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveActiveCardioSession(record: ActiveCardioSessionRecord)
+
+    @Query("SELECT * FROM active_cardio_sessions ORDER BY updatedAtMillis DESC LIMIT 1")
+    suspend fun getActiveCardioSession(): ActiveCardioSessionRecord?
+
+    @Query("DELETE FROM active_cardio_sessions WHERE sessionUuid = :sessionUuid")
+    suspend fun deleteActiveCardioSession(sessionUuid: String)
+
+    @Query("DELETE FROM active_cardio_sessions")
+    suspend fun deleteAllActiveCardioSessions()
 
     @Query("DELETE FROM cardio_sessions WHERE id = :id")
     suspend fun deleteCardioSessionById(id: Long)

@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
+import java.util.UUID
 
 enum class CardioType(
     val title: String,
@@ -20,6 +21,14 @@ enum class CardioType(
         metLight = 5.5,
         metModerate = 7.0,
         metIntense = 9.5
+    ),
+    BICICLETA_AR_LIVRE(
+        title = "Bicicleta ao Ar Livre",
+        description = "Pedalada externa com percurso, distância e ritmo registrados por GPS.",
+        iconKey = "DirectionsBike",
+        metLight = 4.0,
+        metModerate = 8.0,
+        metIntense = 12.0
     ),
     CAMINHADA_ESTEIRA(
         title = "Caminhada na Esteira",
@@ -60,6 +69,22 @@ enum class CardioType(
         metLight = 7.0,
         metModerate = 8.5,
         metIntense = 10.0
+    ),
+    ELIPTICO(
+        title = "Elíptico",
+        description = "Atividade de baixo impacto em equipamento elíptico, sem necessidade de GPS.",
+        iconKey = "Elliptical",
+        metLight = 4.0,
+        metModerate = 5.0,
+        metIntense = 7.0
+    ),
+    HIIT(
+        title = "HIIT",
+        description = "Treino intervalado de alta intensidade. Calorias são estimativas e a frequência cardíaca só aparece com fonte compatível.",
+        iconKey = "FlashOn",
+        metLight = 6.0,
+        metModerate = 8.0,
+        metIntense = 10.0
     )
 }
 
@@ -73,15 +98,22 @@ enum class IntensityLevel(val label: String) {
 @Entity(
     tableName = "cardio_sessions",
     indices = [
-        Index(value = ["dateEpochDay"])
+        Index(value = ["dateEpochDay"]),
+        Index(value = ["sessionUuid"], unique = true)
     ]
 )
 data class CardioSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Stable idempotency key across retries, app restarts, and plan/history links. */
+    val sessionUuid: String = UUID.randomUUID().toString(),
     val type: CardioType,
     val dateEpochDay: Long,
     val timestampMillis: Long = System.currentTimeMillis(),
     val durationMinutes: Int,
+    val durationSeconds: Long = durationMinutes * 60L,
+    val steps: Long? = null,
+    val source: String = "INDEPENDENT",
+    val plannedWorkoutId: Long? = null,
     val distanceKm: Double? = null,
     val avgHeartRateBpm: Int? = null,
     val intensity: IntensityLevel = IntensityLevel.MODERADA,

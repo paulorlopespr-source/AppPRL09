@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="progress_camera" path="progress_camera/" />
+    <cache-path name="workout_share" path="workout_share/" />
 </paths>

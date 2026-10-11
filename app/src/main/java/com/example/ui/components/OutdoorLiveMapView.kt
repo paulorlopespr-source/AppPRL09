@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
@@ -318,6 +319,7 @@ fun OutdoorLiveMapView(
                                     imageVector = when (cardioType) {
                                         CardioType.TRILHA -> Icons.Default.Landscape
                                         CardioType.CAMINHADA_AR_LIVRE -> Icons.Default.Park
+                                        CardioType.BICICLETA_AR_LIVRE -> Icons.Default.DirectionsBike
                                         else -> Icons.Default.DirectionsRun
                                     },
                                     contentDescription = "Posição Atual",
@@ -362,6 +364,7 @@ fun OutdoorLiveMapView(
                         text = when (cardioType) {
                             CardioType.TRILHA -> "TRILHA • GPS ATIVO"
                             CardioType.CAMINHADA_AR_LIVRE -> "CAMINHADA • GPS ATIVO"
+                            CardioType.BICICLETA_AR_LIVRE -> "BICICLETA • GPS ATIVO"
                             else -> "CORRIDA • GPS ATIVO"
                         },
                         fontSize = 11.sp,

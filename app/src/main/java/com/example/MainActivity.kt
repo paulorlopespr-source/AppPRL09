@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
@@ -53,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -139,6 +141,7 @@ class MainActivity : ComponentActivity() {
 fun MainAppScreen(viewModel: FitnessViewModel) {
     var currentDestination by remember { mutableStateOf(AppDestination.HOME) }
     var openExerciseLibrary by remember { mutableStateOf(false) }
+    var isCreatingWorkout by remember { mutableStateOf(false) }
     val activeWorkoutState by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val activeCardioState by viewModel.activeCardio.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
@@ -158,12 +161,20 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
     var showQuickStartSheet by remember { mutableStateOf(false) }
     var showActiveCardioModal by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val showBottomBar = currentDestination != AppDestination.ACTIVE_WORKOUT
+    // An active strength session owns the screen until it is explicitly finished or discarded.
+    // Derive the visible destination from session state so returning from background/process
+    // recreation cannot strand the user on Home while a workout is still in progress.
+    LaunchedEffect(activeWorkoutState.isActive) {
+        if (activeWorkoutState.isActive) currentDestination = AppDestination.ACTIVE_WORKOUT
+    }
+    BackHandler(enabled = activeWorkoutState.isActive) { /* keep the active workout in focus */ }
+    val visibleDestination = if (activeWorkoutState.isActive) AppDestination.ACTIVE_WORKOUT else currentDestination
+    val showBottomBar = visibleDestination != AppDestination.ACTIVE_WORKOUT && !isCreatingWorkout
 
     Scaffold(containerColor = PurpleDarkest, modifier = Modifier.fillMaxSize()) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxSize()) {
-                when (currentDestination) {
+                when (visibleDestination) {
                     AppDestination.HOME -> HomeScreen(
                         viewModel = viewModel,
                         onNavigateToWorkouts = { currentDestination = AppDestination.WORKOUTS },
@@ -179,7 +190,8 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                         viewModel = viewModel,
                         onStartWorkout = { currentDestination = AppDestination.ACTIVE_WORKOUT },
                         openExerciseLibrary = openExerciseLibrary,
-                        onExerciseLibraryOpened = { openExerciseLibrary = false }
+                        onExerciseLibraryOpened = { openExerciseLibrary = false },
+                        onCreateFlowChanged = { isCreatingWorkout = it }
                     )
                     AppDestination.DASHBOARD -> PainelScreen(
                         onStartTodayWorkout = { currentDestination = AppDestination.WORKOUTS },
@@ -209,7 +221,7 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     AppDestination.EVOLUTION -> EvolutionScreen(viewModel = viewModel)
                     AppDestination.ACTIVE_WORKOUT -> ActiveWorkoutScreen(
                         viewModel = viewModel,
-                        onBack = { currentDestination = AppDestination.WORKOUTS },
+                        onBack = { if (!activeWorkoutState.isActive) currentDestination = AppDestination.WORKOUTS },
                         onFinished = { currentDestination = AppDestination.HOME }
                     )
                 }
@@ -263,7 +275,7 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // Active Workout Resume Banner when active workout is running
-                    if (activeWorkoutState.isActive && currentDestination != AppDestination.ACTIVE_WORKOUT) {
+                    if (activeWorkoutState.isActive && visibleDestination != AppDestination.ACTIVE_WORKOUT) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -327,8 +339,8 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                     }
 
                     MainBottomNavigation(
-                        currentDestination = currentDestination,
-                        onNavigate = { currentDestination = it }
+                        currentDestination = visibleDestination,
+                        onNavigate = { if (!activeWorkoutState.isActive) currentDestination = it }
                     )
                 }
             }

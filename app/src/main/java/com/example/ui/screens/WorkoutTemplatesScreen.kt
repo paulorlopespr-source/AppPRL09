@@ -1,5 +1,11 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -83,6 +89,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,8 +97,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
+import com.example.data.model.CardioType
 import com.example.data.model.Exercise
 import com.example.data.model.ExerciseSetEntry
+import com.example.data.model.IntensityLevel
 import com.example.data.model.MuscleGroup
 import com.example.data.model.WorkoutCategory
 import com.example.data.model.WorkoutExercisePlan
@@ -122,6 +131,7 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.FitnessViewModel
+import com.example.domain.training.HomeIntermediate8WeekProgram
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -133,15 +143,19 @@ fun WorkoutTemplatesScreen(
     onStartWorkout: () -> Unit,
     modifier: Modifier = Modifier,
     openExerciseLibrary: Boolean = false,
-    onExerciseLibraryOpened: () -> Unit = {}
+    onExerciseLibraryOpened: () -> Unit = {},
+    onCreateFlowChanged: (Boolean) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val templates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val reminderSettings by viewModel.reminderSettings.collectAsStateWithLifecycle()
     val homeEquipmentProfile by viewModel.homeEquipmentProfile.collectAsStateWithLifecycle()
+    val allWorkoutSessions by viewModel.allWorkoutSessions.collectAsStateWithLifecycle()
+    val allCardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
 
-    var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Meus Treinos, 1: Treino Rápido, 2: Favoritos
+    var selectedTabIndex by remember { mutableIntStateOf(0) } // Todos, meus, modelos, favoritos, treino rápido
     var selectedCategoryFilter by remember { mutableStateOf<WorkoutCategory?>(null) }
     var filterOnlyFavorites by remember { mutableStateOf(false) }
     var filterOnlyCustom by remember { mutableStateOf(false) }
@@ -150,9 +164,22 @@ fun WorkoutTemplatesScreen(
     var showQuickWorkoutSheet by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var templateToStart by remember { mutableStateOf<WorkoutTemplate?>(null) }
+    var programCardioToStart by remember { mutableStateOf<WorkoutTemplate?>(null) }
+    var showProgramRestInfo by remember { mutableStateOf(false) }
     var pendingHomeStart by remember { mutableStateOf<PendingHomeWorkoutStart?>(null) }
     var showHomeEquipmentDialog by remember { mutableStateOf(false) }
     var showHomeEquipmentError by remember { mutableStateOf(false) }
+    var pendingCardioType by remember { mutableStateOf<CardioType?>(null) }
+    var pendingCardioLocation by remember { mutableStateOf("Academia") }
+    var pendingCardioIntensity by remember { mutableStateOf(IntensityLevel.MODERADA) }
+    var pendingCardioTargetMinutes by remember { mutableStateOf<Int?>(null) }
+    val activityRecognitionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) pendingCardioType?.let { type ->
+            viewModel.startLiveCardio(type, pendingCardioLocation, pendingCardioIntensity, pendingCardioTargetMinutes, enableGps = false)
+            showQuickWorkoutSheet = false
+        } else Toast.makeText(context, "A permissão de atividade é necessária para manter o cardio interno em segundo plano neste Android.", Toast.LENGTH_LONG).show()
+        pendingCardioType = null
+    }
     var selectedLocation by remember {
         mutableStateOf(userProfile?.defaultGymLocation ?: "Smart Fit Paulista")
     }
@@ -164,17 +191,57 @@ fun WorkoutTemplatesScreen(
         }
     }
 
+    LaunchedEffect(showCreateCustomDialog) {
+        onCreateFlowChanged(showCreateCustomDialog)
+    }
+
+    if (showCreateCustomDialog) {
+        CreateWorkoutWizardScreen(
+            allExercises = allExercises,
+            onDismiss = { showCreateCustomDialog = false },
+            onSave = { title, subtitle, category, exercises, description, duration, rest, startAfterSave ->
+                viewModel.createAndSaveWorkoutTemplate(
+                    title = title,
+                    subtitle = subtitle,
+                    category = category,
+                    exercises = exercises,
+                    description = description,
+                    durationMin = duration,
+                    restSec = rest,
+                    onSaved = { savedTemplate ->
+                        showCreateCustomDialog = false
+                        if (startAfterSave) {
+                            if (selectedLocation.contains("Em Casa", ignoreCase = true)) {
+                                pendingHomeStart = PendingHomeWorkoutStart(template = savedTemplate, location = selectedLocation)
+                                showHomeEquipmentDialog = true
+                            } else if (viewModel.startWorkoutFromTemplate(savedTemplate, selectedLocation)) {
+                                onStartWorkout()
+                            }
+                        }
+                    }
+                )
+            }
+        )
+        return
+    }
+
     val filteredTemplates = templates.filter { template ->
         val matchesTab = when (selectedTabIndex) {
-            0 -> true // Meus Treinos (todos os treinos padrão/usuário)
-            1 -> template.executionDurationMinutes <= 45 || template.subtitle.contains("Rápido", ignoreCase = true)
-            2 -> template.isFavorite
+            0 -> true
+            1 -> !template.isPreset
+            2 -> template.isPreset
+            3 -> template.isFavorite
+            4 -> !HomeIntermediate8WeekProgram.isRestTemplate(template) &&
+                (template.executionDurationMinutes in 1..45 || template.subtitle.contains("Rápido", ignoreCase = true))
             else -> true
         }
         val matchesCategory = selectedCategoryFilter == null || template.category == selectedCategoryFilter
         val matchesFavorites = !filterOnlyFavorites || template.isFavorite
         val matchesCustom = !filterOnlyCustom || !template.isPreset
         matchesTab && matchesCategory && matchesFavorites && matchesCustom
+    }
+    val homeProgramProgress = remember(allWorkoutSessions, allCardioSessions, templates) {
+        HomeIntermediate8WeekProgram.progress(allWorkoutSessions, allCardioSessions, templates)
     }
 
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -221,7 +288,7 @@ fun WorkoutTemplatesScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Treinos",
+                                text = "Meus Treinos",
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -260,9 +327,34 @@ fun WorkoutTemplatesScreen(
                 }
             }
 
-            // 2. Tabs (Meus Treinos / Treino Rápido / Favoritos)
             item {
-                val tabTitles = listOf("Meus Treinos", "Treino Rápido", "Favoritos")
+                Surface(
+                    onClick = { showCreateCustomDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("fab_create_workout"),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Transparent
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(GradientAction)
+                            .padding(horizontal = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Criar Treino", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
+                    }
+                }
+            }
+
+            // 2. Coleções dos treinos, preservando também o atalho de treino rápido.
+            item {
+                val tabTitles = listOf("Todos", "Meus Treinos", "Modelos", "Favoritos", "Treino Rápido")
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -277,7 +369,7 @@ fun WorkoutTemplatesScreen(
                                 .clip(RoundedCornerShape(50))
                                 .clickable {
                                     selectedTabIndex = index
-                                    if (index == 1) {
+                                    if (index == 4) {
                                         showQuickWorkoutSheet = true
                                     }
                                 }
@@ -311,6 +403,32 @@ fun WorkoutTemplatesScreen(
                             }
                         }
                     }
+                }
+            }
+
+            if (selectedTabIndex in listOf(0, 2) && selectedCategoryFilter == null && templates.any(HomeIntermediate8WeekProgram::isProgramTemplate)) {
+                item {
+                    HomeProgramProgressCard(
+                        progress = homeProgramProgress,
+                        onOpenNext = {
+                            val nextCode = homeProgramProgress.nextSessionCode
+                            val nextTemplate = templates.firstOrNull { template ->
+                                HomeIntermediate8WeekProgram.strengthCode(template) == nextCode ||
+                                    HomeIntermediate8WeekProgram.cardioCode(template) == nextCode
+                            }
+                            when {
+                                nextTemplate == null -> Unit
+                                HomeIntermediate8WeekProgram.isCardioTemplate(nextTemplate) -> {
+                                    selectedLocation = "Parque / Rua"
+                                    programCardioToStart = nextTemplate
+                                }
+                                else -> {
+                                    selectedLocation = "Em Casa"
+                                    templateToStart = nextTemplate
+                                }
+                            }
+                        }
+                    )
                 }
             }
 
@@ -384,8 +502,9 @@ fun WorkoutTemplatesScreen(
                         ) {
                             Text(
                                 text = when (selectedTabIndex) {
-                                    2 -> "Nenhum treino marcado como favorito"
-                                    1 -> "Nenhum treino rápido curto encontrado"
+                                    3 -> "Nenhum treino marcado como favorito"
+                                    4 -> "Nenhum treino rápido curto encontrado"
+                                    1 -> "Você ainda não salvou treinos personalizados"
                                     else -> "Nenhum treino encontrado nesta categoria"
                                 },
                                 fontSize = 16.sp,
@@ -395,7 +514,7 @@ fun WorkoutTemplatesScreen(
                             Spacer(modifier = Modifier.height(14.dp))
                             Surface(
                                 onClick = {
-                                    if (selectedTabIndex == 1) showQuickWorkoutSheet = true
+                                    if (selectedTabIndex == 4) showQuickWorkoutSheet = true
                                     else showCreateCustomDialog = true
                                 },
                                 shape = RoundedCornerShape(50),
@@ -412,7 +531,7 @@ fun WorkoutTemplatesScreen(
                                         .padding(horizontal = 22.dp, vertical = 12.dp)
                                 ) {
                                     Text(
-                                        text = if (selectedTabIndex == 1) "Abrir Treino Rápido" else "Criar Rotina Personalizada",
+                                        text = if (selectedTabIndex == 4) "Abrir Treino Rápido" else "Criar Treino",
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp
@@ -427,7 +546,17 @@ fun WorkoutTemplatesScreen(
                     WorkoutTemplateCard(
                         template = template,
                         onStartClick = {
-                            templateToStart = template
+                            when {
+                                HomeIntermediate8WeekProgram.isCardioTemplate(template) -> {
+                                    selectedLocation = "Parque / Rua"
+                                    programCardioToStart = template
+                                }
+                                HomeIntermediate8WeekProgram.isRestTemplate(template) -> showProgramRestInfo = true
+                                else -> {
+                                    if (HomeIntermediate8WeekProgram.isStrengthTemplate(template)) selectedLocation = "Em Casa"
+                                    templateToStart = template
+                                }
+                            }
                         },
                         onToggleFavorite = {
                             viewModel.toggleFavoriteWorkoutTemplate(template)
@@ -443,28 +572,6 @@ fun WorkoutTemplatesScreen(
             }
         }
 
-        // Floating Action Button to create custom workout
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 86.dp, end = 20.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(GradientAction)
-                    .clickable { showCreateCustomDialog = true }
-                    .padding(horizontal = 18.dp, vertical = 14.dp)
-                    .testTag("fab_create_workout"),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Add, contentDescription = "Criar Treino", tint = Color.White, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Criar Treino", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
-                }
-            }
-        }
     }
 
     // Quick Workout Sheet modal
@@ -481,14 +588,18 @@ fun WorkoutTemplatesScreen(
                 }
             },
             onStartCardio = { type, location, intensity, targetMinutes, enableGps ->
-                viewModel.startLiveCardio(
-                    type = type,
-                    location = location,
-                    intensity = intensity,
-                    targetMinutes = targetMinutes,
-                    enableGps = enableGps
-                )
-                showQuickWorkoutSheet = false
+                val needsHealthPermission = !enableGps && Build.VERSION.SDK_INT >= 34 &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED
+                if (needsHealthPermission) {
+                    pendingCardioType = type
+                    pendingCardioLocation = location
+                    pendingCardioIntensity = intensity
+                    pendingCardioTargetMinutes = targetMinutes
+                    activityRecognitionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                } else {
+                    viewModel.startLiveCardio(type, location, intensity, targetMinutes, enableGps = enableGps)
+                    showQuickWorkoutSheet = false
+                }
             }
         )
     }
@@ -509,6 +620,41 @@ fun WorkoutTemplatesScreen(
     }
 
     // Dialog before starting workout to confirm gym/training location
+    programCardioToStart?.let { cardioTemplate ->
+        val cardioCode = HomeIntermediate8WeekProgram.cardioCode(cardioTemplate)
+        if (cardioCode != null) {
+            HomeProgramCardioDialog(
+                template = cardioTemplate,
+                sessionCode = cardioCode,
+                initialLocation = selectedLocation,
+                onDismiss = { programCardioToStart = null },
+                onStart = { type, location, intensity, minutes ->
+                    selectedLocation = location
+                    viewModel.startLiveCardio(
+                        type = type,
+                        location = location,
+                        intensity = intensity,
+                        targetMinutes = minutes,
+                        enableGps = type in setOf(CardioType.CAMINHADA_AR_LIVRE, CardioType.CORRIDA, CardioType.TRILHA, CardioType.BICICLETA_AR_LIVRE),
+                        programSessionCode = cardioCode
+                    )
+                    programCardioToStart = null
+                }
+            )
+        }
+    }
+
+    if (showProgramRestInfo) {
+        AlertDialog(
+            onDismissRequest = { showProgramRestInfo = false },
+            title = { Text("Descanso programado", color = TextPrimary, fontWeight = FontWeight.Black) },
+            text = { Text("A recuperação faz parte do plano. Não registre este dia como falta. Quando estiver pronto, continue na próxima sessão pendente — a sequência não depende de dias fixos da semana.", color = TextSecondary) },
+            confirmButton = { TextButton(onClick = { showProgramRestInfo = false }) { Text("Entendi", color = LilacAccent) } },
+            containerColor = PurpleDarkSurface,
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+
     if (templateToStart != null) {
         val template = templateToStart!!
         AlertDialog(
@@ -577,26 +723,6 @@ fun WorkoutTemplatesScreen(
             },
             containerColor = PurpleDarkSurface,
             shape = RoundedCornerShape(24.dp)
-        )
-    }
-
-    // Create Custom Workout Dialog
-    if (showCreateCustomDialog) {
-        CreateCustomWorkoutDialog(
-            allExercises = allExercises,
-            onDismiss = { showCreateCustomDialog = false },
-            onSave = { title, subtitle, category, exercises, desc, duration, rest ->
-                viewModel.createAndSaveWorkoutTemplate(
-                    title = title,
-                    subtitle = subtitle,
-                    category = category,
-                    exercises = exercises,
-                    description = desc,
-                    durationMin = duration,
-                    restSec = rest
-                )
-                showCreateCustomDialog = false
-            }
         )
     }
 
@@ -764,6 +890,15 @@ fun WorkoutTemplateCard(
     // Extract clean display title and muscle group subtitle to match reference
     val (displayTitle, displaySubtitle) = remember(template.title, template.subtitle) {
         when {
+            HomeIntermediate8WeekProgram.isCardioTemplate(template) -> {
+                val code = HomeIntermediate8WeekProgram.cardioCode(template)?.removePrefix("CARDIO_").orEmpty()
+                Pair("Cardio $code", template.title.substringAfter(" · ").substringAfter(" · ").trim())
+            }
+            HomeIntermediate8WeekProgram.isRestTemplate(template) -> Pair("Descanso programado", "Recuperação · não é falta")
+            HomeIntermediate8WeekProgram.isStrengthTemplate(template) -> {
+                val code = HomeIntermediate8WeekProgram.strengthCode(template).orEmpty()
+                Pair("Força $code", template.title.substringAfter(" · ").substringAfter(" · ").trim())
+            }
             template.title.contains(" - ") && template.title.contains(":") -> {
                 val afterDash = template.title.substringAfter(" - ")
                 val mainTitle = afterDash.substringBefore(":").trim()
@@ -804,6 +939,12 @@ fun WorkoutTemplateCard(
     // High quality background workout photo
     val workoutImageRes = remember(displayTitle, displaySubtitle, template.id) {
         when {
+            template.title.startsWith("Casa · Intermediário A ·") -> R.drawable.img_home_program_strength_a
+            template.title.startsWith("Casa · Intermediário B ·") -> R.drawable.img_home_program_strength_b
+            template.title.startsWith("Casa · Intermediário C ·") -> R.drawable.img_home_program_strength_c
+            template.title.startsWith("Casa · Intermediário Cardio A ·") -> R.drawable.img_home_program_cardio_a
+            template.title.startsWith("Casa · Intermediário Cardio B ·") -> R.drawable.img_home_program_cardio_b
+            template.title.startsWith("Casa · Intermediário Cardio C ·") -> R.drawable.img_home_program_cardio_c
             displayTitle.contains("A", ignoreCase = true) || displaySubtitle.contains("Peito", ignoreCase = true) || displaySubtitle.contains("Push", ignoreCase = true) -> R.drawable.img_bench_press
             displayTitle.contains("B", ignoreCase = true) || displaySubtitle.contains("Costas", ignoreCase = true) || displaySubtitle.contains("Pull", ignoreCase = true) -> R.drawable.img_lat_pulldown
             displayTitle.contains("C", ignoreCase = true) || displaySubtitle.contains("Perna", ignoreCase = true) || displaySubtitle.contains("Leg", ignoreCase = true) -> R.drawable.img_barbell_squat
@@ -928,7 +1069,7 @@ fun WorkoutTemplateCard(
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "~ ${template.executionDurationMinutes} min",
+                            text = if (HomeIntermediate8WeekProgram.isRestTemplate(template)) "Recuperação" else "~ ${template.executionDurationMinutes} min",
                             color = Color(0xFFC4B5FD),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -1018,7 +1159,11 @@ fun WorkoutTemplateCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Iniciar treino",
+                                text = when {
+                                    HomeIntermediate8WeekProgram.isCardioTemplate(template) -> "Configurar cardio"
+                                    HomeIntermediate8WeekProgram.isRestTemplate(template) -> "Ver descanso"
+                                    else -> "Iniciar treino"
+                                },
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
@@ -1035,12 +1180,22 @@ fun WorkoutTemplateCard(
                             .padding(top = 16.dp)
                     ) {
                         Text(
-                            text = "LISTA DE EXERCÍCIOS (${plans.size})",
+                            text = if (plans.isEmpty()) "DETALHES DA SESSÃO" else "LISTA DE EXERCÍCIOS (${plans.size})",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFC4B5FD),
                             letterSpacing = 0.5.sp
                         )
+                        if (template.title.startsWith("Casa · Intermediário")) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = template.description,
+                                fontSize = 12.sp,
+                                color = Color(0xFFD1C6E8),
+                                lineHeight = 17.sp
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         plans.forEachIndexed { idx, p ->
                             Surface(
@@ -1064,7 +1219,13 @@ fun WorkoutTemplateCard(
                                             color = Color.White
                                         )
                                         Text(
-                                            text = "${p.muscleGroup} • ${p.sets.size} séries x ${p.sets.firstOrNull()?.reps ?: 10} reps",
+                                            text = buildString {
+                                                append(p.muscleGroup)
+                                                append(" • ${p.sets.size} séries × ")
+                                                append(if (p.targetRepMin != null && p.targetRepMax != null) "${p.targetRepMin}–${p.targetRepMax}" else p.sets.firstOrNull()?.reps ?: 10)
+                                                append(" reps")
+                                                if (p.targetRirMin != null && p.targetRirMax != null) append(" • RIR ${p.targetRirMin}–${p.targetRirMax}")
+                                            },
                                             fontSize = 11.sp,
                                             color = Color(0xFFC4B5FD).copy(alpha = 0.8f)
                                         )
@@ -1402,6 +1563,117 @@ fun CreateCustomWorkoutDialog(
             shape = RoundedCornerShape(24.dp)
         )
     }
+}
+
+@Composable
+private fun HomeProgramProgressCard(
+    progress: HomeIntermediate8WeekProgram.Progress,
+    onOpenNext: () -> Unit
+) {
+    val phaseName = when (progress.weekNumber) {
+        1, 2 -> "Calibração"
+        3, 4 -> "Progressão"
+        5 -> "Deload"
+        6, 7 -> "Intensificação"
+        else -> "Consolidação"
+    }
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, LilacAccent.copy(alpha = 0.55f)),
+        colors = CardDefaults.cardColors(containerColor = PurpleDarkSurface),
+        modifier = Modifier.fillMaxWidth().testTag("home_intermediate_program_progress")
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("PLANO EM CASA · INTERMEDIÁRIO", color = LilacAccent, fontWeight = FontWeight.Black, fontSize = 12.sp)
+            Text(
+                if (progress.isComplete) "Ciclo de 8 semanas concluído" else "Semana ${progress.weekNumber}/8 · $phaseName",
+                color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp
+            )
+            Text(
+                when {
+                    progress.isComplete -> "Compare seu histórico e repita o ciclo ou escolha outro plano."
+                    progress.recoveryRecommended -> "Cardio C concluído. Faça o descanso programado e depois retome a sessão A da próxima semana."
+                    else -> "Próxima sessão: ${progress.nextSessionCode?.let(HomeIntermediate8WeekProgram::displayName).orEmpty()}. A ordem é flexível; se atrasar, continue desta sessão. Descanso não é falta."
+                },
+                color = TextSecondary,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+            if (!progress.isComplete) {
+                Button(
+                    onClick = onOpenNext,
+                    enabled = progress.nextSessionCode != null,
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("btn_home_program_next_session")
+                ) {
+                    Text("Abrir próxima sessão", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeProgramCardioDialog(
+    template: WorkoutTemplate,
+    sessionCode: String,
+    initialLocation: String,
+    onDismiss: () -> Unit,
+    onStart: (CardioType, String, IntensityLevel, Int) -> Unit
+) {
+    val durationOptions = remember(sessionCode) { HomeIntermediate8WeekProgram.cardioDurationOptions(sessionCode) }
+    var selectedType by remember(template.id) { mutableStateOf(CardioType.CAMINHADA_AR_LIVRE) }
+    val selectedIntensity = HomeIntermediate8WeekProgram.cardioDefaultIntensity(sessionCode)
+    var selectedDuration by remember(template.id, durationOptions) { mutableIntStateOf(durationOptions[1]) }
+    var selectedLocation by remember(template.id) { mutableStateOf(initialLocation) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(template.title.substringAfter("Cardio ").substringBefore(" · ").let { "Cardio $it" }, color = TextPrimary, fontWeight = FontWeight.Black) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(template.description.substringAfter("\n\n").substringBefore("\n\nSequência"), color = TextSecondary, fontSize = 13.sp, lineHeight = 18.sp)
+                Text("Modalidade", color = LilacAccent, fontWeight = FontWeight.Bold)
+                CardioType.entries.forEach { type ->
+                    FilterChip(
+                        selected = selectedType == type,
+                        onClick = { selectedType = type },
+                        label = { Text(type.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Text("Duração alvo", color = LilacAccent, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    durationOptions.forEach { minutes ->
+                        FilterChip(
+                            selected = selectedDuration == minutes,
+                            onClick = { selectedDuration = minutes },
+                            label = { Text("$minutes min") },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Text("Intensidade prescrita: ${selectedIntensity.label}", color = LilacAccent, fontWeight = FontWeight.Bold)
+                Text("Local", color = LilacAccent, fontWeight = FontWeight.Bold)
+                LocationSelector(selectedLocation = selectedLocation, onLocationSelected = { selectedLocation = it })
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onStart(selectedType, selectedLocation, selectedIntensity, selectedDuration) },
+                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.testTag("btn_start_home_program_cardio")
+            ) { Text("Iniciar cardio", color = Color.White, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = TextMuted) } },
+        containerColor = PurpleDarkSurface,
+        shape = RoundedCornerShape(24.dp)
+    )
 }
 
 @Composable
