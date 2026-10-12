@@ -16,11 +16,12 @@ import com.example.ui.theme.*
 @Composable
 fun CardioIntervalBuilder(
     templates: List<CardioIntervalTemplate>,
+    initialEffortLabel: String = "CORRER",
     onChanged: (CardioIntervalPlan?) -> Unit,
     onSave: (CardioIntervalPlan) -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf("Treino intervalado FITPR09") }
-    var effortLabel by rememberSaveable { mutableStateOf("CORRER") }
+    var effortLabel by rememberSaveable(initialEffortLabel) { mutableStateOf(initialEffortLabel) }
     var effort by rememberSaveable { mutableStateOf("120") }
     var rest by rememberSaveable { mutableStateOf("120") }
     var cycles by rememberSaveable { mutableStateOf("6") }
@@ -38,7 +39,7 @@ fun CardioIntervalBuilder(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("CONSTRUIR TREINO INTERVALADO", color = LilacAccent)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(onClick = { applyPlan(CardioIntervalPlan()) }) { Text("2 min / 2 min") }
+            TextButton(onClick = { applyPlan(CardioIntervalPlan(effortLabel = initialEffortLabel)) }) { Text("2 min / 2 min") }
             TextButton(onClick = { applyPlan(CardioIntervalPlan(name = "Tabata", effortLabel = "ESFORÇO", effortSeconds = 20, restSeconds = 10, cycles = 8)) }) { Text("Tabata 20 / 10") }
         }
         OutlinedTextField(name, { name = it }, label = { Text("Nome do treino") }, modifier = Modifier.fillMaxWidth(), singleLine = true)

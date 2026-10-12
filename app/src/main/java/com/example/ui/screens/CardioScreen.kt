@@ -583,6 +583,7 @@ fun CardioScreen(
                     )
                     if (usesIntervals) {
                         com.example.ui.components.CardioIntervalBuilder(
+                            initialEffortLabel = if (selectedCardioForLive == CardioType.BOXE_INTERVALADO) "BOXEAR" else "CORRER",
                             templates = intervalTemplates.filter { it.cardioType == selectedCardioForLive.name },
                             onChanged = { selectedIntervalPlan = it },
                             onSave = { viewModel.saveCardioIntervalTemplate(it.copy(outdoor = isOutdoor && enableGpsForLive), selectedCardioForLive) }
