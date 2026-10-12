@@ -2028,13 +2028,24 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    val cardioIntervalTemplates by lazy { repository.cardioIntervalTemplates }
+    fun saveCardioIntervalTemplate(plan: com.example.domain.cardio.CardioIntervalPlan, type: CardioType) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCardioIntervalTemplate(com.example.data.model.CardioIntervalTemplate(
+                name = plan.name, cardioType = type.name,
+                configJson = com.example.data.local.CardioIntervalCodec.encode(plan)
+            ))
+        }
+    }
+
     fun startLiveCardio(
         type: CardioType,
         location: String,
         intensity: IntensityLevel,
         targetMinutes: Int? = null,
         enableGps: Boolean = true,
-        programSessionCode: String? = null
+        programSessionCode: String? = null,
+        intervalConfigJson: String = ""
     ) {
         val app = getApplication<Application>()
         if (programSessionCode.isNullOrBlank()) {
@@ -2045,7 +2056,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
         val startIntent = OutdoorLocationService.startServiceIntent(
             app, type, intensity, location, targetMinutes, programSessionCode,
-            userProfile.value?.currentWeightKg?.takeIf { it > 0.0 }, enableGps
+            userProfile.value?.currentWeightKg?.takeIf { it > 0.0 }, enableGps, intervalConfigJson
         )
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -2058,7 +2069,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
         outdoorServiceBinder?.start(
             type, intensity, location, targetMinutes, programSessionCode,
-            userProfile.value?.currentWeightKg?.takeIf { it > 0.0 }, enableGps
+            userProfile.value?.currentWeightKg?.takeIf { it > 0.0 }, enableGps, intervalConfigJson
         )
     }
 
@@ -2147,7 +2158,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                     routePoints = currentState.routePoints,
                     splits = currentState.splits,
                     elevationGainMeters = currentState.elevationGainMeters,
-                    avgPaceMinKm = currentState.avgPaceMinKm
+                    avgPaceMinKm = currentState.avgPaceMinKm,
+                    intervalConfigJson = currentState.intervalConfigJson
                 )
 
                 val id = repository.saveCardioSession(session)

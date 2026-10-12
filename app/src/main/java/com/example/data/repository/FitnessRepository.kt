@@ -38,6 +38,9 @@ class FitnessRepository(
     suspend fun saveCycleReassessment(item: CycleReassessment): Long = dao.insertCycleReassessment(item)
     fun getCycleReassessments(cycleId: Long): Flow<List<CycleReassessment>> = dao.getCycleReassessments(cycleId)
 
+    val cardioIntervalTemplates = dao.getCardioIntervalTemplates()
+    suspend fun saveCardioIntervalTemplate(template: com.example.data.model.CardioIntervalTemplate) = dao.saveCardioIntervalTemplate(template)
+
     // --- Workout Templates (Favorites & Custom Routines) ---
     val allWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getAllWorkoutTemplates()
     val favoriteWorkoutTemplates: Flow<List<WorkoutTemplate>> = dao.getFavoriteWorkoutTemplates()

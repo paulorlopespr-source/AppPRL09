@@ -144,8 +144,10 @@ fun WorkoutTemplatesScreen(
     modifier: Modifier = Modifier,
     openExerciseLibrary: Boolean = false,
     onExerciseLibraryOpened: () -> Unit = {},
-    onCreateFlowChanged: (Boolean) -> Unit = {}
+    onCreateFlowChanged: (Boolean) -> Unit = {},
+    onNavigateToCardio: () -> Unit = {}
 ) {
+    val initialAssessment by viewModel.latestInitialAssessment.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val templates by viewModel.workoutTemplates.collectAsStateWithLifecycle()
     val allExercises by viewModel.allExercises.collectAsStateWithLifecycle()
@@ -350,6 +352,13 @@ fun WorkoutTemplatesScreen(
                         Text("Criar Treino", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
                     }
                 }
+            }
+
+            item {
+                com.example.ui.components.CardioWorkoutShortcut(
+                    female = initialAssessment?.sex?.contains("fem", ignoreCase = true) == true,
+                    onClick = onNavigateToCardio
+                )
             }
 
             // 2. Coleções dos treinos, preservando também o atalho de treino rápido.

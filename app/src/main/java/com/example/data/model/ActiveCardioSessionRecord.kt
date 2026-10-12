@@ -34,6 +34,8 @@ data class ActiveCardioSessionRecord(
     val plannedSessionCode: String?,
     val pausedBySystem: Boolean,
     val userWeightKg: Double?,
+    @androidx.room.ColumnInfo(defaultValue = "''")
+    val intervalConfigJson: String = "",
     val gpsEnabled: Boolean = false,
     val updatedAtMillis: Long = System.currentTimeMillis()
 )

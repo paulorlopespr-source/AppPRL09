@@ -36,9 +36,10 @@ import kotlinx.coroutines.launch
         com.example.data.model.InitialAssessment::class,
         com.example.data.model.PlannedWorkout::class
         , com.example.data.model.CycleReassessment::class,
-        com.example.data.model.ActiveCardioSessionRecord::class
+        com.example.data.model.ActiveCardioSessionRecord::class,
+        com.example.data.model.CardioIntervalTemplate::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -273,6 +274,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE cardio_sessions ADD COLUMN intervalConfigJson TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE active_cardio_sessions ADD COLUMN intervalConfigJson TEXT NOT NULL DEFAULT ''")
+                database.execSQL("CREATE TABLE IF NOT EXISTS cardio_interval_templates (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, cardioType TEXT NOT NULL, configJson TEXT NOT NULL, createdAtMillis INTEGER NOT NULL)")
+            }
+        }
+
         val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE `active_cardio_sessions` ADD COLUMN `gpsEnabled` INTEGER NOT NULL DEFAULT 0")
@@ -321,7 +330,8 @@ abstract class AppDatabase : RoomDatabase() {
                         , MIGRATION_12_13,
                         MIGRATION_13_14,
                         MIGRATION_14_15,
-                        MIGRATION_15_16
+                        MIGRATION_15_16,
+                        MIGRATION_16_17
                     )
                     .addCallback(DatabaseCallback(scope))
                     .build()

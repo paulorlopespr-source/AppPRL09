@@ -212,13 +212,14 @@ class HealthConnectManager(private val context: Context) {
             val zoneOffset = ZoneId.systemDefault().rules.getOffset(startInstant)
 
             val exerciseType = when (session.type) {
-                CardioType.CORRIDA -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
+                CardioType.CORRIDA, CardioType.CORRIDA_ESTEIRA -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
                 CardioType.TRILHA -> ExerciseSessionRecord.EXERCISE_TYPE_HIKING
                 CardioType.BICICLETA_INDOOR -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY
                 CardioType.CAMINHADA_ESTEIRA, CardioType.CAMINHADA_AR_LIVRE -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
                 CardioType.FUTEBOL -> ExerciseSessionRecord.EXERCISE_TYPE_SOCCER
                 CardioType.BICICLETA_AR_LIVRE -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING
                 CardioType.ELIPTICO -> ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL
+                CardioType.BOXE_SACO, CardioType.BOXE_SOMBRA, CardioType.BOXE_INTERVALADO -> ExerciseSessionRecord.EXERCISE_TYPE_BOXING
                 CardioType.HIIT -> ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING
             }
 

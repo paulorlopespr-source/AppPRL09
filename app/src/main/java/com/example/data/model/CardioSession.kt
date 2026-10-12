@@ -78,6 +78,10 @@ enum class CardioType(
         metModerate = 5.0,
         metIntense = 7.0
     ),
+    CORRIDA_ESTEIRA("Corrida na Esteira", "Corrida indoor, sem GPS. Informe a distância do equipamento ao finalizar.", "DirectionsRun", 7.5, 9.8, 12.0),
+    BOXE_SACO("Boxe no Saco", "Treino de golpes no saco de boxe, sem GPS.", "FitnessCenter", 5.5, 7.8, 10.0),
+    BOXE_SOMBRA("Boxe Sombra", "Movimentos de boxe sem equipamento, sem GPS.", "FitnessCenter", 4.0, 6.0, 8.0),
+    BOXE_INTERVALADO("Boxe Intervalado", "Rounds de esforço e descanso personalizáveis, sem GPS.", "FlashOn", 5.5, 7.8, 10.0),
     HIIT(
         title = "HIIT",
         description = "Treino intervalado de alta intensidade. Calorias são estimativas e a frequência cardíaca só aparece com fonte compatível.",
@@ -85,7 +89,10 @@ enum class CardioType(
         metLight = 6.0,
         metModerate = 8.0,
         metIntense = 10.0
-    )
+    );
+
+    val supportsGps: Boolean get() = this in setOf(CAMINHADA_AR_LIVRE, CORRIDA, TRILHA, BICICLETA_AR_LIVRE, HIIT)
+    val countsSteps: Boolean get() = this in setOf(CAMINHADA_AR_LIVRE, CAMINHADA_ESTEIRA, CORRIDA, CORRIDA_ESTEIRA, TRILHA)
 }
 
 enum class IntensityLevel(val label: String) {
@@ -124,5 +131,7 @@ data class CardioSession(
     val routePointsJson: String = "[]",
     val splitsJson: String = "[]",
     val elevationGainMeters: Double? = 0.0,
+    @androidx.room.ColumnInfo(defaultValue = "''")
+    val intervalConfigJson: String = "",
     val avgPaceMinKm: String = "--:--"
 )

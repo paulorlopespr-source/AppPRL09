@@ -74,6 +74,7 @@ object OutdoorCardioPersistence {
         routePoints: List<GpsPoint> = emptyList(),
         splits: List<KmSplit> = emptyList(),
         elevationGainMeters: Double? = 0.0,
+        intervalConfigJson: String = "",
         avgPaceMinKm: String = "--:--"
     ): CardioSession {
         return CardioSession(
@@ -96,6 +97,7 @@ object OutdoorCardioPersistence {
             routePointsJson = serializeRoutePoints(routePoints),
             splitsJson = serializeSplits(splits),
             elevationGainMeters = elevationGainMeters,
+            intervalConfigJson = intervalConfigJson,
             avgPaceMinKm = avgPaceMinKm
         )
     }

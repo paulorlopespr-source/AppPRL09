@@ -45,6 +45,13 @@ jobs:
         run: gradle assembleDebug --stacktrace
       - name: Unit tests
         run: gradle testDebugUnitTest --stacktrace
+      - name: Upload Room schema
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cardio-Room-schema-17
+          path: app/schemas/com.example.data.local.AppDatabase/17.json
+          if-no-files-found: warn
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
