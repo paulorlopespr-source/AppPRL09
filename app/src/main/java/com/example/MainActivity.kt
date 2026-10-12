@@ -191,7 +191,8 @@ fun MainAppScreen(viewModel: FitnessViewModel) {
                         onStartWorkout = { currentDestination = AppDestination.ACTIVE_WORKOUT },
                         openExerciseLibrary = openExerciseLibrary,
                         onExerciseLibraryOpened = { openExerciseLibrary = false },
-                        onCreateFlowChanged = { isCreatingWorkout = it }
+                        onCreateFlowChanged = { isCreatingWorkout = it },
+                        onNavigateToCardio = { currentDestination = AppDestination.CARDIO }
                     )
                     AppDestination.DASHBOARD -> PainelScreen(
                         onStartTodayWorkout = { currentDestination = AppDestination.WORKOUTS },

@@ -56,6 +56,7 @@ data class OutdoorSessionState(
     val plannedSessionCode: String? = null,
     val pausedBySystem: Boolean = false,
     val userWeightKg: Double? = null,
+    val intervalConfigJson: String = "",
     val gpsEnabled: Boolean = true
 ) {
     val isRunning: Boolean get() = status == OutdoorTrackingStatus.RUNNING

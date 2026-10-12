@@ -463,6 +463,8 @@ fun getOutdoorCardioIcon(type: CardioType): ImageVector {
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
         CardioType.BICICLETA_AR_LIVRE -> Icons.AutoMirrored.Filled.DirectionsBike
         CardioType.ELIPTICO -> Icons.Default.FitnessCenter
-        CardioType.HIIT -> Icons.Default.FlashOn
+        CardioType.CORRIDA_ESTEIRA -> Icons.Default.DirectionsRun
+        CardioType.BOXE_SACO, CardioType.BOXE_SOMBRA -> Icons.Default.FitnessCenter
+        CardioType.BOXE_INTERVALADO, CardioType.HIIT -> Icons.Default.FlashOn
     }
 }

@@ -20,6 +20,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FitnessDao {
+    @Query("SELECT * FROM cardio_interval_templates ORDER BY createdAtMillis DESC")
+    fun getCardioIntervalTemplates(): Flow<List<com.example.data.model.CardioIntervalTemplate>>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveCardioIntervalTemplate(template: com.example.data.model.CardioIntervalTemplate)
+
     @Query("SELECT * FROM training_cycles WHERE isActive = 1 ORDER BY id DESC LIMIT 1")
     fun getActiveTrainingCycle(): Flow<TrainingCycle?>
     @Insert(onConflict = OnConflictStrategy.REPLACE)

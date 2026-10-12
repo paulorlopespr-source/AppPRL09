@@ -123,10 +123,9 @@ fun ActiveCardioTrackerModal(
     var showFinishDialog by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
 
-    val isOutdoor = activeCardio.type == CardioType.CORRIDA ||
-            activeCardio.type == CardioType.CAMINHADA_AR_LIVRE ||
-            activeCardio.type == CardioType.TRILHA ||
-            activeCardio.type == CardioType.BICICLETA_AR_LIVRE
+    val isOutdoor = activeCardio.type.supportsGps
+    val intervalPlan = com.example.data.local.CardioIntervalCodec.decode(outdoorSession.intervalConfigJson)
+    val intervalProgress = intervalPlan?.progress(outdoorSession.durationSeconds)
 
     // GPS Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -191,6 +190,17 @@ fun ActiveCardioTrackerModal(
                 .padding(horizontal = 20.dp)
                 .testTag("modal_active_cardio_tracker")
         ) {
+            intervalProgress?.let { progress ->
+                Surface(shape = RoundedCornerShape(22.dp), color = PurpleDeepCard, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(progress.label, color = LilacAccent, fontWeight = FontWeight.Black, fontSize = 24.sp)
+                        Text(DateUtils.formatSecondsToTime(progress.remainingSeconds.toInt()), color = TextPrimary, fontWeight = FontWeight.Black, fontSize = 42.sp)
+                        Text("Ciclo ${progress.cycle} de ${intervalPlan?.cycles}", color = TextSecondary)
+                        Text(progress.nextLabel?.let { "A seguir: $it" } ?: "Finalize para salvar seu treino", color = TextSecondary)
+                    }
+                }
+            }
+
             // Header: Cardio Type & Close
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -471,7 +481,7 @@ fun ActiveCardioTrackerModal(
                 }
             }
 
-            if (activeCardio.type in setOf(CardioType.CAMINHADA_AR_LIVRE, CardioType.CAMINHADA_ESTEIRA, CardioType.CORRIDA, CardioType.TRILHA)) {
+            if (activeCardio.type.countsSteps) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -513,7 +523,7 @@ fun ActiveCardioTrackerModal(
             // ==========================================
             // LIVE GOOGLE MAP (OUTDOOR CARDIO & TRAIL)
             // ==========================================
-            if (isOutdoor) {
+            if (isOutdoor && activeCardio.gpsEnabled) {
                 Text(
                     text = when {
                         !activeCardio.gpsEnabled -> "GPS desativado • a sessão continua sem registrar rota"
@@ -918,6 +928,8 @@ fun getCardioIcon(type: CardioType): ImageVector {
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
         CardioType.BICICLETA_AR_LIVRE -> Icons.Default.DirectionsBike
         CardioType.ELIPTICO -> Icons.Default.FitnessCenter
-        CardioType.HIIT -> Icons.Default.FlashOn
+        CardioType.CORRIDA_ESTEIRA -> Icons.Default.DirectionsRun
+        CardioType.BOXE_SACO, CardioType.BOXE_SOMBRA -> Icons.Default.FitnessCenter
+        CardioType.BOXE_INTERVALADO, CardioType.HIIT -> Icons.Default.FlashOn
     }
 }

@@ -134,7 +134,9 @@ fun getCardioIcon(type: CardioType): ImageVector {
         CardioType.FUTEBOL -> Icons.Default.SportsSoccer
         CardioType.BICICLETA_AR_LIVRE -> Icons.Default.DirectionsBike
         CardioType.ELIPTICO -> Icons.Default.FitnessCenter
-        CardioType.HIIT -> Icons.Default.FlashOn
+        CardioType.CORRIDA_ESTEIRA -> Icons.Default.DirectionsRun
+        CardioType.BOXE_SACO, CardioType.BOXE_SOMBRA -> Icons.Default.FitnessCenter
+        CardioType.BOXE_INTERVALADO, CardioType.HIIT -> Icons.Default.FlashOn
     }
 }
 
@@ -146,6 +148,8 @@ fun CardioScreen(
 ) {
     val context = LocalContext.current
     val cardioSessions by viewModel.allCardioSessions.collectAsStateWithLifecycle()
+    val intervalTemplates by viewModel.cardioIntervalTemplates.collectAsStateWithLifecycle(initialValue = emptyList())
+    var selectedIntervalPlan by remember { mutableStateOf<com.example.domain.cardio.CardioIntervalPlan?>(null) }
     val activeCardio by viewModel.activeCardio.collectAsStateWithLifecycle()
     val outdoorSession by viewModel.outdoorSessionState.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
@@ -156,6 +160,7 @@ fun CardioScreen(
         com.example.R.drawable.cardio_runner_male
     }
 
+    var showReadyProtocols by remember { mutableStateOf(false) }
     var showManualLogDialog by remember { mutableStateOf(false) }
     var showStartLiveDialog by remember { mutableStateOf(false) }
     var selectedCardioForLive by remember { mutableStateOf(CardioType.BICICLETA_INDOOR) }
@@ -170,7 +175,7 @@ fun CardioScreen(
     var pendingIndoorTargetMinutes by remember { mutableStateOf<Int?>(20) }
 
     val startCardioNow: (CardioType, String, IntensityLevel, Int?, Boolean) -> Unit = { type, location, intensity, target, gps ->
-        viewModel.startLiveCardio(type, location, intensity, target, enableGps = gps)
+        viewModel.startLiveCardio(type, location, intensity, selectedIntervalPlan?.let { ((it.totalSeconds + 59) / 60).toInt() } ?: target, enableGps = gps, intervalConfigJson = selectedIntervalPlan?.let { com.example.data.local.CardioIntervalCodec.encode(it.copy(outdoor = gps)) }.orEmpty())
         showActiveCardioModal = true
     }
     val activityRecognitionLauncher = rememberLauncherForActivityResult(
@@ -209,6 +214,7 @@ fun CardioScreen(
     }
 
     val onStartOutdoorWithPrompt: (CardioType) -> Unit = { type ->
+        selectedIntervalPlan = null
         pendingOutdoorCardioType = type
         showGpsPromptDialog = true
     }
@@ -341,7 +347,7 @@ fun CardioScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             PrimaryButton(
-                                text = "Abrir GPS & Tempo",
+                                text = "Abrir treino",
                                 icon = Icons.Default.DirectionsRun,
                                 onClick = { showActiveCardioModal = true },
                                 modifier = Modifier
@@ -387,6 +393,21 @@ fun CardioScreen(
                 }
             }
 
+            item {
+                com.example.ui.components.CardioVisualLibrary(
+                    female = initialAssessment?.sex?.contains("fem", ignoreCase = true) == true,
+                    onSelect = { type ->
+                        if (activeCardio.isActive) showActiveCardioModal = true
+                        else {
+                            selectedCardioForLive = type
+                            selectedIntervalPlan = if (type == CardioType.HIIT || type == CardioType.BOXE_INTERVALADO) com.example.domain.cardio.CardioIntervalPlan(effortLabel = if (type == CardioType.BOXE_INTERVALADO) "BOXEAR" else "CORRER") else null
+                            enableGpsForLive = type.supportsGps && type != CardioType.HIIT
+                            showStartLiveDialog = true
+                        }
+                    }
+                )
+            }
+
             // Cardio Protocols Section (HIIT & LISS ACSM)
             item {
                 Row(
@@ -411,7 +432,7 @@ fun CardioScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = "Protocolos Estruturados (HIIT & LISS)",
+                            text = "Protocolos prontos",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             color = TextPrimary
@@ -425,7 +446,10 @@ fun CardioScreen(
                 }
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TextButton(onClick = { showReadyProtocols = !showReadyProtocols }) {
+                    Text(if (showReadyProtocols) "Ocultar protocolos" else "Ver protocolos prontos", color = LilacAccent)
+                }
+                if (showReadyProtocols) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     DefaultFitnessData.getDefaultCardioRoutines().forEach { routine ->
                         CardioRoutinePlanCard(
                             routine = routine,
@@ -438,46 +462,12 @@ fun CardioScreen(
                                     onStartOutdoorWithPrompt(routine.cardioType)
                                 } else {
                                     selectedCardioForLive = routine.cardioType
+                                    selectedIntervalPlan = null
+                                    enableGpsForLive = false
                                     showStartLiveDialog = true
                                 }
                             }
                         )
-                    }
-                }
-            }
-
-            // Cardio Modes Selection Section
-            item {
-                Text(
-                    text = "Modos Livres de Cardio",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val featuredModes = listOf(CardioType.CAMINHADA_AR_LIVRE, CardioType.CORRIDA, CardioType.BICICLETA_AR_LIVRE, CardioType.CAMINHADA_ESTEIRA, CardioType.ELIPTICO, CardioType.HIIT)
-                    featuredModes.chunked(2).forEach { rowModes ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            rowModes.forEach { cType ->
-                                Box(Modifier.weight(1f)) {
-                                    CardioTypeItemCard(type = cType, onStartLive = {
-                                        val isOutdoor = cType in setOf(CardioType.CAMINHADA_AR_LIVRE, CardioType.CORRIDA, CardioType.TRILHA, CardioType.BICICLETA_AR_LIVRE)
-                                        if (isOutdoor) onStartOutdoorWithPrompt(cType) else { selectedCardioForLive = cType; showStartLiveDialog = true }
-                                    })
-                                }
-                            }
-                            if (rowModes.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
-                    val otherModes = listOf(CardioType.BICICLETA_INDOOR, CardioType.TRILHA, CardioType.FUTEBOL)
-                    Text("Outras modalidades", color = TextSecondary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
-                    otherModes.forEach { cType ->
-                        CardioTypeItemCard(type = cType, onStartLive = {
-                            if (cType in setOf(CardioType.TRILHA)) onStartOutdoorWithPrompt(cType)
-                            else { selectedCardioForLive = cType; showStartLiveDialog = true }
-                        })
                     }
                 }
             }
@@ -557,11 +547,8 @@ fun CardioScreen(
     if (showStartLiveDialog) {
         var location by remember { mutableStateOf("Academia Smart Fit") }
         var intensity by remember { mutableStateOf(IntensityLevel.MODERADA) }
-        val isOutdoor = selectedCardioForLive == CardioType.CAMINHADA_AR_LIVRE ||
-                selectedCardioForLive == CardioType.CORRIDA ||
-                selectedCardioForLive == CardioType.TRILHA ||
-                selectedCardioForLive == CardioType.BICICLETA_AR_LIVRE
-                selectedCardioForLive == CardioType.BICICLETA_AR_LIVRE
+        val isOutdoor = selectedCardioForLive.supportsGps
+        val usesIntervals = selectedCardioForLive == CardioType.HIIT || selectedCardioForLive == CardioType.BOXE_INTERVALADO
 
         AlertDialog(
             onDismissRequest = { showStartLiveDialog = false },
@@ -589,6 +576,18 @@ fun CardioScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
+
+                    androidx.compose.foundation.Image(
+                        painterResource(com.example.ui.components.cardioActivityAsset(selectedCardioForLive, initialAssessment?.sex?.contains("fem", ignoreCase = true) == true)),
+                        contentDescription = null, modifier = Modifier.fillMaxWidth().height(140.dp)
+                    )
+                    if (usesIntervals) {
+                        com.example.ui.components.CardioIntervalBuilder(
+                            templates = intervalTemplates.filter { it.cardioType == selectedCardioForLive.name },
+                            onChanged = { selectedIntervalPlan = it },
+                            onSave = { viewModel.saveCardioIntervalTemplate(it.copy(outdoor = isOutdoor && enableGpsForLive), selectedCardioForLive) }
+                        )
+                    }
 
                     LocationSelector(
                         selectedLocation = location,
@@ -695,8 +694,9 @@ fun CardioScreen(
                                     type = selectedCardioForLive,
                                     location = location,
                                     intensity = intensity,
-                                    targetMinutes = 20,
-                                    enableGps = true
+                                    targetMinutes = selectedIntervalPlan?.let { ((it.totalSeconds + 59) / 60).toInt() } ?: 20,
+                                    enableGps = true,
+                                    intervalConfigJson = selectedIntervalPlan?.let { com.example.data.local.CardioIntervalCodec.encode(it.copy(outdoor = true)) }.orEmpty()
                                 )
                                 showActiveCardioModal = true
                             } else {
@@ -714,6 +714,7 @@ fun CardioScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                     shape = RoundedCornerShape(12.dp),
+                    enabled = !usesIntervals || selectedIntervalPlan != null,
                     modifier = Modifier.testTag("btn_confirm_start_cardio")
                 ) {
                     Text("Iniciar Agora", color = Color.White, fontWeight = FontWeight.Bold)
