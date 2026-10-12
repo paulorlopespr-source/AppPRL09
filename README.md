@@ -43,7 +43,7 @@ Room versão **17**, com migração aditiva **16 → 17**:
 - Nova tabela `cardio_interval_templates` para modelos.
 - Preservação dos identificadores UUID e do fluxo de finalização existente.
 
-Não desinstale o app nem limpe seus dados para atualizar. Não use migrações destrutivas. O esquema JSON de versão 17 deve ser exportado e conferido pelo KSP na primeira compilação Android bem-sucedida.
+Não desinstale o app nem limpe seus dados para atualizar. Não use migrações destrutivas. O esquema JSON 17 gerado pelo KSP na CI está versionado em `app/schemas/com.example.data.local.AppDatabase/17.json`. As três tabelas Cardio após o SQL de migração foram comparadas com esse esquema e coincidem.
 
 ## Compilação e validação
 
@@ -68,7 +68,8 @@ Esse comando é uma instrução de build, não uma confirmação de que existe u
 - SQL da migração 16 → 17 aplicado em SQLite sobre o esquema 16 com registros de exemplo; preservação dos dados e integridade aprovadas. Essa verificação não substitui o MigrationTestHelper Android.
 - Transparência dos seis novos assets verificada.
 - `git diff --check` aprovado.
-- Compilação Android completa tentada, bloqueada antes de compilar o código pelo download automático do JDK 25 no ambiente local.
+- CI do commit `a417796`: `assembleDebug` e `testDebugUnitTest` aprovados; APK de teste publicado nos artefatos do run [38252718724](https://github.com/paulorlopespr-source/AppPRL09/actions/runs/38252718724).
+- Compilação local bloqueada pelo download do JDK 25; o build Android foi validado no GitHub.
 - Migração Room completa, teste de UI, chamadas, bloqueio de tela, GPS, consumo de bateria e recompensas ainda exigem validação Android.
 
 Consulte [o relatório de implementação e publicação](docs/CARDIO_REDESIGN.md) para pendências e roteiro de continuidade no desktop.

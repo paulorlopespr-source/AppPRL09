@@ -16,7 +16,7 @@
 
 Novos componentes: `CardioVisualLibrary.kt` e `CardioIntervalBuilder.kt` em `ui/components`; motor `domain/cardio/CardioIntervalPlan.kt`; codec `data/local/CardioIntervalCodec.kt`; entidade `data/model/CardioIntervalTemplate.kt`; teste `CardioIntervalPlanTest.kt`.
 
-Alterações: `MainActivity.kt`, `CardioScreen.kt`, `WorkoutTemplatesScreen.kt`, `ActiveCardioTrackerModal.kt`, `OutdoorActivityHistoryCard.kt`, `FitnessViewModel.kt`, `OutdoorLocationService.kt`, `HealthConnectManager.kt`, `CardioSession.kt`, `OutdoorSessionModels.kt`, `ActiveCardioSessionRecord.kt`, `OutdoorCardioPersistence.kt`, `FitnessRepository.kt`, `FitnessDao.kt`, `AppDatabase.kt` e `AndroidManifest.xml`.
+Alterações: `MainActivity.kt`, `CardioScreen.kt`, `WorkoutTemplatesScreen.kt`, `ActiveCardioTrackerModal.kt`, `OutdoorActivityHistoryCard.kt`, `FitnessViewModel.kt`, `OutdoorLocationService.kt`, `HealthConnectManager.kt`, `CardioSession.kt`, `OutdoorSessionModels.kt`, `ActiveCardioSessionRecord.kt`, `OutdoorCardioPersistence.kt`, `FitnessRepository.kt`, `FitnessDao.kt`, `AppDatabase.kt` e `AndroidManifest.xml`. A CI `fase8-gate.yml` recebeu uma etapa aditiva para exportar o esquema Room, e `app/schemas/com.example.data.local.AppDatabase/17.json` foi adicionado.
 
 Permissão nova: `WAKE_LOCK`. As permissões de localização, reconhecimento de atividade, notificação e serviços `health`/`location` já existiam. Não foi adicionada localização irrestrita em segundo plano.
 
@@ -34,9 +34,9 @@ Geração pela ferramenta de imagens, com prompt por asset: atleta masculino/fem
 
 Os cinco testes do motor verificam 22 minutos sem descanso final, transições quando a atualização chega atrasada, aquecimento/desaquecimento, um ciclo, descanso zero e rejeição de configuração inválida. Foram compilados com o compilador Kotlin embutido no Gradle e executados com JUnit 4, fora do build Android.
 
-Não afirmar que o módulo está pronto para produção: a compilação Android local não chegou à etapa de Kotlin/Compose/Room. A tentativa falhou ao provisionar a toolchain JDK 25 pelo Foojay. É preciso executar a CI e revisar seus resultados, além de exportar o esquema 17 do Room. O checkout não possui SDK/emulador nem celular conectado.
+A compilação local falhou ao provisionar a toolchain JDK 25 pelo Foojay. Na CI, um erro no ícone foi corrigido, e o commit `a417796` passou em `assembleDebug` e `testDebugUnitTest` no run [38252718724](https://github.com/paulorlopespr-source/AppPRL09/actions/runs/38252718724). O APK de teste foi publicado como artefato; o esquema 17 gerado pelo KSP foi recuperado e versionado. O teste instrumentado no emulador ainda estava em andamento nesse registro. Não afirmar que o módulo está pronto para produção: chamadas, GPS, sensores e consumo de bateria exigem celular físico.
 
-O SQL da migração 16 → 17 também foi executado em SQLite sobre o esquema 16 exportado, com sessão concluída e checkpoint ativo de exemplo. As linhas anteriores foram preservadas e a verificação de integridade passou. A validação de esquema do Room no Android ainda está pendente.
+O SQL da migração 16 → 17 também foi executado em SQLite sobre o esquema 16 exportado, com sessão concluída e checkpoint ativo de exemplo. As linhas anteriores foram preservadas e a verificação de integridade passou. As três tabelas Cardio resultantes da migração foram comparadas em SQLite com o esquema 17 gerado pelo KSP, com correspondência de nomes, tipos, nulabilidade, chaves e defaults. O teste instrumentado de migração Room com o banco instalado ainda está pendente.
 
 A finalização, plano, histórico e mecanismos existentes de recompensas foram preservados. Ausência de duplicação de XP e sessões exige teste de integração; não foi atribuída uma nova regra de XP nesta alteração.
 
@@ -45,7 +45,7 @@ Ainda pendentes: assets individuais de cada modalidade, comparação com imagem 
 ## Roteiro no desktop
 
 1. Abrir a branch `feat/cardio-visual-library`, verificar o estado remoto e preservar mudanças locais existentes antes de atualizar.
-2. Configurar JDK/SDK e assinatura debug, executar `gradle testDebugUnitTest assembleDebug`, corrigir os erros que aparecerem e adicionar o esquema Room 17 exportado.
+2. Configurar JDK/SDK e assinatura debug, executar `gradle testDebugUnitTest assembleDebug`, conferir eventuais erros do ambiente local. O esquema Room 17 exportado já acompanha a branch.
 3. Instalar sobre a versão anterior com banco preenchido; testar migração, modelos salvos, histórico e finalização repetida.
 4. No celular: iniciar 2:00/2:00 × 6, atender chamada, abrir notificações, pressionar Home, bloquear tela; confirmar fases, notificações, 22:00 finais e cinco descansos.
 5. Testar pausa/retomada, morte de processo, reinicialização e permissões revogadas. Não presumir continuidade após force-stop.
